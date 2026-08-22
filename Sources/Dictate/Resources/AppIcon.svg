@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Dictate</title>
+  <desc id="desc">A dark green editorial insertion caret intersected by a coral breath line on cool paper.</desc>
+  <rect width="1024" height="1024" rx="224" fill="#F3F6F5"/>
+  <path d="M512 176v672" stroke="#245E52" stroke-width="72" stroke-linecap="round"/>
+  <path d="M118 598h788" stroke="#E05A47" stroke-width="44" stroke-linecap="round"/>
+  <circle cx="512" cy="598" r="18" fill="#F3F6F5"/>
+</svg>

@@ -1,0 +1,16 @@
+.build/
+build/
+DerivedData/
+*.xcuserstate
+*.xcworkspace/
+*.xcodeproj/
+*.app/
+*.dSYM/
+*.icns
+*.provisionprofile
+.DS_Store
+*.swp
+*.tmp
+*.log
+*.json.bak
+Sources/Dictate/Resources/*.generated/
