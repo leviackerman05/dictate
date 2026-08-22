@@ -11,14 +11,20 @@ struct PermissionSnapshot: Equatable, Sendable {
     var canRecord: Bool { microphone && speech }
 }
 
+extension Notification.Name {
+    static let dictatePermissionsDidChange = Notification.Name("DictatePermissionsDidChange")
+}
+
 @MainActor
 final class PermissionService: ObservableObject {
     @Published private(set) var snapshot = PermissionSnapshot()
 
     func refresh() {
-        snapshot.microphone = AVAudioApplication.shared.recordPermission == .granted
-        snapshot.speech = SFSpeechRecognizer.authorizationStatus() == .authorized
-        snapshot.accessibility = AXIsProcessTrusted()
+        snapshot = PermissionSnapshot(
+            microphone: AVAudioApplication.shared.recordPermission == .granted,
+            speech: SFSpeechRecognizer.authorizationStatus() == .authorized,
+            accessibility: AXIsProcessTrusted()
+        )
     }
 
     func requestMicrophone() {
@@ -27,8 +33,8 @@ final class PermissionService: ObservableObject {
             refresh()
             return
         }
-        AVAudioApplication.requestRecordPermission { [weak self] _ in
-            DispatchQueue.main.async { [weak self] in self?.refresh() }
+        AVAudioApplication.requestRecordPermission { _ in
+            PermissionService.notifyPermissionChanged()
         }
     }
 
@@ -38,8 +44,14 @@ final class PermissionService: ObservableObject {
             refresh()
             return
         }
-        SFSpeechRecognizer.requestAuthorization { [weak self] _ in
-            DispatchQueue.main.async { [weak self] in self?.refresh() }
+        SFSpeechRecognizer.requestAuthorization { _ in
+            PermissionService.notifyPermissionChanged()
+        }
+    }
+
+    private nonisolated static func notifyPermissionChanged() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .dictatePermissionsDidChange, object: nil)
         }
     }
 

@@ -73,6 +73,9 @@ struct OnboardingView: View {
         .foregroundStyle(DesignSystem.ColorToken.ink)
         .background(DesignSystem.ColorToken.canvas)
         .onAppear { permissions.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: .dictatePermissionsDidChange)) { _ in
+            permissions.refresh()
+        }
     }
 
     private var current: (title: String, detail: String, granted: Bool) { steps[min(step, steps.count - 1)] }
