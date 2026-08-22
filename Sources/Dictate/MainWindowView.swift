@@ -25,6 +25,8 @@ struct MainWindowView: View {
             .background(DesignSystem.ColorToken.surface)
         }
         .background(DesignSystem.ColorToken.canvas)
+        .foregroundStyle(DesignSystem.ColorToken.ink)
+        .preferredColorScheme(.light)
         .frame(minWidth: DesignSystem.Layout.mainMinWidth, minHeight: DesignSystem.Layout.mainMinHeight)
         .sheet(isPresented: Binding(
             get: { !model.onboardingDismissed && !permissions.snapshot.canRecord },

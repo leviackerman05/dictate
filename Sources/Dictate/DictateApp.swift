@@ -7,6 +7,7 @@ struct DictateApp: App {
     var body: some Scene {
         WindowGroup(Copy.appName) {
             MainWindowView(model: appDelegate.model)
+                .preferredColorScheme(.light)
         }
         .commands {
             CommandGroup(after: .textEditing) {
@@ -31,6 +32,8 @@ struct DictateApp: App {
         Settings {
             SettingsView(model: appDelegate.model)
                 .frame(width: DesignSystem.Layout.settingsWidth, height: DesignSystem.Layout.settingsHeight)
+                .foregroundStyle(DesignSystem.ColorToken.ink)
+                .preferredColorScheme(.light)
         }
     }
 }

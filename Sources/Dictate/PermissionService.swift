@@ -28,7 +28,7 @@ final class PermissionService: ObservableObject {
             return
         }
         AVAudioApplication.requestRecordPermission { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            DispatchQueue.main.async { [weak self] in self?.refresh() }
         }
     }
 
@@ -39,7 +39,7 @@ final class PermissionService: ObservableObject {
             return
         }
         SFSpeechRecognizer.requestAuthorization { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            DispatchQueue.main.async { [weak self] in self?.refresh() }
         }
     }
 
