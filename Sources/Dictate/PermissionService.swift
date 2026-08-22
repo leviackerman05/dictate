@@ -33,9 +33,7 @@ final class PermissionService: ObservableObject {
             refresh()
             return
         }
-        AVAudioApplication.requestRecordPermission { _ in
-            PermissionService.notifyPermissionChanged()
-        }
+        Self.requestMicrophoneAuthorization()
     }
 
     func requestSpeech() {
@@ -44,8 +42,18 @@ final class PermissionService: ObservableObject {
             refresh()
             return
         }
+        Self.requestSpeechAuthorization()
+    }
+
+    private nonisolated static func requestMicrophoneAuthorization() {
+        AVAudioApplication.requestRecordPermission { _ in
+            notifyPermissionChanged()
+        }
+    }
+
+    private nonisolated static func requestSpeechAuthorization() {
         SFSpeechRecognizer.requestAuthorization { _ in
-            PermissionService.notifyPermissionChanged()
+            notifyPermissionChanged()
         }
     }
 
