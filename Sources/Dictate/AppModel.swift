@@ -11,6 +11,20 @@ enum AppSection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum RecordingMode: String, CaseIterable, Codable, Identifiable {
+    case holdToTalk
+    case clickToToggle
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .holdToTalk: return String(localized: "recording.mode.hold")
+        case .clickToToggle: return String(localized: "recording.mode.toggle")
+        }
+    }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var section: AppSection = .history
@@ -41,6 +55,18 @@ final class AppModel: ObservableObject {
     @Published var onboardingDismissed: Bool {
         didSet { UserDefaults.standard.set(onboardingDismissed, forKey: Keys.onboardingDismissed) }
     }
+    @Published var microphoneEnabled: Bool {
+        didSet { UserDefaults.standard.set(microphoneEnabled, forKey: Keys.microphoneEnabled) }
+    }
+    @Published var recordingMode: RecordingMode {
+        didSet { UserDefaults.standard.set(recordingMode.rawValue, forKey: Keys.recordingMode) }
+    }
+    @Published var transcriptionProvider: TranscriptionProvider {
+        didSet {
+            UserDefaults.standard.set(transcriptionProvider.rawValue, forKey: Keys.transcriptionProvider)
+            dictation.provider = transcriptionProvider
+        }
+    }
 
     let dictation: DictationController
     let permissions: PermissionService
@@ -53,6 +79,9 @@ final class AppModel: ObservableObject {
         static let shortcut = "shortcut"
         static let customShortcut = "customShortcut"
         static let onboardingDismissed = "onboardingDismissed"
+        static let microphoneEnabled = "microphoneEnabled"
+        static let recordingMode = "recordingMode"
+        static let transcriptionProvider = "transcriptionProvider"
     }
 
     init() {
@@ -71,8 +100,12 @@ final class AppModel: ObservableObject {
             customShortcut = nil
         }
         onboardingDismissed = UserDefaults.standard.bool(forKey: Keys.onboardingDismissed)
+        microphoneEnabled = UserDefaults.standard.object(forKey: Keys.microphoneEnabled) as? Bool ?? true
+        recordingMode = RecordingMode(rawValue: UserDefaults.standard.string(forKey: Keys.recordingMode) ?? "") ?? .holdToTalk
+        transcriptionProvider = TranscriptionProvider(rawValue: UserDefaults.standard.string(forKey: Keys.transcriptionProvider) ?? "") ?? .apple
 
         dictation.onCompleted = { [weak self] item in self?.completed(item) }
+        dictation.provider = transcriptionProvider
         permissions.refresh()
         Task { [weak self] in await self?.loadLocalData() }
     }
@@ -94,7 +127,11 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func startRecording() { dictation.start(entries: dictionary) }
+    func startRecording() {
+        permissions.refresh()
+        guard microphoneEnabled else { return }
+        dictation.start(entries: dictionary)
+    }
     func finishRecording() { dictation.finish() }
     func cancelRecording() { dictation.cancel() }
 
@@ -135,6 +172,21 @@ final class AppModel: ObservableObject {
     func deleteDictionaryEntry(_ entry: DictionaryEntry) {
         dictionary.removeAll { $0.id == entry.id }
         persistDictionary()
+    }
+
+    func learnCorrection(_ audit: CorrectionAudit) {
+        let learned = DictionaryEntry.correction(heard: audit.heard, written: audit.written)
+        guard !dictionary.contains(where: {
+            $0.kind == .correction &&
+            $0.sourcePhrase.caseInsensitiveCompare(learned.sourcePhrase) == .orderedSame &&
+            $0.targetPhrase?.caseInsensitiveCompare(learned.targetPhrase ?? "") == .orderedSame
+        }) else {
+            dictionaryNotice = String(localized: "dictionary.alreadyLearned")
+            return
+        }
+        dictionary.append(learned)
+        persistDictionary()
+        dictionaryNotice = String(localized: "dictionary.learned")
     }
 
     func setDictionaryEnabled(_ enabled: Bool, for entry: DictionaryEntry) {

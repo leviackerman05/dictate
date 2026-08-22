@@ -10,7 +10,8 @@ narrow AppKit adapters.
 ```text
 SwiftUI views ── AppModel ── DictationController
                               ├─ AudioCaptureService → AsyncStream<AudioChunk>
-                              ├─ SpeechRecognitionService → on-device Speech
+                              ├─ SpeechRecognitionService → Apple SpeechAnalyzer
+                              ├─ ParakeetRecognitionService → FluidAudio / Parakeet v3
                               ├─ FocusSnapshotService → AXUIElement / pasteboard
                               ├─ PermissionService → platform permission APIs
                               └─ DictateCore matcher + stores
@@ -39,9 +40,11 @@ buffer. Recognition has one consumer task for the stream and one Speech task.
 Stores are actors and use atomic JSON writes. Core value types are `Sendable` so
 test fakes can cross task boundaries without shared mutable state.
 
-The current adapter uses Apple's public `SFSpeechAudioBufferRecognitionRequest` in
-on-device mode and exposes unavailable model state. macOS manages Speech model
-assets; there is no public installer API that can be safely driven by this app.
+Apple's `SpeechAnalyzer` provides streaming on-device partials. Parakeet v3 is a
+separate batch-on-release provider: it buffers the same ordered audio stream,
+resamples to 16 kHz mono, and runs FluidAudio/CoreML on the Neural Engine when
+selected. Both providers share the controller boundary, dictionary vocabulary,
+delivery, history, and permissions.
 
 ## Delivery
 

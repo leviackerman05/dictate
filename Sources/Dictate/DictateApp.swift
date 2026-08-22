@@ -16,8 +16,6 @@ struct DictateApp: App {
                     else { appDelegate.model.finishRecording() }
                 }
                 .keyboardShortcut("r", modifiers: [.command, .option])
-                Button(Copy.cancelRecording) { appDelegate.model.cancelRecording() }
-                    .keyboardShortcut(.escape, modifiers: [])
             }
             CommandMenu(Copy.appName) {
                 Button(Copy.history) { appDelegate.model.section = .history }

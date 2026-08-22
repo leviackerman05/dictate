@@ -1,18 +1,26 @@
 @preconcurrency import AVFAudio
-@preconcurrency import Speech
 import AppKit
 import ApplicationServices
 
 struct PermissionSnapshot: Equatable, Sendable {
     var microphone = false
-    var speech = false
     var accessibility = false
 
-    var canRecord: Bool { microphone && speech }
+    // SpeechAnalyzer uses the Mac's on-device speech stack; microphone access
+    // is the only recording permission Dictate needs to request.
+    var canRecord: Bool { microphone }
 }
 
 extension Notification.Name {
     static let dictatePermissionsDidChange = Notification.Name("DictatePermissionsDidChange")
+}
+
+private func requestMicrophoneAuthorization() {
+    AVAudioApplication.requestRecordPermission { _ in
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .dictatePermissionsDidChange, object: nil)
+        }
+    }
 }
 
 @MainActor
@@ -22,7 +30,6 @@ final class PermissionService: ObservableObject {
     func refresh() {
         snapshot = PermissionSnapshot(
             microphone: AVAudioApplication.shared.recordPermission == .granted,
-            speech: SFSpeechRecognizer.authorizationStatus() == .authorized,
             accessibility: AXIsProcessTrusted()
         )
     }
@@ -33,34 +40,7 @@ final class PermissionService: ObservableObject {
             refresh()
             return
         }
-        Self.requestMicrophoneAuthorization()
-    }
-
-    func requestSpeech() {
-        guard SFSpeechRecognizer.authorizationStatus() == .notDetermined else {
-            openSpeechSettings()
-            refresh()
-            return
-        }
-        Self.requestSpeechAuthorization()
-    }
-
-    private nonisolated static func requestMicrophoneAuthorization() {
-        AVAudioApplication.requestRecordPermission { _ in
-            notifyPermissionChanged()
-        }
-    }
-
-    private nonisolated static func requestSpeechAuthorization() {
-        SFSpeechRecognizer.requestAuthorization { _ in
-            notifyPermissionChanged()
-        }
-    }
-
-    private nonisolated static func notifyPermissionChanged() {
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .dictatePermissionsDidChange, object: nil)
-        }
+        requestMicrophoneAuthorization()
     }
 
     func openAccessibilitySettings() {
@@ -70,11 +50,6 @@ final class PermissionService: ObservableObject {
 
     func openMicrophoneSettings() {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!
-        NSWorkspace.shared.open(url)
-    }
-
-    func openSpeechSettings() {
-        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition")!
         NSWorkspace.shared.open(url)
     }
 }

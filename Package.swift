@@ -15,6 +15,9 @@ let package = Package(
         .library(name: "DictateCore", targets: ["DictateCore"]),
         .executable(name: "Dictate", targets: ["Dictate"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.4")
+    ],
     targets: [
         .target(
             name: "DictateCore",
@@ -23,7 +26,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "Dictate",
-            dependencies: ["DictateCore"],
+            dependencies: [
+                "DictateCore",
+                .product(name: "FluidAudio", package: "FluidAudio")
+            ],
             path: "Sources/Dictate",
             resources: [.process("Resources")],
             swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete"])]

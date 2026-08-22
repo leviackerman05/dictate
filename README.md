@@ -13,7 +13,8 @@ bundle identifier `app.dictate.desktop`. The bundle script accepts
 
 - macOS 26 or newer at runtime.
 - Swift 6.2 or newer and Xcode with the macOS 26 SDK for the full app build.
-- Microphone and Speech Recognition permissions for recording.
+- Microphone permission for recording. The app uses Apple's modern on-device
+  SpeechAnalyzer path; there is no separate legacy “Speech Recognition” step.
 - Accessibility permission for automatic insertion into another application.
   Dictate remains useful for copying transcripts without it.
 
@@ -59,12 +60,12 @@ the app's own controls or Finder after quitting the app.
 
 ## First run and permissions
 
-The first-run window checks Microphone, Speech Recognition, and Accessibility in
-that order, derives state from Apple's permission APIs, opens the relevant System
-Settings pane, and rechecks when Dictate becomes active again. Accessibility is
-optional for notebook/copy use; the insertion status is explicit when it is not
-available. Dictate does not use a stored “completed” flag as permission truth and
-does not issue privacy-reset commands.
+The first-run window checks Microphone and Accessibility, derives state from
+Apple's permission APIs, opens the relevant System Settings pane, and rechecks
+when Dictate becomes active again. Accessibility is optional for notebook/copy
+use; the insertion status is explicit when it is not available. Dictate does
+not use a stored “completed” flag as permission truth and does not issue
+privacy-reset commands.
 
 ## Privacy
 
@@ -78,8 +79,12 @@ advertising, telemetry, or cloud dependency exists. See [PRIVACY.md](PRIVACY.md)
 - Deterministic `idle → preparing → listening → transcribing → inserting → idle`
   state machine with cancellation, silence handling, failure states, and busy
   finalization protection.
-- Right Option, Fn, Right Command, and a shortcut model ready for recording a
-  custom non-conflicting shortcut. Repeated modifier events are de-duplicated.
+- Right Option, Fn, Right Command, and custom shortcuts. The Fn path uses a
+  Quartz event tap when Input Monitoring is available so the configured key can
+  take priority over macOS's emoji picker. Repeated modifier events are
+  de-duplicated.
+- Hold-to-talk and click-to-toggle recording modes, with a compact non-activating
+  overlay and no visible cancel control.
 - Ordered copied audio stream, on-device Speech adapter, contextual vocabulary,
   focus snapshot, Accessibility insertion, and pasteboard/Command-V fallback.
 - Personal dictionary with vocabulary and correction entries; search, filters,

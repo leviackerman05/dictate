@@ -7,7 +7,7 @@ struct RecordingOverlayView: View {
         HStack(spacing: DesignSystem.Layout.space3) {
             Circle()
                 .fill(dotColor)
-                .frame(width: DesignSystem.Layout.space3, height: DesignSystem.Layout.space3)
+                .frame(width: 8, height: 8)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: DesignSystem.Layout.space1) {
                 Text(statusText)
@@ -19,20 +19,14 @@ struct RecordingOverlayView: View {
                     .lineLimit(1)
             }
             Spacer(minLength: DesignSystem.Layout.space2)
-            if controller.state != .idle {
-                Button(Copy.cancelRecording) { controller.cancel() }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(DesignSystem.ColorToken.mutedInk)
-                    .accessibilityLabel(Copy.cancelRecording)
-            }
         }
-        .padding(.horizontal, DesignSystem.Layout.space6)
-        .padding(.vertical, DesignSystem.Layout.space4)
+        .padding(.horizontal, DesignSystem.Layout.space4)
+        .padding(.vertical, 10)
         .background(DesignSystem.ColorToken.canvas)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlay))
         .overlay(alignment: .bottom) {
-            BreathLine(level: controller.inputLevel, active: controller.state != .idle)
-                .padding(.horizontal, DesignSystem.Layout.space6)
+                BreathLine(level: controller.inputLevel, active: controller.state != .idle)
+                .padding(.horizontal, DesignSystem.Layout.space4)
         }
         .shadow(color: .black.opacity(DesignSystem.Shadow.overlayOpacity), radius: DesignSystem.Shadow.overlayRadius, y: DesignSystem.Shadow.overlayY)
         .accessibilityElement(children: .contain)

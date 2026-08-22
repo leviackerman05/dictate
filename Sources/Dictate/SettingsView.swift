@@ -3,7 +3,13 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var permissions: PermissionService
     @State private var showDeleteConfirmation = false
+
+    init(model: AppModel) {
+        self.model = model
+        _permissions = ObservedObject(wrappedValue: model.permissions)
+    }
 
     var body: some View {
         Form {
@@ -22,11 +28,26 @@ struct SettingsView: View {
                 Text(String(localized: "settings.shortcutDetail"))
                     .font(.caption)
                     .foregroundStyle(DesignSystem.ColorToken.mutedInk)
+                Picker(String(localized: "settings.recordingMode"), selection: $model.recordingMode) {
+                    ForEach(RecordingMode.allCases) { mode in Text(mode.title).tag(mode) }
+                }
+                Text(model.recordingMode == .holdToTalk ? String(localized: "settings.holdModeDetail") : String(localized: "settings.toggleModeDetail"))
+                    .font(.caption)
+                    .foregroundStyle(DesignSystem.ColorToken.mutedInk)
             }
 
             Section(Copy.speech) {
-                LabeledContent(Copy.microphone, value: model.permissions.snapshot.microphone ? String(localized: "common.available") : String(localized: "common.needsPermission"))
-                LabeledContent(Copy.speechRecognition, value: model.permissions.snapshot.speech ? String(localized: "common.available") : String(localized: "common.needsPermission"))
+                Toggle(String(localized: "settings.useMicrophone"), isOn: $model.microphoneEnabled)
+                Picker(String(localized: "settings.transcriptionModel"), selection: $model.transcriptionProvider) {
+                    ForEach(TranscriptionProvider.allCases) { provider in Text(provider.title).tag(provider) }
+                }
+                Text(model.transcriptionProvider.detail)
+                    .font(.caption)
+                    .foregroundStyle(DesignSystem.ColorToken.mutedInk)
+                LabeledContent(Copy.microphone, value: permissions.snapshot.microphone ? String(localized: "common.allowed") : String(localized: "common.blocked"))
+                if !permissions.snapshot.microphone {
+                    Button(Copy.openSettings) { permissions.openMicrophoneSettings() }
+                }
                 LabeledContent(String(localized: "settings.speechModel"), value: model.dictation.speechModelAvailable ? String(localized: "common.available") : String(localized: "common.unavailable"))
                 if !model.dictation.speechModelAvailable {
                     Text(String(localized: "settings.speechModelDetail"))
@@ -37,12 +58,12 @@ struct SettingsView: View {
             }
 
             Section(Copy.insertion) {
-                LabeledContent(Copy.accessibility, value: model.permissions.snapshot.accessibility ? String(localized: "common.available") : String(localized: "common.optional"))
+                LabeledContent(Copy.accessibility, value: permissions.snapshot.accessibility ? String(localized: "common.allowed") : String(localized: "common.optional"))
                 Text(String(localized: "settings.insertionDetail"))
                     .font(.caption)
                     .foregroundStyle(DesignSystem.ColorToken.mutedInk)
-                if !model.permissions.snapshot.accessibility {
-                    Button(Copy.openSettings) { model.permissions.openAccessibilitySettings() }
+                if !permissions.snapshot.accessibility {
+                    Button(Copy.openSettings) { permissions.openAccessibilitySettings() }
                 }
             }
 

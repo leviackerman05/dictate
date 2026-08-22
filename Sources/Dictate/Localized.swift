@@ -42,7 +42,6 @@ enum Copy {
     static let retention = String(localized: "settings.retention")
     static let accessibility = String(localized: "permissions.accessibility")
     static let microphone = String(localized: "permissions.microphone")
-    static let speechRecognition = String(localized: "permissions.speech")
     static let openSettings = String(localized: "permissions.openSettings")
     static let checkAgain = String(localized: "permissions.checkAgain")
 }

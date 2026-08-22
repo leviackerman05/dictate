@@ -11,30 +11,37 @@ struct MainWindowView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView(model: model)
-                .navigationSplitViewColumnWidth(min: DesignSystem.Layout.sidebarWidth, ideal: DesignSystem.Layout.sidebarWidth, max: DesignSystem.Layout.sidebarWidth)
-        } detail: {
-            Group {
-                switch model.section {
-                case .history: HistoryView(model: model)
-                case .dictionary: DictionaryView(model: model)
-                case .settings: SettingsView(model: model)
+        ZStack {
+            NavigationSplitView {
+                SidebarView(model: model)
+                    .navigationSplitViewColumnWidth(min: DesignSystem.Layout.sidebarWidth, ideal: DesignSystem.Layout.sidebarWidth, max: DesignSystem.Layout.sidebarWidth)
+            } detail: {
+                Group {
+                    switch model.section {
+                    case .history: HistoryView(model: model)
+                    case .dictionary: DictionaryView(model: model)
+                    case .settings: SettingsView(model: model)
+                    }
                 }
+                .background(DesignSystem.ColorToken.surface)
             }
-            .background(DesignSystem.ColorToken.surface)
+            .background(DesignSystem.ColorToken.canvas)
+
+            if !permissions.snapshot.microphone {
+                Color.black.opacity(0.22)
+                    .ignoresSafeArea()
+                OnboardingView(model: model)
+                    .frame(width: DesignSystem.Layout.onboardingWidth, height: DesignSystem.Layout.onboardingHeight)
+                    .background(DesignSystem.ColorToken.canvas)
+                    .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlay))
+                    .shadow(color: .black.opacity(DesignSystem.Shadow.overlayOpacity), radius: DesignSystem.Shadow.overlayRadius, y: DesignSystem.Shadow.overlayY)
+                    .zIndex(1)
+            }
         }
-        .background(DesignSystem.ColorToken.canvas)
         .foregroundStyle(DesignSystem.ColorToken.ink)
         .preferredColorScheme(.light)
         .frame(minWidth: DesignSystem.Layout.mainMinWidth, minHeight: DesignSystem.Layout.mainMinHeight)
-        .sheet(isPresented: Binding(
-            get: { !model.onboardingDismissed && !permissions.snapshot.canRecord },
-            set: { isPresented in if !isPresented { model.onboardingDismissed = true } }
-        )) {
-            OnboardingView(model: model)
-                .frame(width: DesignSystem.Layout.onboardingWidth, height: DesignSystem.Layout.onboardingHeight)
-        }
+        .onAppear { permissions.refresh() }
     }
 }
 
@@ -61,13 +68,14 @@ private struct SidebarView: View {
 
             VStack(alignment: .leading, spacing: DesignSystem.Layout.space2) {
                 Button {
-                    if model.dictation.state == .idle { model.startRecording() } else { model.cancelRecording() }
+                    if model.dictation.state == .idle { model.startRecording() } else { model.finishRecording() }
                 } label: {
-                    Label(model.dictation.state == .idle ? Copy.startRecording : Copy.cancelRecording,
-                          systemImage: model.dictation.state == .idle ? "circle.fill" : "xmark")
+                    Label(model.dictation.state == .idle ? Copy.startRecording : Copy.stopRecording,
+                          systemImage: model.dictation.state == .idle ? "circle.fill" : "square.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(model.dictation.state == .idle ? DesignSystem.ColorToken.action : DesignSystem.ColorToken.recording)
+                .disabled(model.dictation.state == .idle && !model.permissions.snapshot.canRecord)
                 .accessibilityHint(String(localized: "accessibility.recordButton.hint"))
 
                 HStack(spacing: DesignSystem.Layout.space2) {
@@ -177,26 +185,35 @@ private struct ActiveTranscriptionView: View {
         if controller.state == .idle {
             EmptyView()
         } else {
-            VStack(alignment: .leading, spacing: DesignSystem.Layout.space2) {
-                HStack(spacing: DesignSystem.Layout.space2) {
-                    Circle()
-                        .fill(DesignSystem.ColorToken.recording)
-                        .frame(width: DesignSystem.Layout.space2, height: DesignSystem.Layout.space2)
-                    Text(AccessibilitySupport.status(for: controller.state))
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(DesignSystem.ColorToken.mutedInk)
-                }
-                Text(controller.liveText.isEmpty ? String(localized: "recording.speakPrompt") : controller.liveText)
-                    .font(.system(.title3, design: .serif))
+            HStack(spacing: DesignSystem.Layout.space2) {
+                Circle()
+                    .fill(DesignSystem.ColorToken.recording)
+                    .frame(width: 7, height: 7)
+                Text(AccessibilitySupport.status(for: controller.state))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(DesignSystem.ColorToken.mutedInk)
+                Text(controller.lastFailure.map(Self.failureMessage) ?? (controller.liveText.isEmpty ? String(localized: "recording.speakPrompt") : controller.liveText))
+                    .font(.system(.body, design: .serif))
                     .foregroundStyle(DesignSystem.ColorToken.ink)
-                    .frame(maxWidth: DesignSystem.Layout.transcriptMeasure, alignment: .leading)
+                    .lineLimit(1)
+                Spacer(minLength: DesignSystem.Layout.space2)
                 BreathLine(level: controller.inputLevel, active: true)
+                    .frame(width: 132)
             }
-            .padding(.horizontal, DesignSystem.Layout.space8)
-            .padding(.vertical, DesignSystem.Layout.space4)
+            .padding(.horizontal, DesignSystem.Layout.space6)
+            .padding(.vertical, 10)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(AccessibilitySupport.status(for: controller.state))
             .accessibilityValue(controller.liveText)
+        }
+    }
+
+    private static func failureMessage(_ failure: DictationFailure) -> String {
+        switch failure {
+        case .microphonePermissionDenied: return String(localized: "recording.microphoneDenied")
+        case .speechModelUnavailable: return String(localized: "recording.modelUnavailable")
+        case .captureUnavailable: return String(localized: "recording.captureFailed")
+        default: return String(localized: "recording.failed")
         }
     }
 }
@@ -216,6 +233,7 @@ private struct EmptyHistoryView: View {
             Button(Copy.startRecording) { model.startRecording() }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.ColorToken.action)
+                .disabled(!model.permissions.snapshot.canRecord)
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -267,6 +285,9 @@ private struct HistoryRow: View {
                                 Text(audit.heard)
                                 Image(systemName: "arrow.right")
                                 Text(audit.written)
+                                Spacer()
+                                Button(String(localized: "dictionary.learn")) { model.learnCorrection(audit) }
+                                    .buttonStyle(.borderless)
                             }
                             .font(.caption)
                             .foregroundStyle(DesignSystem.ColorToken.mutedInk)

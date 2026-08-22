@@ -14,7 +14,8 @@ final class DictationController: ObservableObject {
 
     private var machine = DictationStateMachine()
     private let capture: any AudioCapturing
-    private let recognition: any SpeechRecognizing
+    private let appleRecognition: any SpeechRecognizing
+    private let parakeetRecognition: any SpeechRecognizing
     private let delivery: any FocusDelivering
     private let permissions: PermissionService
     private let matcher = CorrectionMatcher()
@@ -22,20 +23,27 @@ final class DictationController: ObservableObject {
     private var startedAt: Date?
     private var sessionTask: Task<Void, Never>?
     private var activeEntries: [DictionaryEntry] = []
+    var provider: TranscriptionProvider = .apple
 
     init(
         capture: any AudioCapturing = AudioCaptureService(),
         recognition: any SpeechRecognizing = SpeechRecognitionService(),
+        parakeet: any SpeechRecognizing = ParakeetRecognitionService(),
         delivery: any FocusDelivering = FocusSnapshotService(),
         permissions: PermissionService = PermissionService()
     ) {
         self.capture = capture
-        self.recognition = recognition
+        self.appleRecognition = recognition
+        self.parakeetRecognition = parakeet
         self.delivery = delivery
         self.permissions = permissions
     }
 
-    var speechModelAvailable: Bool { recognition.modelIsAvailable }
+    var speechModelAvailable: Bool { activeRecognition.modelIsAvailable }
+
+    private var activeRecognition: any SpeechRecognizing {
+        provider == .parakeet ? parakeetRecognition : appleRecognition
+    }
 
     func start(entries: [DictionaryEntry]) {
         guard case .idle = state else {
@@ -46,12 +54,14 @@ final class DictationController: ObservableObject {
         lastFailure = nil
         liveText = ""
         feedbackMessage = ""
+        permissions.refresh()
+        let recognition = activeRecognition
+        DictateLog.lifecycle.debug("recording requested mic=\(self.permissions.snapshot.microphone) provider=\(self.provider.rawValue, privacy: .public) model=\(recognition.modelIsAvailable)")
         _ = machine.send(.startRequested)
         publish()
         DictateLog.lifecycle.debug("dictation session preparing")
         activeFocus = delivery.captureFocus()
         guard permissions.snapshot.microphone else { fail(.microphonePermissionDenied); return }
-        guard permissions.snapshot.speech else { fail(.speechPermissionDenied); return }
         guard recognition.modelIsAvailable else { fail(.speechModelUnavailable); return }
         _ = machine.send(.resourcesReady)
         do {
@@ -64,7 +74,7 @@ final class DictationController: ObservableObject {
                 guard let self else { return }
                 do {
                     let vocabulary = VocabularySelector.select(entries: entries, context: "", limit: 24)
-                    let transcript = try await self.recognition.transcribe(stream: stream, contextualVocabulary: vocabulary) { [weak self] partial in
+                    let transcript = try await recognition.transcribe(stream: stream, contextualVocabulary: vocabulary) { [weak self] partial in
                         guard let self else { return }
                         self.liveText = partial
                         _ = self.machine.send(.partialText(partial, level: self.inputLevel))
@@ -74,10 +84,12 @@ final class DictationController: ObservableObject {
                 } catch RecognitionError.cancelled {
                     self.resetWithoutInsertion()
                 } catch {
+                    DictateLog.recognition.error("recognition failed: \(String(describing: error), privacy: .public)")
                     self.fail(.recognitionUnavailable)
                 }
             }
         } catch {
+            DictateLog.capture.error("audio capture failed: \(String(describing: error), privacy: .public)")
             fail(.captureUnavailable)
         }
     }
@@ -91,7 +103,8 @@ final class DictationController: ObservableObject {
     func cancel() {
         guard state != .idle else { return }
         capture.stop()
-        recognition.cancel()
+        appleRecognition.cancel()
+        parakeetRecognition.cancel()
         sessionTask?.cancel()
         sessionTask = nil
         _ = machine.send(.cancel)
@@ -144,8 +157,10 @@ final class DictationController: ObservableObject {
     }
 
     private func fail(_ failure: DictationFailure) {
+        DictateLog.lifecycle.error("dictation failed: \(failure.rawValue, privacy: .public)")
         capture.stop()
-        recognition.cancel()
+        appleRecognition.cancel()
+        parakeetRecognition.cancel()
         _ = machine.send(.failure(failure))
         lastFailure = failure
         publish()

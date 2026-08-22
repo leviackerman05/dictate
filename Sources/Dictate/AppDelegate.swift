@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var shortcutMonitor: ShortcutMonitor?
     private var stateCancellable: AnyCancellable?
     private var shortcutCancellable: AnyCancellable?
+    private var recordingModeCancellable: AnyCancellable?
     private var escapeMonitor: Any?
     private var activeObserver: NSObjectProtocol?
 
@@ -25,6 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.menuBar?.update(state: state)
         }
         shortcutCancellable = model.$shortcut.combineLatest(model.$customShortcut).sink { [weak self] _, _ in
+            self?.installShortcutMonitor()
+        }
+        recordingModeCancellable = model.$recordingMode.sink { [weak self] _ in
             self?.installShortcutMonitor()
         }
         escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -43,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func installShortcutMonitor() {
-        shortcutMonitor?.start(choice: model.shortcut, custom: model.customShortcut) { [weak self] in
+        shortcutMonitor?.start(choice: model.shortcut, custom: model.customShortcut, recordingMode: model.recordingMode) { [weak self] in
             guard let self, self.model.dictation.state == .idle else { return }
             self.model.startRecording()
         } onFinish: { [weak self] in

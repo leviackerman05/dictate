@@ -14,8 +14,8 @@ enum DesignSystem {
     enum Layout {
         static let hairline = 1.0
         static let sidebarWidth = 220.0
-        static let overlayWidth = 420.0
-        static let overlayHeight = 72.0
+        static let overlayWidth = 360.0
+        static let overlayHeight = 52.0
         static let mainMinWidth = 820.0
         static let mainMinHeight = 520.0
         static let historySearchWidth = 220.0

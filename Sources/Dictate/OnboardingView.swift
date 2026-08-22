@@ -13,7 +13,6 @@ struct OnboardingView: View {
     private var steps: [(title: String, detail: String, granted: Bool)] {
         [
             (Copy.microphone, String(localized: "onboarding.microphoneDetail"), permissions.snapshot.microphone),
-            (Copy.speechRecognition, String(localized: "onboarding.speechDetail"), permissions.snapshot.speech),
             (Copy.accessibility, String(localized: "onboarding.accessibilityDetail"), permissions.snapshot.accessibility)
         ]
     }
@@ -83,12 +82,17 @@ struct OnboardingView: View {
     private func requestCurrent() {
         switch step {
         case 0: permissions.requestMicrophone()
-        case 1: permissions.requestSpeech()
         default: permissions.openAccessibilitySettings()
         }
     }
 
     private func advance() {
+        guard permissions.snapshot.canRecord else {
+            if let firstMissing = steps.firstIndex(where: { !$0.granted }) {
+                step = firstMissing
+            }
+            return
+        }
         if step < steps.count - 1 { step += 1 } else { model.onboardingDismissed = true }
     }
 }
