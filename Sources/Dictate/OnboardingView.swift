@@ -2,13 +2,19 @@ import SwiftUI
 
 struct OnboardingView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var permissions: PermissionService
     @State private var step = 0
+
+    init(model: AppModel) {
+        self.model = model
+        _permissions = ObservedObject(wrappedValue: model.permissions)
+    }
 
     private var steps: [(title: String, detail: String, granted: Bool)] {
         [
-            (Copy.microphone, String(localized: "onboarding.microphoneDetail"), model.permissions.snapshot.microphone),
-            (Copy.speechRecognition, String(localized: "onboarding.speechDetail"), model.permissions.snapshot.speech),
-            (Copy.accessibility, String(localized: "onboarding.accessibilityDetail"), model.permissions.snapshot.accessibility)
+            (Copy.microphone, String(localized: "onboarding.microphoneDetail"), permissions.snapshot.microphone),
+            (Copy.speechRecognition, String(localized: "onboarding.speechDetail"), permissions.snapshot.speech),
+            (Copy.accessibility, String(localized: "onboarding.accessibilityDetail"), permissions.snapshot.accessibility)
         ]
     }
 
@@ -19,6 +25,7 @@ struct OnboardingView: View {
                 .foregroundStyle(DesignSystem.ColorToken.ink)
             Text(String(localized: "onboarding.title"))
                 .font(.title2)
+                .foregroundStyle(DesignSystem.ColorToken.ink)
             Text(String(localized: "onboarding.intro"))
                 .foregroundStyle(DesignSystem.ColorToken.mutedInk)
 
@@ -28,11 +35,19 @@ struct OnboardingView: View {
                         Image(systemName: item.granted ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(item.granted ? DesignSystem.ColorToken.action : DesignSystem.ColorToken.mutedInk)
                         VStack(alignment: .leading, spacing: DesignSystem.Layout.space1) {
-                            Text(item.title).font(.headline)
+                            Text(item.title)
+                                .font(.headline)
+                                .foregroundStyle(DesignSystem.ColorToken.ink)
                             if index == step || item.granted { Text(item.detail).font(.caption).foregroundStyle(DesignSystem.ColorToken.mutedInk) }
                         }
                         Spacer()
                     }
+                    .padding(.horizontal, DesignSystem.Layout.space3)
+                    .padding(.vertical, DesignSystem.Layout.space2)
+                    .background(
+                        index == step ? DesignSystem.ColorToken.surface : .clear,
+                        in: RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusSurface)
+                    )
                     .contentShape(Rectangle())
                     .onTapGesture { step = index }
                 }
@@ -40,6 +55,8 @@ struct OnboardingView: View {
 
             HStack {
                 Button(Copy.checkAgain) { model.permissions.refresh() }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(DesignSystem.ColorToken.mutedInk)
                 Spacer()
                 if current.granted || step == steps.count - 1 {
                     Button(String(localized: "onboarding.continue")) { advance() }
@@ -53,17 +70,18 @@ struct OnboardingView: View {
             }
         }
         .padding(DesignSystem.Layout.space8)
+        .foregroundStyle(DesignSystem.ColorToken.ink)
         .background(DesignSystem.ColorToken.canvas)
-        .onAppear { model.permissions.refresh() }
+        .onAppear { permissions.refresh() }
     }
 
     private var current: (title: String, detail: String, granted: Bool) { steps[min(step, steps.count - 1)] }
 
     private func requestCurrent() {
         switch step {
-        case 0: model.permissions.requestMicrophone()
-        case 1: model.permissions.requestSpeech()
-        default: model.permissions.openAccessibilitySettings()
+        case 0: permissions.requestMicrophone()
+        case 1: permissions.requestSpeech()
+        default: permissions.openAccessibilitySettings()
         }
     }
 

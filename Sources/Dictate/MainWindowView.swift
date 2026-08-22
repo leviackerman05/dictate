@@ -3,6 +3,12 @@ import SwiftUI
 
 struct MainWindowView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var permissions: PermissionService
+
+    init(model: AppModel) {
+        self.model = model
+        _permissions = ObservedObject(wrappedValue: model.permissions)
+    }
 
     var body: some View {
         NavigationSplitView {
@@ -21,7 +27,7 @@ struct MainWindowView: View {
         .background(DesignSystem.ColorToken.canvas)
         .frame(minWidth: DesignSystem.Layout.mainMinWidth, minHeight: DesignSystem.Layout.mainMinHeight)
         .sheet(isPresented: Binding(
-            get: { !model.onboardingDismissed && !model.permissions.snapshot.canRecord },
+            get: { !model.onboardingDismissed && !permissions.snapshot.canRecord },
             set: { isPresented in if !isPresented { model.onboardingDismissed = true } }
         )) {
             OnboardingView(model: model)

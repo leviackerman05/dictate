@@ -22,12 +22,22 @@ final class PermissionService: ObservableObject {
     }
 
     func requestMicrophone() {
+        guard AVAudioApplication.shared.recordPermission == .undetermined else {
+            openMicrophoneSettings()
+            refresh()
+            return
+        }
         AVAudioApplication.requestRecordPermission { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
     }
 
     func requestSpeech() {
+        guard SFSpeechRecognizer.authorizationStatus() == .notDetermined else {
+            openSpeechSettings()
+            refresh()
+            return
+        }
         SFSpeechRecognizer.requestAuthorization { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
