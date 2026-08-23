@@ -48,22 +48,42 @@ struct SettingsView: View {
                 if !permissions.snapshot.microphone {
                     Button(Copy.openSettings) { permissions.openMicrophoneSettings() }
                 }
-                LabeledContent(String(localized: "settings.speechModel"), value: model.dictation.speechModelAvailable ? String(localized: "common.available") : String(localized: "common.unavailable"))
-                if !model.dictation.speechModelAvailable {
+                LabeledContent(String(localized: "settings.speechModel"), value: model.dictation.speechModelAvailable ? String(localized: "common.ready") : String(localized: "common.unavailable"))
+                if !model.dictation.speechModelAvailable && model.transcriptionProvider == .apple {
                     Text(String(localized: "settings.speechModelDetail"))
                         .font(.caption)
                         .foregroundStyle(DesignSystem.ColorToken.mutedInk)
                 }
-                Button(Copy.checkAgain) { model.permissions.refresh() }
+                HStack {
+                    LabeledContent(String(localized: "settings.parakeetModel"), value: parakeetStatusTitle)
+                    if parakeetIsBusy {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.small)
+                            .accessibilityLabel(String(localized: "common.downloading"))
+                    }
+                }
+                Text(String(localized: "settings.parakeetModelDetail"))
+                    .font(.caption)
+                    .foregroundStyle(DesignSystem.ColorToken.mutedInk)
+                HStack {
+                    Button(parakeetActionTitle) { model.dictation.prepareParakeetModel() }
+                        .disabled(parakeetIsBusy || parakeetIsReady)
+                    if parakeetIsReady {
+                        Button(String(localized: "settings.parakeetRemove"), role: .destructive) {
+                            model.dictation.removeParakeetModel()
+                        }
+                    }
+                }
             }
 
             Section(Copy.insertion) {
-                LabeledContent(Copy.accessibility, value: permissions.snapshot.accessibility ? String(localized: "common.allowed") : String(localized: "common.optional"))
+                LabeledContent(Copy.accessibility, value: permissions.snapshot.accessibility ? String(localized: "common.allowed") : String(localized: "common.required"))
                 Text(String(localized: "settings.insertionDetail"))
                     .font(.caption)
                     .foregroundStyle(DesignSystem.ColorToken.mutedInk)
                 if !permissions.snapshot.accessibility {
-                    Button(Copy.openSettings) { permissions.openAccessibilitySettings() }
+                    Button(Copy.openSettings) { permissions.requestAccessibility() }
                 }
             }
 
@@ -99,6 +119,37 @@ struct SettingsView: View {
             Button(Copy.cancel, role: .cancel) {}
         } message: {
             Text(String(localized: "history.deleteConfirmation"))
+        }
+    }
+
+    private var parakeetIsReady: Bool {
+        if case .ready = model.dictation.parakeetModelStatus { return true }
+        return false
+    }
+
+    private var parakeetIsBusy: Bool {
+        switch model.dictation.parakeetModelStatus {
+        case .downloading, .validating, .loading: return true
+        default: return false
+        }
+    }
+
+    private var parakeetStatusTitle: String {
+        switch model.dictation.parakeetModelStatus {
+        case .notInstalled: return String(localized: "common.notInstalled")
+        case .downloading: return String(localized: "common.downloading")
+        case .validating: return String(localized: "common.validating")
+        case .loading: return String(localized: "common.loading")
+        case .ready: return String(localized: "common.ready")
+        case .failed: return String(localized: "common.failed")
+        }
+    }
+
+    private var parakeetActionTitle: String {
+        switch model.dictation.parakeetModelStatus {
+        case .failed: return String(localized: "settings.parakeetRetry")
+        case .ready: return String(localized: "settings.parakeetReady")
+        default: return String(localized: "settings.parakeetDownload")
         }
     }
 }

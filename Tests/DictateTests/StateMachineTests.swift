@@ -4,7 +4,7 @@ import XCTest
 final class StateMachineTests: XCTestCase {
     func testHappyPath() {
         var machine = DictationStateMachine()
-        let events: [DictationEvent] = [.startRequested, .resourcesReady, .audioStarted, .partialText("hello", level: 0.4), .finalText("hello"), .insertionSucceeded]
+        let events: [DictationEvent] = [.startRequested, .resourcesReady, .audioStarted, .partialText("hello", level: 0.4), .stopRequested, .finalText("hello"), .insertionSucceeded]
         for event in events { _ = machine.send(event) }
         XCTAssertEqual(machine.state, .idle)
     }
@@ -21,10 +21,10 @@ final class StateMachineTests: XCTestCase {
         _ = machine.send(.startRequested)
         _ = machine.send(.resourcesReady)
         _ = machine.send(.audioStarted)
-        _ = machine.send(.finalText("done"))
+        _ = machine.send(.stopRequested)
         let result = machine.send(.startRequested)
         XCTAssertEqual(result.disposition, .ignoredWhileFinalizing)
-        XCTAssertEqual(machine.state, .inserting(text: "done"))
+        XCTAssertEqual(machine.state, .finalizing)
     }
 
     func testCancellationNeverLeavesPartialText() {
@@ -35,6 +35,13 @@ final class StateMachineTests: XCTestCase {
         _ = machine.send(.partialText("partial", level: 1))
         _ = machine.send(.cancel)
         XCTAssertEqual(machine.state, .idle)
+    }
+
+    func testStopFromPreparationEntersFinalizing() {
+        var machine = DictationStateMachine()
+        _ = machine.send(.startRequested)
+        XCTAssertEqual(machine.send(.stopRequested).state, .finalizing)
+        XCTAssertEqual(machine.send(.stopRequested).disposition, .ignoredWhileFinalizing)
     }
 
     func testFailureCanRecover() {

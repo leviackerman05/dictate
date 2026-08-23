@@ -27,7 +27,10 @@ struct MainWindowView: View {
             }
             .background(DesignSystem.ColorToken.canvas)
 
-            if !permissions.snapshot.microphone {
+            // Microphone is required to use Dictate. Accessibility only enables
+            // automatic insertion into another app, so it must never block the
+            // user from dismissing onboarding or using copy recovery.
+            if !permissions.snapshot.microphone || !model.onboardingDismissed {
                 Color.black.opacity(0.22)
                     .ignoresSafeArea()
                 OnboardingView(model: model)
@@ -68,14 +71,14 @@ private struct SidebarView: View {
 
             VStack(alignment: .leading, spacing: DesignSystem.Layout.space2) {
                 Button {
-                    if model.dictation.state == .idle { model.startRecording() } else { model.finishRecording() }
+                    if model.dictation.state == .idle || model.dictation.lastFailure != nil { model.startRecording() } else { model.finishRecording() }
                 } label: {
-                    Label(model.dictation.state == .idle ? Copy.startRecording : Copy.stopRecording,
-                          systemImage: model.dictation.state == .idle ? "circle.fill" : "square.fill")
+                    Label(model.dictation.state == .idle || model.dictation.lastFailure != nil ? Copy.startRecording : Copy.stopRecording,
+                          systemImage: model.dictation.state == .idle || model.dictation.lastFailure != nil ? "circle.fill" : "square.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(model.dictation.state == .idle ? DesignSystem.ColorToken.action : DesignSystem.ColorToken.recording)
-                .disabled(model.dictation.state == .idle && !model.permissions.snapshot.canRecord)
+                .disabled((model.dictation.state == .idle || model.dictation.lastFailure != nil) && !model.permissions.snapshot.canRecord || model.dictation.state == .finalizing || model.dictation.state == .delivering)
                 .accessibilityHint(String(localized: "accessibility.recordButton.hint"))
 
                 HStack(spacing: DesignSystem.Layout.space2) {
@@ -213,6 +216,7 @@ private struct ActiveTranscriptionView: View {
         case .microphonePermissionDenied: return String(localized: "recording.microphoneDenied")
         case .speechModelUnavailable: return String(localized: "recording.modelUnavailable")
         case .captureUnavailable: return String(localized: "recording.captureFailed")
+        case .sessionTimedOut: return String(localized: "recording.timedOut")
         default: return String(localized: "recording.failed")
         }
     }
@@ -278,6 +282,12 @@ private struct HistoryRow: View {
                     .foregroundStyle(DesignSystem.ColorToken.ink)
                     .frame(maxWidth: DesignSystem.Layout.transcriptMeasure, alignment: .leading)
 
+                if let deliveryStatus = deliveryStatus(for: item.insertionResult) {
+                    Text(deliveryStatus)
+                        .font(.caption)
+                        .foregroundStyle(DesignSystem.ColorToken.mutedInk)
+                }
+
                 if !item.correctionAudit.isEmpty {
                     DisclosureGroup(String.localizedStringWithFormat(String(localized: "history.correctionCount"), item.correctionAudit.count), isExpanded: $showAudit) {
                         ForEach(item.correctionAudit) { audit in
@@ -308,5 +318,22 @@ private struct HistoryRow: View {
 
     private func formatDuration(_ duration: TimeInterval) -> String {
         String(format: "%02d:%02d", Int(duration) / 60, Int(duration) % 60)
+    }
+
+    private func deliveryStatus(for result: InsertionResult) -> String? {
+        switch result {
+        case .inserted, .insertedViaAccessibility, .insertedViaPaste:
+            return nil
+        case .copiedOnly, .copiedForRecovery:
+            return String(localized: "history.copyRecovery")
+        case .noTarget:
+            return String(localized: "history.noTarget")
+        case .permissionMissing:
+            return String(localized: "history.accessibilityRequired")
+        case .deliveryFailed, .failed:
+            return String(localized: "history.deliveryFailed")
+        case .notRequested:
+            return nil
+        }
     }
 }

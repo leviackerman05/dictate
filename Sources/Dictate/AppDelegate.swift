@@ -12,8 +12,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateCancellable: AnyCancellable?
     private var shortcutCancellable: AnyCancellable?
     private var recordingModeCancellable: AnyCancellable?
+    private var noticeCancellables = Set<AnyCancellable>()
     private var escapeMonitor: Any?
     private var activeObserver: NSObjectProtocol?
+    private var externalFocusObserver: NSObjectProtocol?
+    private var workspaceFocusObserver: NSObjectProtocol?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        if let existing = Bundle.main.bundleIdentifier.flatMap({ bundleID in
+            NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+                .first(where: { $0.processIdentifier != currentPID && !$0.isTerminated })
+        }) {
+            existing.activate(options: [.activateAllWindows])
+            NSApp.terminate(nil)
+        }
+    }
+
+    func applicationWillBecomeActive(_ notification: Notification) {
+        // Capture synchronously, before Dictate's own window/button becomes the
+        // Accessibility focus. This is the target used when recording starts
+        // from the main window instead of the global shortcut.
+        model.rememberExternalFocus()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -22,9 +43,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         shortcutMonitor = ShortcutMonitor()
         installShortcutMonitor()
         stateCancellable = model.dictation.$state.sink { [weak self] state in
-            self?.overlay?.update(state: state)
+            self?.overlay?.update(state: state, notice: self?.model.dictation.deliveryNotice)
             self?.menuBar?.update(state: state)
+            self?.shortcutMonitor?.update(session: state)
         }
+        model.dictation.$deliveryNotice.sink { [weak self] notice in
+            self?.overlay?.update(state: self?.model.dictation.state ?? .idle, notice: notice)
+        }.store(in: &noticeCancellables)
         shortcutCancellable = model.$shortcut.combineLatest(model.$customShortcut).sink { [weak self] _, _ in
             self?.installShortcutMonitor()
         }
@@ -35,25 +60,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard event.keyCode == 53 else { return }
             Task { @MainActor in self?.model.cancelRecording() }
         }
+        localEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == 53 else { return event }
+            Task { @MainActor [weak self] in self?.model.cancelRecording() }
+            return nil
+        }
         activeObserver = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.model.permissions.refresh() }
         }
+        externalFocusObserver = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.model.rememberExternalFocus() }
+        }
+        workspaceFocusObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.model.rememberExternalFocus() }
+        }
+        model.rememberExternalFocus()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         shortcutMonitor?.stop()
         if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
+        if let localEscapeMonitor { NSEvent.removeMonitor(localEscapeMonitor) }
         if let activeObserver { NotificationCenter.default.removeObserver(activeObserver) }
+        if let externalFocusObserver { NotificationCenter.default.removeObserver(externalFocusObserver) }
+        if let workspaceFocusObserver { NSWorkspace.shared.notificationCenter.removeObserver(workspaceFocusObserver) }
     }
 
     private func installShortcutMonitor() {
-        shortcutMonitor?.start(choice: model.shortcut, custom: model.customShortcut, recordingMode: model.recordingMode) { [weak self] in
-            guard let self, self.model.dictation.state == .idle else { return }
-            self.model.startRecording()
-        } onFinish: { [weak self] in
-            self?.model.finishRecording()
+        shortcutMonitor?.start(choice: model.shortcut, custom: model.customShortcut, recordingMode: model.recordingMode) { [weak self] action in
+            guard let self else { return }
+            switch action {
+            case .start:
+                guard self.model.dictation.state == .idle || self.model.dictation.lastFailure != nil else { return }
+                self.model.startRecording(source: .globalShortcut)
+            case .requestStop:
+                self.model.finishRecording()
+            case .none:
+                break
+            }
         }
+        shortcutMonitor?.update(session: model.dictation.state)
     }
+
+    private var localEscapeMonitor: Any?
 }
 
 @MainActor
@@ -76,8 +125,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         stateItem.isEnabled = false
         menu.addItem(stateItem)
         menu.addItem(.separator())
-        let record = NSMenuItem(title: state == .idle ? Copy.startRecording : Copy.stopRecording, action: #selector(toggleRecording), keyEquivalent: "")
+        let record = NSMenuItem(title: state == .idle ? Copy.startRecording : state == .finalizing || state == .delivering ? String(localized: "recording.finishing") : Copy.stopRecording, action: #selector(toggleRecording), keyEquivalent: "")
         record.target = self
+        record.isEnabled = state != .finalizing && state != .delivering
         menu.addItem(record)
         let open = NSMenuItem(title: String(localized: "menubar.open"), action: #selector(openApp), keyEquivalent: "")
         open.target = self
@@ -90,7 +140,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func toggleRecording() {
-        if model.dictation.state == .idle { model.startRecording() } else { model.finishRecording() }
+        if model.dictation.state == .idle || model.dictation.lastFailure != nil { model.startRecording(source: .menuBar) }
+        else { model.finishRecording() }
     }
 
     @objc private func openApp() {
@@ -106,7 +157,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         case .preparing: return Copy.preparing
         case .listening: return Copy.listening
         case .transcribing: return Copy.transcribing
-        case .inserting: return Copy.inserting
+        case .finalizing: return String(localized: "recording.finishing")
+        case .delivering: return Copy.inserting
         case .failed: return Copy.recordingFailed
         }
     }
@@ -134,8 +186,8 @@ final class RecordingOverlayController {
         panel.contentView = NSHostingView(rootView: RecordingOverlayView(controller: controller))
     }
 
-    func update(state: DictationState) {
-        if state == .idle {
+    func update(state: DictationState, notice: DeliveryNotice?) {
+        if state == .idle, notice == nil {
             panel.orderOut(nil)
             return
         }

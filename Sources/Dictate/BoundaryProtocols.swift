@@ -10,6 +10,8 @@ protocol AudioCapturing: AnyObject {
 @MainActor
 protocol SpeechRecognizing: AnyObject {
     var modelIsAvailable: Bool { get }
+    var modelStatus: RecognitionModelStatus { get }
+    func prepare() async throws
     func transcribe(
         stream: AsyncStream<AudioChunk>,
         contextualVocabulary: [String],
@@ -19,10 +21,20 @@ protocol SpeechRecognizing: AnyObject {
     func cancel()
 }
 
+enum RecognitionModelStatus: Equatable, Sendable {
+    case notInstalled
+    case downloading(progress: Double?)
+    case validating
+    case loading
+    case ready
+    case failed
+}
+
 @MainActor
 protocol FocusDelivering: AnyObject {
-    func captureFocus() -> FocusSnapshot
-    func insert(_ text: String, into focus: FocusSnapshot?, allowAutomaticInsertion: Bool) -> DeliveryResult
+    func captureFocus(source: FocusCaptureSource) -> FocusSnapshot
+    func rememberExternalFocus()
+    func insert(_ text: String, into focus: FocusSnapshot?) async -> DeliveryResult
 }
 
 extension AudioCaptureService: AudioCapturing {}

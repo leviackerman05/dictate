@@ -53,16 +53,18 @@ struct OnboardingView: View {
             }
 
             HStack {
-                Button(Copy.checkAgain) { model.permissions.refresh() }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(DesignSystem.ColorToken.mutedInk)
+                if step == steps.count - 1 && permissions.snapshot.microphone && !current.granted {
+                    Button(Copy.openSettings) { requestCurrent() }
+                        .buttonStyle(.bordered)
+                        .tint(DesignSystem.ColorToken.action)
+                }
                 Spacer()
-                if current.granted || step == steps.count - 1 {
-                    Button(String(localized: "onboarding.continue")) { advance() }
+                if step == 0 && !current.granted {
+                    Button(step == 0 ? String(localized: "onboarding.allow") : Copy.openSettings) { requestCurrent() }
                         .buttonStyle(.borderedProminent)
                         .tint(DesignSystem.ColorToken.action)
                 } else {
-                    Button(String(localized: "onboarding.allow")) { requestCurrent() }
+                    Button(String(localized: "onboarding.continue")) { advance() }
                         .buttonStyle(.borderedProminent)
                         .tint(DesignSystem.ColorToken.action)
                 }
@@ -71,28 +73,34 @@ struct OnboardingView: View {
         .padding(DesignSystem.Layout.space8)
         .foregroundStyle(DesignSystem.ColorToken.ink)
         .background(DesignSystem.ColorToken.canvas)
-        .onAppear { permissions.refresh() }
+        .onAppear {
+            permissions.refresh()
+            step = firstMissingStep
+        }
         .onReceive(NotificationCenter.default.publisher(for: .dictatePermissionsDidChange)) { _ in
             permissions.refresh()
         }
     }
 
     private var current: (title: String, detail: String, granted: Bool) { steps[min(step, steps.count - 1)] }
+    private var firstMissingStep: Int { steps.firstIndex(where: { !$0.granted }) ?? 0 }
 
     private func requestCurrent() {
         switch step {
         case 0: permissions.requestMicrophone()
-        default: permissions.openAccessibilitySettings()
+        default: permissions.requestAccessibility()
         }
     }
 
     private func advance() {
-        guard permissions.snapshot.canRecord else {
-            if let firstMissing = steps.firstIndex(where: { !$0.granted }) {
-                step = firstMissing
-            }
+        guard permissions.snapshot.microphone else {
+            step = firstMissingStep
             return
         }
-        if step < steps.count - 1 { step += 1 } else { model.onboardingDismissed = true }
+        if step < steps.count - 1 {
+            step += 1
+        } else {
+            model.onboardingDismissed = true
+        }
     }
 }

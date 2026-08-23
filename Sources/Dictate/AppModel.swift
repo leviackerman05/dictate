@@ -23,6 +23,13 @@ enum RecordingMode: String, CaseIterable, Codable, Identifiable {
         case .clickToToggle: return String(localized: "recording.mode.toggle")
         }
     }
+
+    var gestureMode: ShortcutGestureMode {
+        switch self {
+        case .holdToTalk: return .holdToTalk
+        case .clickToToggle: return .clickToToggle
+        }
+    }
 }
 
 @MainActor
@@ -127,13 +134,14 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func startRecording() {
+    func startRecording(source: FocusCaptureSource = .mainWindow) {
         permissions.refresh()
         guard microphoneEnabled else { return }
-        dictation.start(entries: dictionary)
+        dictation.start(entries: dictionary, source: source)
     }
     func finishRecording() { dictation.finish() }
     func cancelRecording() { dictation.cancel() }
+    func rememberExternalFocus() { dictation.rememberExternalFocus() }
 
     func completed(_ item: HistoryItem) {
         guard keepHistory else { return }
@@ -249,17 +257,37 @@ final class AppModel: ObservableObject {
         Task { [historyStore, retention] in
             try? await historyStore.applyRetention(retention)
             let latest = try? await historyStore.load()
-            await MainActor.run { [weak self] in self?.history = latest ?? self?.history ?? [] }
+            await MainActor.run { [weak self] in
+                guard let self, let latest else { return }
+                self.history = self.mergedHistory(with: latest)
+            }
         }
     }
 
     private func loadLocalData() async {
         let loadedHistory = (try? await historyStore.load()) ?? []
         let loadedDictionary = (try? await dictionaryStore.load(default: DictionaryDocument(entries: [])))?.entries ?? []
-        history = loadedHistory
-        dictionary = loadedDictionary
+        await MainActor.run { [weak self] in
+            guard let self else { return }
+            let loadedIDs = Set(loadedHistory.map(\.id))
+            let completedWhileLoading = self.history.filter { !loadedIDs.contains($0.id) }
+            self.history = (loadedHistory + completedWhileLoading).sorted { $0.timestamp > $1.timestamp }
+            self.dictionary = loadedDictionary
+        }
         try? await historyStore.applyRetention(retention)
-        history = (try? await historyStore.load()) ?? history
+        let retainedHistory = (try? await historyStore.load()) ?? loadedHistory
+        await MainActor.run { [weak self] in
+            guard let self else { return }
+            let retainedIDs = Set(retainedHistory.map(\.id))
+            let completedWhileLoading = self.history.filter { !retainedIDs.contains($0.id) }
+            self.history = (retainedHistory + completedWhileLoading).sorted { $0.timestamp > $1.timestamp }
+        }
+    }
+
+    private func mergedHistory(with diskHistory: [HistoryItem]) -> [HistoryItem] {
+        let diskIDs = Set(diskHistory.map(\.id))
+        let completedSinceDiskRead = history.filter { !diskIDs.contains($0.id) }
+        return (diskHistory + completedSinceDiskRead).sorted { $0.timestamp > $1.timestamp }
     }
 
     private func persistDictionary() {

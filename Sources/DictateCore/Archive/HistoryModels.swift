@@ -2,7 +2,13 @@ import Foundation
 
 public enum InsertionResult: String, Codable, CaseIterable, Sendable {
     case inserted
+    case insertedViaAccessibility
+    case insertedViaPaste
     case copiedOnly
+    case copiedForRecovery
+    case noTarget
+    case permissionMissing
+    case deliveryFailed
     case failed
     case notRequested
 }

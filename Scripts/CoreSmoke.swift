@@ -1,4 +1,5 @@
 import Foundation
+import DictateCore
 
 @main
 struct CoreSmoke {
@@ -26,10 +27,18 @@ struct CoreSmoke {
             .resourcesReady,
             .audioStarted,
             .partialText("hello", level: 0.4),
+            .stopRequested,
             .finalText("hello"),
             .insertionSucceeded
         ] { _ = machine.send(event) }
         precondition(machine.state == .idle)
+        var reducer = ShortcutGestureReducer()
+        precondition(reducer.reduce(.physicalDown, mode: .holdToTalk, session: .idle) == .start)
+        precondition(reducer.reduce(.physicalUp, mode: .holdToTalk, session: .recording) == .requestStop)
+        precondition(!reducer.physicalPressed)
+        precondition(reducer.reduce(.physicalDown, mode: .clickToToggle, session: .idle) == .start)
+        precondition(reducer.reduce(.physicalUp, mode: .clickToToggle, session: .preparing) == .none)
+        precondition(reducer.reduce(.physicalDown, mode: .clickToToggle, session: .recording) == .requestStop)
         print("DictateCore smoke checks passed")
     }
 }

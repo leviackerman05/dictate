@@ -1,28 +1,27 @@
-// swift-tools-version: 5.7
+// swift-tools-version: 5.9
 // Targets explicitly compile in Swift 6 mode with complete strict concurrency.
-// The older manifest header keeps the package consumable by the macOS runner's
-// PackageDescription runtime while the application itself requires macOS 26.
+// The package manifest uses the minimum PackageDescription version needed by
+// FluidAudio's macOS 14 platform declaration.
 import PackageDescription
 
 let package = Package(
     name: "Dictate",
-    // PackageDescription shipped with the available Command Line Tools does
-    // not expose the macOS 26 enum yet. The app bundle sets LSMinimumSystemVersion
-    // to 26.0; this lower manifest floor keeps swift package test usable on the
-    // matching SDK without weakening the product requirement.
-    platforms: [.macOS(.v13)],
+    defaultLocalization: "en",
+    // FluidAudio 0.15.5 requires macOS 14; the app itself requires macOS 26.
+    platforms: [.macOS(.v14)],
     products: [
         .library(name: "DictateCore", targets: ["DictateCore"]),
         .executable(name: "Dictate", targets: ["Dictate"])
     ],
     dependencies: [
-        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.4")
+        // v0.15.5 is the tested ModelHub/Parakeet API used by the app.
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", exact: "0.15.5")
     ],
     targets: [
         .target(
             name: "DictateCore",
             path: "Sources/DictateCore",
-            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete"])]
+            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx26.0"])]
         ),
         .executableTarget(
             name: "Dictate",
@@ -31,14 +30,15 @@ let package = Package(
                 .product(name: "FluidAudio", package: "FluidAudio")
             ],
             path: "Sources/Dictate",
+            exclude: ["Resources/Info.plist"],
             resources: [.process("Resources")],
-            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete"])]
+            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx26.0"])]
         ),
         .testTarget(
             name: "DictateTests",
             dependencies: ["DictateCore"],
             path: "Tests/DictateTests",
-            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete"])]
+            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx26.0"])]
         )
     ]
 )

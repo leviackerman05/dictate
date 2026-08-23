@@ -39,12 +39,15 @@ private final class AudioStreamSink: @unchecked Sendable {
 
 @MainActor
 final class AudioCaptureService {
-    private let engine = AVAudioEngine()
+    private var engine: AVAudioEngine?
     private var sink: AudioStreamSink?
     private var isRunning = false
 
     func start() throws -> AsyncStream<AudioChunk> {
         guard !isRunning else { throw CaptureError.unableToStart }
+        // Use a fresh graph for every session. Reusing a stopped input graph can
+        // deliver buffered frames from the previous session on its next tap.
+        let engine = AVAudioEngine()
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw CaptureError.noInput }
@@ -70,6 +73,7 @@ final class AudioCaptureService {
             DictateLog.capture.error("audio engine start error: \(String(describing: error), privacy: .public)")
             throw CaptureError.unableToStart
         }
+        self.engine = engine
         DictateLog.capture.debug("audio engine started")
         isRunning = true
         return stream
@@ -85,11 +89,13 @@ final class AudioCaptureService {
     }
 
     func stop() {
-        guard isRunning else { return }
+        guard isRunning, let engine else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        engine.reset()
         sink?.finish()
         sink = nil
+        self.engine = nil
         isRunning = false
     }
 }

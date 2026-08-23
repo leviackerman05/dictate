@@ -14,6 +14,10 @@ final class InterfaceStateTests: XCTestCase {
         XCTAssertEqual(machine.state, .listening)
         _ = machine.send(.partialText("live", level: 0.5))
         XCTAssertEqual(machine.state, .transcribing(partialText: "live", level: 0.5))
+        _ = machine.send(.stopRequested)
+        XCTAssertEqual(machine.state, .finalizing)
+        _ = machine.send(.finalText("done"))
+        XCTAssertEqual(machine.state, .delivering)
         _ = machine.send(.failure(.microphonePermissionDenied))
         XCTAssertEqual(machine.state, .failed(.microphonePermissionDenied))
     }

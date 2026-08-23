@@ -1,13 +1,13 @@
-@preconcurrency import AVFAudio
+@preconcurrency import AVFoundation
 import AppKit
-import ApplicationServices
+@preconcurrency import ApplicationServices
 
 struct PermissionSnapshot: Equatable, Sendable {
     var microphone = false
     var accessibility = false
 
-    // SpeechAnalyzer uses the Mac's on-device speech stack; microphone access
-    // is the only recording permission Dictate needs to request.
+    // SpeechAnalyzer uses the Mac's on-device speech stack. Microphone access
+    // is needed to record; Accessibility is needed for automatic insertion.
     var canRecord: Bool { microphone }
 }
 
@@ -16,7 +16,7 @@ extension Notification.Name {
 }
 
 private func requestMicrophoneAuthorization() {
-    AVAudioApplication.requestRecordPermission { _ in
+    AVCaptureDevice.requestAccess(for: .audio) { _ in
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .dictatePermissionsDidChange, object: nil)
         }
@@ -26,16 +26,17 @@ private func requestMicrophoneAuthorization() {
 @MainActor
 final class PermissionService: ObservableObject {
     @Published private(set) var snapshot = PermissionSnapshot()
+    private var accessibilityPollingTask: Task<Void, Never>?
 
     func refresh() {
         snapshot = PermissionSnapshot(
-            microphone: AVAudioApplication.shared.recordPermission == .granted,
+            microphone: AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
             accessibility: AXIsProcessTrusted()
         )
     }
 
     func requestMicrophone() {
-        guard AVAudioApplication.shared.recordPermission == .undetermined else {
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined else {
             openMicrophoneSettings()
             refresh()
             return
@@ -43,9 +44,28 @@ final class PermissionService: ObservableObject {
         requestMicrophoneAuthorization()
     }
 
+    func requestAccessibility() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
+        openAccessibilitySettings()
+    }
+
     func openAccessibilitySettings() {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
         NSWorkspace.shared.open(url)
+        accessibilityPollingTask?.cancel()
+        accessibilityPollingTask = Task { @MainActor [weak self] in
+            for _ in 0..<40 {
+                do {
+                    try await Task.sleep(nanoseconds: 500_000_000)
+                } catch {
+                    return
+                }
+                guard let self else { return }
+                self.refresh()
+                if self.snapshot.accessibility { return }
+            }
+        }
     }
 
     func openMicrophoneSettings() {

@@ -30,6 +30,7 @@ enum Copy {
     static let save = String(localized: "common.save")
     static let cancel = String(localized: "common.cancel")
     static let copyText = String(localized: "common.copyText")
+    static let discard = String(localized: "common.discard")
     static let retryInsertion = String(localized: "common.retryInsertion")
     static let deleteAllHistory = String(localized: "history.deleteAll")
     static let exportHistory = String(localized: "history.export")
@@ -43,5 +44,4 @@ enum Copy {
     static let accessibility = String(localized: "permissions.accessibility")
     static let microphone = String(localized: "permissions.microphone")
     static let openSettings = String(localized: "permissions.openSettings")
-    static let checkAgain = String(localized: "permissions.checkAgain")
 }

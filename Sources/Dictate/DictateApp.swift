@@ -12,10 +12,16 @@ struct DictateApp: App {
         .commands {
             CommandGroup(after: .textEditing) {
                 Button(Copy.startRecording) {
-                    if appDelegate.model.dictation.state == .idle { appDelegate.model.startRecording() }
+                    if appDelegate.model.dictation.state == .idle || appDelegate.model.dictation.lastFailure != nil { appDelegate.model.startRecording() }
                     else { appDelegate.model.finishRecording() }
                 }
                 .keyboardShortcut("r", modifiers: [.command, .option])
+                .disabled(appDelegate.model.dictation.state == .finalizing || appDelegate.model.dictation.state == .delivering)
+            }
+            CommandGroup(after: .textEditing) {
+                Button(Copy.cancelRecording) { appDelegate.model.cancelRecording() }
+                    .keyboardShortcut(.escape)
+                    .disabled(appDelegate.model.dictation.state == .idle)
             }
             CommandMenu(Copy.appName) {
                 Button(Copy.history) { appDelegate.model.section = .history }

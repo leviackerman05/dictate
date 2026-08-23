@@ -1,6 +1,7 @@
 @preconcurrency import AVFAudio
 @preconcurrency import Speech
 import Foundation
+import DictateCore
 
 enum RecognitionError: Error, Sendable {
     case recognizerUnavailable
@@ -19,9 +20,32 @@ final class SpeechRecognitionService {
     private var resultsTask: Task<Void, Never>?
     private var resultContinuation: CheckedContinuation<String, Error>?
     private var didFinish = false
+    private var assetsPrepared = false
+    private(set) var modelStatus: RecognitionModelStatus = .notInstalled
 
     var modelIsAvailable: Bool {
         SpeechTranscriber.isAvailable
+    }
+
+    func prepare() async throws {
+        guard SpeechTranscriber.isAvailable,
+              let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale.current) else {
+            modelStatus = .notInstalled
+            throw RecognitionError.onDeviceModelUnavailable
+        }
+        guard !assetsPrepared else {
+            modelStatus = .ready
+            return
+        }
+        modelStatus = .loading
+        do {
+            try await installAssets(for: Self.makeTranscriber(locale: locale))
+            assetsPrepared = true
+            modelStatus = .ready
+        } catch {
+            modelStatus = .failed
+            throw error
+        }
     }
 
     func transcribe(
@@ -32,13 +56,12 @@ final class SpeechRecognitionService {
     ) async throws -> String {
         cancel()
 
-        guard SpeechTranscriber.isAvailable,
-              let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale.current) else {
-            DictateLog.recognition.error("SpeechTranscriber is unavailable for the current Mac")
+        try await prepare()
+        guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale.current) else {
             throw RecognitionError.recognizerUnavailable
         }
 
-        let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
+        let transcriber = Self.makeTranscriber(locale: locale)
         try await installAssets(for: transcriber)
         let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
             ?? AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!
@@ -66,12 +89,18 @@ final class SpeechRecognitionService {
 
                 self.resultsTask = Task { @MainActor [weak self, transcriber] in
                     do {
-                        var latestText = ""
+                        var assembly = TranscriptAssemblyState()
                         for try await result in transcriber.results {
-                            latestText = String(result.text.characters)
-                            onPartial(latestText.trimmingCharacters(in: .whitespacesAndNewlines))
+                            let resultText = String(result.text.characters)
+                            let confidence = Self.meanConfidence(in: result.text)
+                            let acceptedText = confidence.map { $0 >= 0.18 } == false ? "" : resultText
+                            let visibleText = assembly.apply(acceptedText, isFinal: result.isFinal)
+                            DictateLog.recognition.debug("SpeechAnalyzer result final=\(result.isFinal, privacy: .public) chars=\(resultText.count, privacy: .public) confidence=\(confidence ?? -1, privacy: .public) accepted=\(!acceptedText.isEmpty, privacy: .public) finalizedChars=\(assembly.finalizedText.count, privacy: .public) volatileChars=\(assembly.volatileText.count, privacy: .public)")
+                            onPartial(visibleText)
                         }
-                        self?.resolve(.success(latestText.trimmingCharacters(in: .whitespacesAndNewlines)))
+                        let completeText = assembly.finish()
+                        DictateLog.recognition.debug("SpeechAnalyzer result stream ended finalizedChars=\(completeText.count, privacy: .public)")
+                        self?.resolve(.success(completeText))
                     } catch is CancellationError {
                         self?.resolve(.failure(RecognitionError.cancelled))
                     } catch {
@@ -82,15 +111,34 @@ final class SpeechRecognitionService {
 
                 self.feeder = Task { @MainActor [weak self, analyzer, converter, inputContinuation] in
                     do {
+                        var speechStarted = false
+                        var consecutiveVoicedChunks = 0
+                        var preRoll: [AudioChunk] = []
                         for await chunk in stream {
                             guard !Task.isCancelled else { throw RecognitionError.cancelled }
                             let sum = chunk.samples.reduce(into: 0.0) { partial, sample in partial += Double(sample * sample) }
                             let rms = chunk.samples.isEmpty ? 0 : sqrt(sum / Double(chunk.samples.count))
                             onLevel(min(max(rms * 8, 0), 1))
 
-                            guard let buffer = Self.makeBuffer(chunk) else { continue }
-                            for input in try converter.convert(buffer) {
-                                inputContinuation.yield(input)
+                            var chunksToAnalyze: [AudioChunk]
+                            if speechStarted {
+                                chunksToAnalyze = [chunk]
+                            } else {
+                                preRoll.append(chunk)
+                                if preRoll.count > 20 { preRoll.removeFirst() }
+                                consecutiveVoicedChunks = rms >= 0.0035 ? consecutiveVoicedChunks + 1 : 0
+                                guard consecutiveVoicedChunks >= 3 else { continue }
+                                speechStarted = true
+                                chunksToAnalyze = preRoll
+                                preRoll.removeAll(keepingCapacity: false)
+                                DictateLog.recognition.debug("speech onset detected; feeding buffered audio")
+                            }
+
+                            for audioChunk in chunksToAnalyze {
+                                guard let buffer = Self.makeBuffer(audioChunk) else { continue }
+                                for input in try converter.convert(buffer) {
+                                    inputContinuation.yield(input)
+                                }
                             }
                         }
 
@@ -153,6 +201,24 @@ final class SpeechRecognitionService {
         DictateLog.recognition.info("installing the macOS speech model")
         try await request.downloadAndInstall()
         DictateLog.recognition.info("macOS speech model ready")
+    }
+
+    private static func makeTranscriber(locale: Locale) -> SpeechTranscriber {
+        let preset = SpeechTranscriber.Preset.progressiveTranscription
+        return SpeechTranscriber(
+            locale: locale,
+            transcriptionOptions: preset.transcriptionOptions,
+            reportingOptions: preset.reportingOptions,
+            attributeOptions: preset.attributeOptions.union([.transcriptionConfidence])
+        )
+    }
+
+    private static func meanConfidence(in text: AttributedString) -> Double? {
+        let values = text.runs.compactMap {
+            $0[AttributeScopes.SpeechAttributes.ConfidenceAttribute.self]
+        }
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
     }
 
     private static func makeBuffer(_ chunk: AudioChunk) -> AVAudioPCMBuffer? {

@@ -3,10 +3,10 @@ SHELL := /bin/sh
 .PHONY: test build app clean
 
 test:
-	swift test
+	xcrun swift test
 
 build:
-	swift build -c release --product Dictate
+	xcrun swift build -c release --product Dictate
 
 app:
 	./Scripts/build-app.sh

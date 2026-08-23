@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import DictateCore
 import SwiftUI
 
 enum ShortcutChoice: String, CaseIterable, Codable, Identifiable {
@@ -90,21 +91,36 @@ final class ShortcutMonitor {
     private var eventTap: ShortcutEventTap?
     private var globalMonitor: Any?
     private var localMonitor: Any?
-    private var isPressed = false
-    private var recordingMode: RecordingMode = .holdToTalk
-    private var currentCustom: RecordedShortcut?
-    private var onStart: (() -> Void)?
-    private var onFinish: (() -> Void)?
+    private var inbox: ShortcutEventInbox?
+    private var reducer = ShortcutGestureReducer()
+    private var choice: ShortcutChoice = .rightOption
+    private var custom: RecordedShortcut?
+    private var recordingMode: ShortcutGestureMode = .holdToTalk
+    private var onAction: ((ShortcutGestureAction) -> Void)?
+    private var modifierIsDown = false
 
-    func start(choice: ShortcutChoice, custom: RecordedShortcut?, recordingMode: RecordingMode, onStart: @escaping () -> Void, onFinish: @escaping () -> Void) {
+    func start(
+        choice: ShortcutChoice,
+        custom: RecordedShortcut?,
+        recordingMode: RecordingMode,
+        onAction: @escaping (ShortcutGestureAction) -> Void
+    ) {
         stop()
-        self.onStart = onStart
-        self.onFinish = onFinish
-        self.recordingMode = recordingMode
-        self.currentCustom = custom
+        self.choice = choice
+        self.custom = custom
+        self.recordingMode = recordingMode.gestureMode
+        self.onAction = onAction
+        modifierIsDown = false
+        let inbox = ShortcutEventInbox { [weak self] in
+            Task { @MainActor [weak self] in self?.drainInbox() }
+        }
+        self.inbox = inbox
         let mask: NSEvent.EventTypeMask = [.flagsChanged, .keyDown, .keyUp]
-        let tap = ShortcutEventTap(choice: choice, custom: custom) { [weak self] type, keyCode, flags in
-            Task { @MainActor in self?.handle(type: type, keyCode: keyCode, flags: flags) }
+        let tap = ShortcutEventTap(choice: choice, custom: custom) { type, keyCode, flags, isRepeat, isDown in
+            if type == CGEventType.tapDisabledByTimeout.rawValue || type == CGEventType.tapDisabledByUserInput.rawValue {
+                return
+            }
+            inbox.enqueue(ShortcutPlatformEvent(type: type, keyCode: keyCode, flags: flags, isRepeat: isRepeat, isDown: isDown))
         }
         if tap.start() {
             eventTap = tap
@@ -113,12 +129,14 @@ final class ShortcutMonitor {
             // Fn/globe event before macOS opens the emoji picker. Keep the
             // AppKit monitors as a fallback when Input Monitoring is not yet
             // available.
-            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] event in
-                Task { @MainActor in self?.handle(event, choice: choice, custom: custom) }
+            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self, inbox, choice, custom] event in
+                guard let self, let platform = self.platformEvent(event, choice: choice, custom: custom) else { return }
+                inbox.enqueue(platform)
             }
-            localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
-                Task { @MainActor in self?.handle(event, choice: choice, custom: custom) }
-                return event
+            localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self, inbox, choice, custom] event in
+                guard let self, let platform = self.platformEvent(event, choice: choice, custom: custom) else { return event }
+                inbox.enqueue(platform)
+                return nil
             }
         }
     }
@@ -130,106 +148,97 @@ final class ShortcutMonitor {
         if let localMonitor { NSEvent.removeMonitor(localMonitor) }
         globalMonitor = nil
         localMonitor = nil
-        isPressed = false
+        inbox = nil
+        reducer = ShortcutGestureReducer()
+        modifierIsDown = false
     }
 
-    private func handle(_ event: NSEvent, choice: ShortcutChoice, custom: RecordedShortcut?) {
-        let matches: Bool
+    func update(session: DictationState) {
+        sessionPhase = phase(for: session)
+    }
+
+    private var sessionPhase: ShortcutSessionPhase = .idle
+
+    private func drainInbox() {
+        guard let inbox else { return }
+        let events = inbox.takeAll()
+        for event in events { handle(event) }
+    }
+
+    private func handle(_ event: ShortcutPlatformEvent) {
+        let input: ShortcutGestureInput
+        if event.isRepeat || event.type == CGEventType.keyDown.rawValue && event.isRepeat {
+            input = .keyRepeat
+        } else if event.type == CGEventType.keyUp.rawValue || event.isFlagsChanged && !event.isDown {
+            input = .physicalUp
+        } else {
+            input = .physicalDown
+        }
+        let action = reducer.reduce(input, mode: recordingMode, session: sessionPhase)
+        guard action != .none else { return }
+        DictateLog.lifecycle.debug("shortcut event input=\(String(describing: input), privacy: .public) phase=\(String(describing: self.sessionPhase), privacy: .public) action=\(String(describing: action), privacy: .public)")
+        onAction?(action)
+    }
+
+    private func platformEvent(_ event: NSEvent, choice: ShortcutChoice, custom: RecordedShortcut?) -> ShortcutPlatformEvent? {
+        let type: UInt32
+        switch event.type {
+        case .flagsChanged: type = CGEventType.flagsChanged.rawValue
+        case .keyDown: type = CGEventType.keyDown.rawValue
+        case .keyUp: type = CGEventType.keyUp.rawValue
+        default: return nil
+        }
+
+        let keyCode = event.keyCode
         switch choice {
-        case .rightOption: matches = event.type == .flagsChanged && event.keyCode == 61 && event.modifierFlags.contains(.option)
-        case .rightCommand: matches = event.type == .flagsChanged && event.keyCode == 54 && event.modifierFlags.contains(.command)
-        case .fn: matches = event.type == .flagsChanged && event.keyCode == 63 && event.modifierFlags.contains(.function)
+        case .rightOption where event.type == .flagsChanged && keyCode == 61:
+                return ShortcutPlatformEvent(type: type, keyCode: keyCode, flags: event.cgEvent?.flags.rawValue ?? 0, isRepeat: false, isDown: nextModifierState())
+        case .rightCommand where event.type == .flagsChanged && keyCode == 54:
+            return ShortcutPlatformEvent(type: type, keyCode: keyCode, flags: event.cgEvent?.flags.rawValue ?? 0, isRepeat: false, isDown: nextModifierState())
+        case .fn where event.type == .flagsChanged && keyCode == 63:
+            return ShortcutPlatformEvent(type: type, keyCode: keyCode, flags: event.cgEvent?.flags.rawValue ?? 0, isRepeat: false, isDown: nextModifierState())
         case .custom:
-            guard let custom else { return }
-            matches = event.keyCode == custom.keyCode && (event.type == .keyDown || event.type == .keyUp) && UInt64(event.modifierFlags.rawValue) & custom.modifiers == custom.modifiers
-        }
-        guard matches else {
-            if choice != .custom, recordingMode == .holdToTalk, event.type == .flagsChanged, isPressed, !modifierStillDown(choice, flags: event.modifierFlags) {
-                finishIfNeeded()
+            guard let custom, keyCode == custom.keyCode else { return nil }
+            if event.type == .keyDown && UInt64(event.modifierFlags.intersection(.deviceIndependentFlagsMask).rawValue) & custom.modifiers != custom.modifiers {
+                return nil
             }
-            return
-        }
-
-        if choice == .custom {
-            if event.type == .keyDown && !isPressed {
-                isPressed = true
-                onStart?()
-            } else if event.type == .keyUp && recordingMode == .holdToTalk {
-                finishIfNeeded()
-            }
-        } else if event.type == .flagsChanged {
-            if !isPressed {
-                isPressed = true
-                onStart?()
-            } else if !event.modifierFlags.contains(flag(for: choice)) && recordingMode == .holdToTalk {
-                finishIfNeeded()
-            }
+            return ShortcutPlatformEvent(type: type, keyCode: keyCode, flags: event.cgEvent?.flags.rawValue ?? UInt64(event.modifierFlags.rawValue), isRepeat: event.isARepeat, isDown: event.type == .keyDown)
+        default:
+            return nil
         }
     }
 
-    private func modifierStillDown(_ choice: ShortcutChoice, flags: NSEvent.ModifierFlags) -> Bool {
-        flags.contains(flag(for: choice))
+    private func nextModifierState() -> Bool {
+        modifierIsDown.toggle()
+        return modifierIsDown
     }
 
-    private func flag(for choice: ShortcutChoice) -> NSEvent.ModifierFlags {
-        switch choice {
-        case .rightOption: return .option
-        case .rightCommand: return .command
-        case .fn, .custom: return .function
+    private func phase(for state: DictationState) -> ShortcutSessionPhase {
+        switch state {
+        case .idle, .failed: return .idle
+        case .preparing: return .preparing
+        case .listening, .transcribing: return .recording
+        case .finalizing, .delivering: return .finalizing
         }
-    }
-
-    private func finishIfNeeded() {
-        guard isPressed else { return }
-        isPressed = false
-        onFinish?()
-    }
-
-    private func handle(type: UInt32, keyCode: UInt16, flags: UInt64) {
-        let flags = CGEventFlags(rawValue: flags)
-        let isDown = flags.contains(.maskSecondaryFn) || flags.contains(.maskAlternate) || flags.contains(.maskCommand)
-        switch currentChoice {
-        case .rightOption:
-            guard type == CGEventType.flagsChanged.rawValue, keyCode == 61 else { return }
-            if isDown && !isPressed { isPressed = true; onStart?() }
-            else if !isDown && isPressed && recordingMode == .holdToTalk { finishIfNeeded() }
-        case .rightCommand:
-            guard type == CGEventType.flagsChanged.rawValue, keyCode == 54 else { return }
-            if isDown && !isPressed { isPressed = true; onStart?() }
-            else if !isDown && isPressed && recordingMode == .holdToTalk { finishIfNeeded() }
-        case .fn:
-            guard type == CGEventType.flagsChanged.rawValue, keyCode == 63 else { return }
-            let fnDown = flags.contains(.maskSecondaryFn)
-            if fnDown && !isPressed { isPressed = true; onStart?() }
-            else if !fnDown && isPressed && recordingMode == .holdToTalk { finishIfNeeded() }
-        case .custom:
-            guard let custom = currentCustom, keyCode == custom.keyCode else { return }
-            if type == CGEventType.keyDown.rawValue && !isPressed { isPressed = true; onStart?() }
-            else if type == CGEventType.keyUp.rawValue && recordingMode == .holdToTalk { finishIfNeeded() }
-        }
-    }
-
-    private var currentChoice: ShortcutChoice {
-        // The event tap only handles the currently installed configuration;
-        // the fallback AppKit path still receives the explicit values.
-        eventTap?.choice ?? .rightOption
     }
 }
 
 private final class ShortcutEventTap: @unchecked Sendable {
     let choice: ShortcutChoice
     let custom: RecordedShortcut?
-    private let onEvent: @Sendable (UInt32, UInt16, UInt64) -> Void
+    private let onEvent: @Sendable (UInt32, UInt16, UInt64, Bool, Bool) -> Void
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
+    private var modifierIsDown = false
 
-    init(choice: ShortcutChoice, custom: RecordedShortcut?, onEvent: @escaping @Sendable (UInt32, UInt16, UInt64) -> Void) {
+    init(choice: ShortcutChoice, custom: RecordedShortcut?, onEvent: @escaping @Sendable (UInt32, UInt16, UInt64, Bool, Bool) -> Void) {
         self.choice = choice
         self.custom = custom
         self.onEvent = onEvent
     }
 
     func start() -> Bool {
+        modifierIsDown = false
         let flagsMask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
         let keyboardMask = CGEventMask(1) << CGEventType.keyDown.rawValue
         let keyUpMask = CGEventMask(1) << CGEventType.keyUp.rawValue
@@ -243,9 +252,19 @@ private final class ShortcutEventTap: @unchecked Sendable {
             callback: { _, type, event, refcon in
                 guard let refcon else { return Unmanaged.passUnretained(event) }
                 let owner = Unmanaged<ShortcutEventTap>.fromOpaque(refcon).takeUnretainedValue()
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    if let tap = owner.tap { CGEvent.tapEnable(tap: tap, enable: true) }
+                    return Unmanaged.passUnretained(event)
+                }
                 guard owner.matches(type: type, event: event) else { return Unmanaged.passUnretained(event) }
                 let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-                owner.onEvent(type.rawValue, keyCode, event.flags.rawValue)
+                let isDown: Bool
+                if type == .flagsChanged {
+                    isDown = owner.nextModifierState()
+                } else {
+                    isDown = type == .keyDown
+                }
+                owner.onEvent(type.rawValue, keyCode, event.flags.rawValue, event.getIntegerValueField(.keyboardEventAutorepeat) != 0, isDown)
                 return nil
             },
             userInfo: refcon
@@ -267,6 +286,12 @@ private final class ShortcutEventTap: @unchecked Sendable {
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         source = nil
         tap = nil
+        modifierIsDown = false
+    }
+
+    private func nextModifierState() -> Bool {
+        modifierIsDown.toggle()
+        return modifierIsDown
     }
 
     private func matches(type: CGEventType, event: CGEvent) -> Bool {
@@ -277,7 +302,47 @@ private final class ShortcutEventTap: @unchecked Sendable {
         case .fn: return type == .flagsChanged && keyCode == 63
         case .custom:
             guard let custom, keyCode == custom.keyCode, type == .keyDown || type == .keyUp else { return false }
+            if type == .keyUp { return true }
             return UInt64(event.flags.rawValue) & custom.modifiers == custom.modifiers
         }
+    }
+}
+
+private struct ShortcutPlatformEvent: Sendable {
+    let type: UInt32
+    let keyCode: UInt16
+    let flags: UInt64
+    let isRepeat: Bool
+    let isDown: Bool
+
+    var isFlagsChanged: Bool { type == CGEventType.flagsChanged.rawValue }
+}
+
+private final class ShortcutEventInbox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var events: [ShortcutPlatformEvent] = []
+    private var drainScheduled = false
+    private let scheduleDrain: @Sendable () -> Void
+
+    init(scheduleDrain: @escaping @Sendable () -> Void) {
+        self.scheduleDrain = scheduleDrain
+    }
+
+    func enqueue(_ event: ShortcutPlatformEvent) {
+        lock.lock()
+        events.append(event)
+        let shouldSchedule = !drainScheduled
+        drainScheduled = true
+        lock.unlock()
+        if shouldSchedule { scheduleDrain() }
+    }
+
+    func takeAll() -> [ShortcutPlatformEvent] {
+        lock.lock()
+        let result = events
+        events.removeAll(keepingCapacity: true)
+        drainScheduled = false
+        lock.unlock()
+        return result
     }
 }

@@ -1,12 +1,22 @@
 # Third-party notices
 
-Dictate uses Swift Package Manager with Apple system frameworks and the optional
-FluidAudio package for the local Parakeet v3 provider. Apple frameworks include
+Dictate uses Swift Package Manager with Apple system frameworks including
 SwiftUI, AppKit, AVFAudio, Speech, ApplicationServices, CoreGraphics, Combine,
-Foundation, and UniformTypeIdentifiers.
+Foundation, and UniformTypeIdentifiers. No reference-repository source, asset,
+font, analytics SDK, or cloud service is included.
 
-FluidAudio is fetched from `https://github.com/FluidInference/FluidAudio.git`
-(`from: 0.12.4`) and downloads its Parakeet model assets on first use. Review
-that project's Apache 2.0 license and model notices when distributing a build.
-No reference-repository source, asset, font, analytics SDK, cloud service, or
-copied product implementation is included.
+## FluidAudio 0.15.5
+
+Dictate links the `FluidAudio` Swift package at version 0.15.5 from
+https://github.com/FluidInference/FluidAudio. FluidAudio is distributed under
+the Apache License 2.0. The complete license text is distributed by the
+upstream package in `LICENSE`.
+
+## NVIDIA Parakeet TDT 0.6B v3 Core ML model
+
+Dictate downloads the on-device model from
+https://huggingface.co/FluidInference/parakeet-tdt-0.6b-v3-coreml. The model
+repository identifies its license as Creative Commons Attribution 4.0
+International (CC BY 4.0). Model attribution: NVIDIA NeMo Parakeet TDT v3,
+converted for Core ML by Fluid Inference. See the model card and the linked
+license before redistributing downloaded model artifacts.

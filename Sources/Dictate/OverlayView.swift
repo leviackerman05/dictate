@@ -4,43 +4,92 @@ struct RecordingOverlayView: View {
     @ObservedObject var controller: DictationController
 
     var body: some View {
-        HStack(spacing: DesignSystem.Layout.space3) {
+        HStack(spacing: DesignSystem.Layout.space2) {
             Circle()
                 .fill(dotColor)
-                .frame(width: 8, height: 8)
+                .frame(width: 7, height: 7)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: DesignSystem.Layout.space1) {
+
+            if let notice = controller.deliveryNotice {
+                noticeView(notice)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
                 Text(statusText)
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(DesignSystem.ColorToken.mutedInk)
-                Text(controller.liveText.isEmpty ? String(localized: "recording.speakPrompt") : controller.liveText)
-                    .font(.system(.body, design: .serif))
                     .foregroundStyle(DesignSystem.ColorToken.ink)
                     .lineLimit(1)
+                Spacer(minLength: DesignSystem.Layout.space1)
+                if isRecording {
+                    BreathLine(level: controller.inputLevel, active: true)
+                        .frame(width: 32, height: 12)
+                        .accessibilityHidden(true)
+                }
             }
-            Spacer(minLength: DesignSystem.Layout.space2)
         }
-        .padding(.horizontal, DesignSystem.Layout.space4)
-        .padding(.vertical, 10)
+        .padding(.horizontal, DesignSystem.Layout.space3)
+        .frame(width: DesignSystem.Layout.overlayWidth, height: DesignSystem.Layout.overlayHeight)
         .background(DesignSystem.ColorToken.canvas)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlay))
-        .overlay(alignment: .bottom) {
-                BreathLine(level: controller.inputLevel, active: controller.state != .idle)
-                .padding(.horizontal, DesignSystem.Layout.space4)
-        }
-        .shadow(color: .black.opacity(DesignSystem.Shadow.overlayOpacity), radius: DesignSystem.Shadow.overlayRadius, y: DesignSystem.Shadow.overlayY)
+        .shadow(color: .black.opacity(DesignSystem.Shadow.overlayOpacity), radius: 12, y: 4)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(AccessibilitySupport.status(for: controller.state))
-        .accessibilityValue(controller.liveText)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    @ViewBuilder
+    private func noticeView(_ notice: DeliveryNotice) -> some View {
+        switch notice {
+        case .inserted:
+            Label(String(localized: "recording.inserted"), systemImage: "checkmark")
+        case .copied:
+            Label(String(localized: "recording.copied"), systemImage: "checkmark")
+        case .textReady(_):
+            HStack(spacing: DesignSystem.Layout.space2) {
+                Text(String(localized: "recording.textReady"))
+                    .foregroundStyle(DesignSystem.ColorToken.ink)
+                Spacer(minLength: DesignSystem.Layout.space1)
+                Button { controller.copyPendingText() } label: {
+                    Text(Copy.copyText)
+                        .font(.system(.caption2, weight: .semibold))
+                        .foregroundStyle(Color.white)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, DesignSystem.Layout.space2)
+                        .padding(.vertical, DesignSystem.Layout.space1)
+                        .background(DesignSystem.ColorToken.action, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
+                .accessibilityLabel(Copy.copyText)
+                Button { controller.discardPendingText() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(DesignSystem.ColorToken.mutedInk)
+                        .frame(width: 18, height: 18)
+                        .background(DesignSystem.ColorToken.hairline.opacity(0.55), in: Circle())
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
+                .help(Copy.discard)
+                .accessibilityLabel(Copy.discard)
+            }
+        }
+    }
+
+    private var isRecording: Bool {
+        switch controller.state {
+        case .listening, .transcribing: return true
+        default: return false
+        }
     }
 
     private var statusText: String {
         switch controller.state {
         case .idle: return Copy.cancelled
         case .preparing: return Copy.preparing
-        case .listening: return Copy.listening
-        case .transcribing: return Copy.transcribing
-        case .inserting: return Copy.inserting
+        case .listening, .transcribing: return Copy.listening
+        case .finalizing: return String(localized: "recording.finishing")
+        case .delivering: return Copy.inserting
         case .failed: return Copy.recordingFailed
         }
     }
@@ -48,8 +97,13 @@ struct RecordingOverlayView: View {
     private var dotColor: Color {
         switch controller.state {
         case .failed: return DesignSystem.ColorToken.recording
-        case .idle: return DesignSystem.ColorToken.hairline
+        case .finalizing, .delivering: return DesignSystem.ColorToken.action
         default: return DesignSystem.ColorToken.recording
         }
+    }
+
+    private var accessibilityLabel: String {
+        if controller.deliveryNotice != nil { return String(localized: "recording.deliveryStatus") }
+        return AccessibilitySupport.status(for: controller.state)
     }
 }
