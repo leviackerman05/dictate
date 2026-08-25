@@ -14,49 +14,38 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
         <BrandLogo size={30} />
         <span>Dictate</span>
       </a>
-      <nav aria-label="Primary navigation">
-        <div class="nav-links">
-          <a href="#flow">How it works</a>
-          <a href="#privacy">Privacy</a>
-        </div>
-        <div class="nav-actions">
-          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode">
-            <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19.2 15.2A8 8 0 0 1 8.8 4.8 8 8 0 1 0 19.2 15.2Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
-            <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.7" /><path d="M12 2.5V5M12 19V21.5M2.5 12H5M19 12H21.5M5.3 5.3 7.1 7.1M16.9 16.9 18.7 18.7M18.7 5.3 16.9 7.1M7.1 16.9 5.3 18.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg>
-          </button>
-          <a class="header-cta" href="https://github.com/leviackerman05/dictate" target="_blank" rel="noreferrer"><GitHubMark size={16} /><span>Star</span></a>
-        </div>
-      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode">
+        <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19.2 15.2A8 8 0 0 1 8.8 4.8 8 8 0 1 0 19.2 15.2Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.7" /><path d="M12 2.5V5M12 19V21.5M2.5 12H5M19 12H21.5M5.3 5.3 7.1 7.1M16.9 16.9 18.7 18.7M18.7 5.3 16.9 7.1M7.1 16.9 5.3 18.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg>
+      </button>
     </header>
 
-    <section class="hero" id="top">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="index-dot"></span> Local-first dictation for macOS</p>
-        <h1>Speak. Release.<br /><em>Keep writing.</em></h1>
-        <p class="lede">Dictate listens for the thought you already have, then returns the finished words to the field you were using. Small on screen. Clear in intent.</p>
-        <div class="hero-actions">
-          <a class="button button-primary" href={latestDMGURL} aria-label="Download the latest Dictate DMG for Mac">Download for Mac</a>
-          <a class="text-link github-link" href="https://github.com/leviackerman05/dictate" target="_blank" rel="noreferrer"><GitHubMark size={16} /> Star on GitHub</a>
+    <div class="first-screen">
+      <section class="hero" id="top">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="index-dot"></span> Local-first dictation for macOS</p>
+          <h1>Speak. Release.<br /><em>Keep writing.</em></h1>
+          <p class="lede">Dictate listens for the thought you already have, then returns the finished words to the field you were using. Small on screen. Clear in intent.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href={latestDMGURL} aria-label="Download the latest Dictate DMG for Mac">Download for Mac</a>
+            <a class="button button-secondary" href="https://github.com/leviackerman05/dictate" target="_blank" rel="noreferrer"><GitHubMark size={16} /> Star on GitHub</a>
+          </div>
+          <p class="release-note" id="release"><span class="status-dot moss-dot"></span> macOS 26+ · Apple silicon · community build</p>
         </div>
-        <p class="release-note" id="release"><span class="status-dot moss-dot"></span> macOS 26+ · Apple silicon · latest GitHub release</p>
-      </div>
-      <div class="hero-demo">
-        <SignalDemo />
-      </div>
-    </section>
+        <div class="hero-demo">
+          <SignalDemo />
+        </div>
+      </section>
 
-    <section class="proof-strip" aria-label="Product principles">
-      <span>01 / Focused</span><span>02 / Local</span><span>03 / Recoverable</span><span>04 / Quiet</span>
-    </section>
-
-    <section class="section flow-section" id="flow">
-      <div class="section-intro"><p class="eyebrow">How it works</p><h2>Hold. Speak.<br /><em>Release.</em></h2></div>
-      <div class="flow-grid">
-        <article class="flow-card"><span class="card-number blue">01</span><h3>Start</h3><p>Hold your shortcut or tap once.</p></article>
-        <article class="flow-card"><span class="card-number amber">02</span><h3>Speak</h3><p>Dictate listens locally while you talk.</p></article>
-        <article class="flow-card"><span class="card-number moss">03</span><h3>Continue</h3><p>Release and the words return to your field.</p></article>
-      </div>
-    </section>
+      <section class="flow-strip" id="flow" aria-labelledby="flow-title">
+        <h2 class="flow-title" id="flow-title">Hold. Speak. <em>Release.</em></h2>
+        <ol class="flow-grid">
+          <li class="flow-step"><span class="card-number blue">01</span><div><h3>Hold</h3><p>Press your shortcut or tap once.</p></div></li>
+          <li class="flow-step"><span class="card-number amber">02</span><div><h3>Speak</h3><p>Your voice is transcribed locally.</p></div></li>
+          <li class="flow-step"><span class="card-number moss">03</span><div><h3>Release</h3><p>The words return to your field.</p></div></li>
+        </ol>
+      </section>
+    </div>
 
     <section class="section split-section" id="privacy">
       <div class="split-panel dark-panel">
@@ -104,20 +93,14 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
   main { max-width: 1280px; margin: 0 auto; padding: 0 4vw; }
   .site-header { display: flex; align-items: center; justify-content: space-between; min-height: 4.3rem; border-bottom: 1px solid var(--border); }
   .wordmark { display: inline-flex; align-items: center; gap: 0.6rem; font-size: 1rem; font-weight: 800; letter-spacing: -0.02em; }
-  nav, .nav-links, .nav-actions { display: flex; align-items: center; }
-  nav { gap: 1.35rem; color: var(--muted); font-size: 0.78rem; font-weight: 650; }
-  .nav-links { gap: clamp(0.9rem, 2vw, 1.75rem); }
-  .nav-actions { gap: 0.48rem; padding-left: 1rem; border-left: 1px solid var(--border); }
-  nav a:hover, .text-link:hover { color: var(--action); }
-  .header-cta { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.25rem; padding: 0.55rem 0.72rem; border: 1px solid var(--border); border-radius: 0.65rem; background: var(--surface); color: var(--text); }
-  .header-cta:hover { border-color: color-mix(in srgb, var(--action) 45%, var(--border)); }
   .theme-toggle { display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border: 1px solid var(--border); border-radius: 0.65rem; background: var(--surface); color: var(--text); cursor: pointer; }
   .theme-icon { grid-area: 1 / 1; width: 1rem; height: 1rem; }
   .sun-icon { display: none; }
   :global(:root[data-theme="dark"]) .moon-icon { display: none; }
   :global(:root[data-theme="dark"]) .sun-icon { display: block; }
   .theme-toggle:hover { border-color: var(--action); color: var(--action); }
-  .hero { display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(340px, 0.96fr); align-items: center; gap: clamp(2.75rem, 6vw, 5.5rem); min-height: 510px; padding: 3.25rem 0 3.8rem; }
+  .first-screen { display: flex; min-height: calc(100svh - 4.3rem); flex-direction: column; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(340px, 0.96fr); align-items: center; flex: 1 1 auto; gap: clamp(2.75rem, 6vw, 5.5rem); min-height: 0; padding: clamp(2.2rem, 4.6vh, 3rem) 0; }
   .eyebrow { display: flex; align-items: center; gap: 0.55rem; margin: 0 0 1.25rem; color: var(--action); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
   .index-dot, .status-dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--action); }
   h1, h2 { margin: 0; letter-spacing: -0.06em; line-height: 0.95; }
@@ -126,30 +109,32 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
   h1 em, h2 em { color: var(--action); font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
   .lede { max-width: 31rem; margin: 1.55rem 0 1.7rem; color: var(--muted); font-size: clamp(0.96rem, 1.3vw, 1.1rem); line-height: 1.6; }
   .hero-actions { display: flex; align-items: center; gap: 1.15rem; }
-  .button { display: inline-flex; align-items: center; min-height: 2.55rem; padding: 0.7rem 0.92rem; border-radius: 999px; font-size: 0.76rem; font-weight: 800; }
+  .button { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.55rem; padding: 0.7rem 0.92rem; border-radius: 999px; font-size: 0.76rem; font-weight: 800; }
   .button-primary { background: var(--action); color: #fff; box-shadow: 0 10px 24px rgba(49, 85, 217, 0.2); transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
   .button-primary:hover { box-shadow: 0 13px 30px rgba(49, 85, 217, 0.27); transform: translateY(-1px); }
   .button-primary:active { box-shadow: 0 7px 18px rgba(49, 85, 217, 0.2); transform: translateY(0); }
+  .button-secondary { border: 1px solid var(--border); background: var(--surface); color: var(--text); transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, transform 160ms ease; }
+  .button-secondary:hover { border-color: color-mix(in srgb, var(--action) 55%, var(--border)); background: var(--raised); color: var(--action); transform: translateY(-1px); }
+  .button-secondary:active { transform: translateY(0); }
   .text-link { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--text); font-size: 0.8rem; font-weight: 750; }
-  .github-link { color: var(--muted); }
   .release-note { display: flex; align-items: center; gap: 0.5rem; margin: 1.6rem 0 0; color: var(--subtle); font-size: 0.7rem; }
   .status-dot { width: 0.45rem; height: 0.45rem; background: #e5aa2f; }
   .hero-demo { max-width: 470px; justify-self: end; width: 100%; }
-  .proof-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 1.2rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--muted); font: 0.68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; text-transform: uppercase; }
-  .proof-strip span:nth-child(2) { color: #4e7c62; }.proof-strip span:nth-child(3) { color: #e5aa2f; }.proof-strip span:nth-child(4) { color: #c94b43; }
   .section { padding: 5.75rem 0; }
-  .flow-section { display: grid; grid-template-columns: minmax(200px, 0.72fr) minmax(0, 1.6fr); gap: 3.25rem; padding: 4.5rem 0; border-bottom: 1px solid var(--border); }
-  .flow-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-self: end; }
-  .flow-card { min-height: 10.5rem; padding: 1.15rem; border-top: 3px solid var(--action); background: var(--raised); }
-  .flow-card:nth-child(2) { border-color: #e5aa2f; }.flow-card:nth-child(3) { border-color: #4e7c62; }
-  .card-number { display: block; margin-bottom: 1.7rem; font: 0.7rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }.card-number.blue { color: #3155d9; }.card-number.amber { color: #e5aa2f; }.card-number.moss { color: #4e7c62; }
-  h3 { margin: 0 0 0.65rem; font-size: 1.08rem; letter-spacing: -0.03em; }.flow-card p, .split-panel p, .closing-copy { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+  .flow-strip { display: grid; grid-template-columns: minmax(210px, 0.7fr) minmax(0, 1.8fr); align-items: center; gap: 2.5rem; padding: 1.15rem 0 1.3rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .flow-title { font-size: clamp(1.75rem, 2.5vw, 2.45rem); letter-spacing: -0.035em; line-height: 1; }
+  .flow-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 0; padding: 0; list-style: none; }
+  .flow-step { display: grid; grid-template-columns: auto 1fr; gap: 0.7rem; min-width: 0; padding: 0.9rem; border-top: 2px solid var(--action); background: var(--raised); }
+  .flow-step:nth-child(2) { border-color: #e5aa2f; }.flow-step:nth-child(3) { border-color: #4e7c62; }
+  .card-number { display: block; padding-top: 0.18rem; font: 0.66rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }.card-number.blue { color: #3155d9; }.card-number.amber { color: #e5aa2f; }.card-number.moss { color: #4e7c62; }
+  h3 { margin: 0 0 0.35rem; font-size: 0.96rem; letter-spacing: -0.025em; }.flow-step p, .split-panel p, .closing-copy { margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
   .split-section { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding-top: 4.5rem; }
   .split-panel { min-height: 23rem; padding: clamp(1.4rem, 3.5vw, 2.6rem); }.dark-panel { display: flex; flex-direction: column; justify-content: space-between; background: #10100e; color: #f3f0e7; }.dark-panel p { color: #aaa79d; }.dark-panel h2 em { color: #f0be4f; }.paper-panel { display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border); background: var(--surface); }.paper-panel h2 em { color: #4e7c62; }.paper-panel .text-link { margin-top: 2rem; }
   .eyebrow.warm { color: #f0be4f; }.quiet-line { display: flex; align-items: center; gap: 0.55rem; color: #aaa79d; font: 0.68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }.moss-dot { background: #69b783; }
   .closing-section { max-width: 760px; padding-bottom: 5.5rem; }.closing-copy { max-width: 31rem; margin: 1.35rem 0 1.6rem; }
   .site-footer { display: flex; justify-content: space-between; gap: 1rem; padding: 1.5rem 0 2rem; border-top: 1px solid var(--border); color: var(--subtle); font: 0.68rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }.site-footer a { display: inline-flex; align-items: center; gap: 0.35rem; }.site-footer a:hover { color: var(--action); }
-  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; min-height: auto; padding: 4.5rem 0; }.hero-demo { justify-self: start; max-width: 560px; }.flow-section { grid-template-columns: 1fr; gap: 2rem; }.flow-card { min-height: 9.5rem; } }
-  @media (max-width: 680px) { main { padding: 0 1.2rem; }.site-header { min-height: 4.35rem; }.nav-links { display: none; }.nav-actions { padding-left: 0; border-left: 0; }.header-cta { font-size: 0.7rem; }.hero { padding: 3.2rem 0 4.5rem; }.hero-actions { align-items: flex-start; flex-direction: column; gap: 1rem; }.proof-strip { grid-template-columns: repeat(2, 1fr); gap: 1rem; }.section { padding: 5rem 0; }.flow-grid, .split-section { grid-template-columns: 1fr; }.split-panel { min-height: 22rem; }.site-footer { align-items: flex-start; flex-direction: column; } }
+  @media (max-width: 900px) { .first-screen { min-height: auto; }.hero { grid-template-columns: 1fr; min-height: auto; padding: 4.5rem 0; }.hero-demo { justify-self: start; max-width: 560px; }.flow-strip { grid-template-columns: 1fr; gap: 1.25rem; } }
+  @media (max-width: 680px) { main { padding: 0 1.2rem; }.site-header { min-height: 4.35rem; }.hero { padding: 3.2rem 0 3.75rem; }.hero-actions { align-items: stretch; flex-direction: column; gap: 0.75rem; }.button { justify-content: center; }.section { padding: 5rem 0; }.flow-grid, .split-section { grid-template-columns: 1fr; }.flow-step { min-height: 5.5rem; }.split-panel { min-height: 22rem; }.site-footer { align-items: flex-start; flex-direction: column; } }
+  @media (pointer: coarse) { .button { min-height: 2.75rem; }.theme-toggle { width: 2.75rem; height: 2.75rem; } }
   @media (max-width: 380px) { h1 { font-size: 3.1rem; } h2 { font-size: 2.5rem; }.signal-demo { padding: 0.8rem; } }
 </style>

@@ -36,9 +36,10 @@ raw audio.
 [Download the latest DMG](https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg), open it, and drag Dictate into Applications.
 
 Dictate currently requires macOS 26 or newer on Apple silicon. Public builds are
-distributed through GitHub Releases. Until they are Developer ID signed and
-notarized, macOS may ask you to Control-click Dictate and choose **Open** the
-first time.
+distributed through GitHub Releases. This is currently an open-source community
+build: it is not signed with an Apple Developer ID or notarized by Apple. After
+dragging Dictate to Applications, macOS may ask you to Control-click the app and
+choose **Open** the first time.
 
 ## Using Dictate
 
@@ -71,6 +72,12 @@ identifier:
 
 ```sh
 DICTATE_BUNDLE_IDENTIFIER=com.example.dictate make app
+```
+
+Launch the locally built app with:
+
+```sh
+open build/Dictate.app
 ```
 
 ## Project notes

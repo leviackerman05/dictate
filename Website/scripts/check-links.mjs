@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 
 const page = await readFile(resolve("src/pages/index.astro"), "utf8");
 const required = [
-  "#top",
-  "#flow",
-  "#privacy",
+  'id="top"',
+  'id="flow"',
+  'id="privacy"',
   'id="release"',
   "https://github.com/leviackerman05/dictate",
   "https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg"
