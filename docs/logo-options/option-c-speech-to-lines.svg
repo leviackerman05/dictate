@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Dictate — Speech to Lines</title>
+  <desc id="desc">A cobalt voice point moving from two listening arcs into written lines.</desc>
+  <rect width="1024" height="1024" rx="224" fill="#151512"/>
+  <path d="M320 410C270 445 270 579 320 614M260 340C160 410 160 614 260 684" fill="none" stroke="#F7F6F2" stroke-width="62" stroke-linecap="round"/>
+  <circle cx="390" cy="512" r="42" fill="#7390FF"/>
+  <path d="M500 380H760M500 512H700M500 644H620" fill="none" stroke="#F7F6F2" stroke-width="62" stroke-linecap="round"/>
+</svg>

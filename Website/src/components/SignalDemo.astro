@@ -1,0 +1,90 @@
+<div class="signal-demo" data-signal-demo>
+  <div class="demo-topline">
+    <span class="demo-kicker">LIVE INTERACTION</span>
+    <span class="demo-platform">macOS 26+</span>
+  </div>
+  <div class="demo-field" aria-live="polite">
+    <span class="field-label">Focused field</span>
+    <span class="field-line"><span class="field-copy">Your dictated words return to the focused field.</span><span class="field-caret" aria-hidden="true"></span></span>
+  </div>
+  <div class="signal-row">
+    <div class="signal-pebble" data-demo-pebble data-state="ready" aria-label="Dictate ready">
+      <span class="pebble-orb"></span>
+      <span class="pebble-bars" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </span>
+      <span class="pebble-state" data-demo-state>Ready</span>
+    </div>
+    <button class="demo-action" type="button" data-demo-button>Preview recorder</button>
+  </div>
+  <p class="demo-caption" data-demo-caption>This is a visual state preview. It does not use your microphone.</p>
+</div>
+
+<script>
+  const demo = document.querySelector("[data-signal-demo]");
+  if (demo instanceof HTMLElement) {
+    const button = demo.querySelector<HTMLButtonElement>("[data-demo-button]");
+    const state = demo.querySelector<HTMLElement>("[data-demo-state]");
+    const pebble = demo.querySelector<HTMLElement>("[data-demo-pebble]");
+    const caption = demo.querySelector<HTMLElement>("[data-demo-caption]");
+    const stages = [
+      { key: "ready", label: "Ready", caption: "This is a visual state preview. It does not use your microphone." },
+      { key: "listening", label: "Listening", caption: "In the app, hold your shortcut while you speak." },
+      { key: "finishing", label: "Finishing", caption: "In the app, releasing the shortcut ends capture immediately." }
+    ];
+    let stage = 0;
+    let timer: number | undefined;
+
+    const render = (next: number) => {
+      stage = next;
+      const item = stages[stage];
+      if (state) state.textContent = item.label;
+      if (caption) caption.textContent = item.caption;
+      if (pebble) {
+        pebble.dataset.state = item.key;
+        pebble.setAttribute("aria-label", `Dictate ${item.label.toLowerCase()}`);
+      }
+      if (button) button.textContent = stage === 1 ? "Release preview" : "Preview recorder";
+    };
+
+    button?.addEventListener("click", () => {
+      window.clearTimeout(timer);
+      if (stage === 0) {
+        render(1);
+      } else {
+        render(2);
+        timer = window.setTimeout(() => render(0), 650);
+      }
+    });
+  }
+</script>
+
+<style>
+  .signal-demo { padding: 1.15rem; border: 1px solid #3a3a34; border-radius: 1.2rem; background: #20201d; color: #f3f0e7; box-shadow: 0 22px 55px rgba(21, 21, 18, 0.16); }
+  .demo-topline, .signal-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .demo-kicker, .demo-platform, .field-label { color: #aaa79d; font-size: 0.67rem; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; }
+  .demo-field { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0.8rem; min-height: 9.5rem; margin: 1rem 0; padding: 1rem; border: 1px solid #3a3a34; border-radius: 0.9rem; background: #151512; }
+  .field-label { align-self: flex-start; flex: 0 0 auto; writing-mode: vertical-rl; transform: rotate(180deg); }
+  .field-line { display: inline; max-width: 28rem; }
+  .field-copy { max-width: 28rem; color: #f3f0e7; font: 500 clamp(1.15rem, 2.5vw, 1.65rem)/1.22 Georgia, "Times New Roman", serif; }
+  .field-caret { display: inline-block; width: 0.13rem; height: 1.18em; margin-left: 0.12em; vertical-align: -0.18em; background: #f0be4f; animation: caret 1.1s steps(2, jump-none) infinite; }
+  .signal-pebble { display: inline-flex; align-items: center; gap: 0.55rem; min-width: 9.4rem; min-height: 2.45rem; padding: 0.35rem 0.72rem 0.35rem 0.42rem; border: 1px solid #4a4a42; border-radius: 999px; background: #292925; overflow: hidden; transition: border-color 180ms ease, background 180ms ease; }
+  .signal-pebble[data-state="listening"] { border-color: #7390ff; background: #202a4f; }
+  .signal-pebble[data-state="finishing"] { border-color: #f0be4f; }
+  .pebble-orb { width: 1.15rem; height: 1.15rem; border: 2px solid #aaa79d; border-radius: 50%; }
+  [data-state="listening"] .pebble-orb { border-color: #7390ff; box-shadow: 0 0 0 0.22rem rgba(115, 144, 255, 0.15); }
+  .pebble-bars { display: inline-flex; align-items: center; gap: 0.16rem; width: 2.3rem; height: 1rem; }
+  .pebble-bars i { width: 0.16rem; height: 0.28rem; border-radius: 999px; background: #7390ff; }
+  [data-state="listening"] .pebble-bars i:nth-child(1), [data-state="listening"] .pebble-bars i:nth-child(7) { height: 0.4rem; }
+  [data-state="listening"] .pebble-bars i:nth-child(2), [data-state="listening"] .pebble-bars i:nth-child(6) { height: 0.85rem; }
+  [data-state="listening"] .pebble-bars i:nth-child(3), [data-state="listening"] .pebble-bars i:nth-child(5) { height: 1rem; }
+  [data-state="listening"] .pebble-bars i:nth-child(4) { height: 0.68rem; }
+  [data-state="finishing"] .pebble-bars i { height: 0.4rem; background: #f0be4f; }
+  .pebble-state { flex: 0 0 auto; white-space: nowrap; font-size: 0.78rem; font-weight: 700; }
+  .demo-action { border: 0; border-radius: 999px; padding: 0.7rem 0.85rem; background: #3155d9; color: #fff; cursor: pointer; font: 700 0.76rem/1 ui-sans-serif, system-ui, sans-serif; }
+  .demo-action:hover { background: #2748c4; }
+  .demo-caption { margin: 0.85rem 0 0; color: #aaa79d; font-size: 0.78rem; line-height: 1.5; }
+  @keyframes caret { 0%, 45% { opacity: 1; } 46%, 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .field-caret { animation: none; } }
+  @media (max-width: 480px) { .demo-field { min-height: 8rem; } .signal-row { align-items: flex-start; flex-direction: column; } .demo-action { width: 100%; } }
+</style>

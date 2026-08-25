@@ -12,6 +12,7 @@ enum RecognitionError: Error, Sendable {
 
 @MainActor
 final class SpeechRecognitionService {
+    private static let minimumAcceptedConfidence = 0.32
     private var analyzer: SpeechAnalyzer?
     private var transcriber: SpeechTranscriber?
     private var bufferConverter: AudioBufferConverter?
@@ -93,7 +94,7 @@ final class SpeechRecognitionService {
                         for try await result in transcriber.results {
                             let resultText = String(result.text.characters)
                             let confidence = Self.meanConfidence(in: result.text)
-                            let acceptedText = confidence.map { $0 >= 0.18 } == false ? "" : resultText
+                            let acceptedText = (confidence ?? 0) >= Self.minimumAcceptedConfidence ? resultText : ""
                             let visibleText = assembly.apply(acceptedText, isFinal: result.isFinal)
                             DictateLog.recognition.debug("SpeechAnalyzer result final=\(result.isFinal, privacy: .public) chars=\(resultText.count, privacy: .public) confidence=\(confidence ?? -1, privacy: .public) accepted=\(!acceptedText.isEmpty, privacy: .public) finalizedChars=\(assembly.finalizedText.count, privacy: .public) volatileChars=\(assembly.volatileText.count, privacy: .public)")
                             onPartial(visibleText)
@@ -208,7 +209,11 @@ final class SpeechRecognitionService {
         return SpeechTranscriber(
             locale: locale,
             transcriptionOptions: preset.transcriptionOptions,
-            reportingOptions: preset.reportingOptions,
+            // The progressive preset opts into fast results. Those arrive
+            // sooner but are more prone to low-confidence substitutions on
+            // short/quiet utterances. Dictate does not display live prose, so
+            // prefer the settled result instead.
+            reportingOptions: preset.reportingOptions.subtracting([.fastResults]),
             attributeOptions: preset.attributeOptions.union([.transcriptionConfidence])
         )
     }

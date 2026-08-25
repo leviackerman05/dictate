@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f7f6f2"/>
+  <circle cx="86" cy="86" r="10" fill="#3155d9"/><circle cx="116" cy="86" r="10" fill="#e5aa2f"/><circle cx="146" cy="86" r="10" fill="#4e7c62"/><circle cx="176" cy="86" r="10" fill="#c94b43"/>
+  <text x="86" y="250" font-family="Georgia, serif" font-size="92" fill="#151512">Speak. Release.</text>
+  <text x="86" y="350" font-family="Georgia, serif" font-size="92" fill="#3155d9">Keep writing.</text>
+  <text x="90" y="448" font-family="ui-monospace, monospace" font-size="20" letter-spacing="4" fill="#686861">LOCAL-FIRST DICTATION FOR MACOS</text>
+  <g transform="translate(1002 100) scale(.32)" fill="#151512">
+    <path d="M19 72C39 97 64 96 84 64C104 32 130 34 151 72C172 110 197 108 217 72C237 36 258 36 270 69" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="312" cy="72" r="22"/>
+  </g>
+</svg>

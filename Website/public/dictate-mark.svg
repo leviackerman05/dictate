@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 336 144" role="img" aria-labelledby="title desc">
+  <title id="title">Dictate</title>
+  <desc id="desc">A bold voice wave and dot.</desc>
+  <path d="M19 72C39 97 64 96 84 64C104 32 130 34 151 72C172 110 197 108 217 72C237 36 258 36 270 69" fill="none" stroke="#151512" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="312" cy="72" r="22" fill="#151512"/>
+</svg>

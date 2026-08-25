@@ -1,409 +1,270 @@
-# GPT-5.6 Luna prompt: implement the selected Dictate UI theme
-
-Use this message with GPT-5.6 Luna after replacing the selection placeholders:
+# Ready-to-paste prompt for GPT-5.6 Luna
 
 ```text
-Implement the Dictate UI theme phase in this existing repository.
-Primary selected theme: [THEME NAME AND NUMBER]
-Optional second theme: [THEME NAME AND NUMBER, or NONE]
+Implement the final Dictate UI and brand system in this existing native macOS
+repository. This is an implementation task, not a concept-generation task. There is
+one approved design; do not offer alternatives and do not invent another theme.
 
-Read PROMPT_GPT_5_6_LUNA_UI.md and follow it exactly. Treat the corresponding images
-under docs/theme-concepts/ as visual references at original detail. Do not change the
-recording, recognition, insertion, dictionary-matching, or persistence behavior unless
-a compilation error directly caused by the UI work requires a minimal compatibility
-change.
+REPOSITORY ROOT
+/Users/aditidubey/Documents/ChatGPT/dictate
+
+AUTHORITATIVE VISUAL REFERENCES
+Open these files at original resolution before editing:
+1. docs/final-design/dictate-final-ui.png
+2. docs/final-design/dictate-brand-system.png
+
+AUTHORITATIVE WRITTEN REFERENCES
+Read these completely before editing:
+1. PRODUCT.md
+2. DESIGN.md
+3. docs/CURRENT_STATE_AUDIT.md
+4. PROMPT_BUILDER_REPAIR_AND_GUI.md
+
+Then inspect git status, Package.swift, the current SwiftUI/AppKit implementation,
+resources, localization, tests, and build scripts. Preserve all existing user and
+builder changes. Never reset, clean, or overwrite unrelated work.
+
+OUTCOME
+Ship the single approved Color Index visual system across Dictate, including History,
+Dictionary, Settings, onboarding and permissions, menu-bar presence and menus, every
+empty/loading/error/recovery state, the global Signal Pebble recorder, System/Light/
+Dark appearance, and the Dictate app icon plus monochrome menu-bar glyph.
+
+Do not implement a theme picker. Color Index is the product identity. Appearance is an
+independent persisted preference with System, Light, and Dark.
+
+PRODUCT BOUNDARY
+Dictate is an OS-level writing-input utility: hold a global shortcut, speak, release,
+and insert the transcription at the text cursor that was focused before recording.
+It contains History, Dictionary, and secondary Settings. Do not add a notetaker,
+meeting recorder, document editor, folders, projects, summaries, AI chat, rewriting,
+collaboration, cloud sync, or dashboard statistics.
+
+FUNCTIONAL SAFETY — NO REGRESSIONS
+The existing repair work is behaviorally authoritative. UI work must preserve:
+- hold-to-talk starts on physical key-down and finalizes exactly once on physical
+  key-up, including when the main window is closed or another app is active;
+- click-to-toggle starts on the first trigger and finalizes on the next trigger;
+- cancellation always works and never strands the recorder in a listening state;
+- the original external app, focused element, and selection are captured before any
+  overlay appears;
+- the non-activating overlay never becomes key/main or steals the insertion target;
+- final text is inserted at that original cursor using the existing delivery path;
+- if insertion cannot happen, the transcript remains in History and recovery exposes
+  a real Copy action;
+- Apple SpeechTranscriber and NVIDIA Parakeet TDT 0.6B v3 keep their existing
+  implementations and status models;
+- Dictionary corrections, persistence, History, localization, permissions, and
+  accessibility behavior keep working.
+
+Do not rewrite the recording, recognition, shortcut, delivery, or persistence core to
+make UI implementation easier. Make only minimal compatibility changes needed to
+expose existing state to views, and add focused tests for any such change.
+
+VISUAL AUTHORITY AND FACTUAL AUTHORITY
+The PNGs are authority for composition, density, hierarchy, color relationships,
+component geometry, and identity. Generated sample dates, counts, transcripts, and
+labels are illustrative. Current models, behavior, persistence, permissions, and
+localized product copy are factual authority. Never ship mock data from the boards.
+
+DESIGN-SYSTEM ARCHITECTURE
+Refactor Sources/Dictate/DesignSystem.swift into semantic light/dark tokens. Views
+must consume meanings rather than literal hues. At minimum centralize background,
+surface, raised/selected surfaces, primary/secondary/disabled/inverse text, borders,
+focus ring, action, listening, success, warning, failure, overlay colors and shadow,
+Color Index accents, typography roles, spacing, radii, border widths, and motion.
+
+Use the palette and geometry in DESIGN.md as the starting specification. Tune only
+when native rendering or contrast requires it. Do not scatter hard-coded RGB, font
+sizes, radii, or animation durations throughout feature views. Dark mode must be
+purpose-designed, not an automatic inversion. Remove the current forced-light scheme.
+
+MAIN WINDOW
+Replace the permanent NavigationSplitView/sidebar presentation with the approved
+compact top navigation while keeping native macOS window behavior and keyboard focus.
+The top band contains the small Dictate mark/title, History and Dictionary navigation,
+and quiet Settings access. Do not add a dashboard or bottom command deck.
+
+HISTORY
+- Implement the horizontal seven-day date index plus All.
+- Derive days from real History data/current calendar; handle locale, month/year,
+  daylight-saving, and empty-day boundaries correctly.
+- Use cobalt for the current day and restrained amber/moss/coral index hairlines.
+- Include History heading, Today filter, search, and real item count.
+- Use one continuous transcript list with dividers, not a card per row.
+- Rows show timestamp, transcript, duration, inserted/not-inserted state, and overflow.
+- Preserve copy, retry insertion, pin, correction audit/learn, multi-selection,
+  deletion, export, empty, and search behavior.
+- Use monospaced numerals only for timestamp/duration/shortcut metadata.
+
+DICTIONARY
+Use the Color Index character with Focus Deck's efficient list/editor structure:
+- search and Add at the top;
+- All, Vocabulary, and Corrections filters with real counts;
+- compact left list showing phrase, replacement, category, and metadata;
+- cobalt selected row with a non-color selection cue;
+- right editor with Phrase, Replacement, Notes (optional), Delete, and Save;
+- preserve existing validation, enabled state, corrections, import/export, search,
+  keyboard behavior, and persistence;
+- at narrow supported widths, adapt the editor into a sheet or stacked detail without
+  clipping controls or losing focus.
+
+SETTINGS
+Use Quiet Ribbon's calm grouped-control discipline inside Color Index. Organize the
+real settings into General, Shortcut, Recording & Models, Insertion & Permissions,
+Appearance, Data & Privacy, Updates, and About. Use aligned labels, compact help copy,
+and native-behaving controls.
+
+Appearance provides System, Light, and Dark and updates every surface, including the
+Signal Pebble, without relaunching. Do not display a theme chooser. Show actual model
+names and existing Apple/Parakeet readiness, download, validation, loading, retry,
+unavailable, and removal states. Do not use vague “on-device model” copy when a
+concrete implemented model name is available.
+
+SIGNAL PEBBLE — GLOBAL RECORDER
+Implement this mandatory component as a non-activating NSPanel. It must not become
+key/main, steal focus, or alter the captured insertion target. Default placement is
+unobtrusive near the bottom center. Safe drag/docking is optional; do not let it delay
+correctness. It may share the low-interruption principle of a modern dictation bar,
+but must not copy Wispr Flow's logo, silhouette, proportions, gradients, or motion.
+
+STATE 1 — DICTATE READY
+- Persistently visible while Dictate's global shortcut service is enabled and the app
+  is available, even when the shortcut is not held.
+- Approximately 104–120 points wide and 28–32 points high.
+- Extremely low prominence: static neutral surface/outline, hollow status ring, and
+  small “Dictate ready” label.
+- No waveform, glow, pulsing, recording color, or audio-level motion.
+- Do not start or imply microphone capture in this state. It means the service is
+  available, not that audio is being recorded.
+- Reveal the shortcut on hover/focus or in a tooltip rather than showing it constantly.
+- Add a Show ready indicator setting if none exists; default it on. The menu-bar item
+  must still communicate whether Dictate is running when it is hidden.
+
+STATE 2 — LISTENING (HOLD)
+- On shortcut key-down, morph to roughly 136–150 × 34–38 points.
+- Use a cobalt filled status bead and 7–9 responsive vertical level bars.
+- No live transcript and no persistent “Recording” label.
+- Physical shortcut release immediately exits listening and finalizes exactly once.
+
+STATE 3 — PROCESSING (RELEASE)
+- Make it unambiguous that recording stopped.
+- Compress waveform bars into three restrained traveling cobalt dots.
+- Optional concise “Finishing…” label.
+- Never continue showing active audio levels after release.
+
+STATE 4 — INSERTED SUCCESS
+- Brief moss check pulse and accessible success announcement.
+- Return to the quiet Dictate ready state instead of disappearing permanently.
+
+STATE 5 — INSERTION FAILED / RECOVERY
+- Only this state expands horizontally.
+- Show “Text ready — click Copy” and a real keyboard-accessible Copy button.
+- Never show transcript prose inside the pebble.
+- Keep text safe in History. Copy writes the exact final corrected text.
+- After copy, announce confirmation briefly and return to Dictate ready.
+
+STATE 6 — CANCELLED OR FAILED
+- Provide a concise non-color icon plus accessible message.
+- Escape and the existing cancellation path must work. A right-click menu may expose
+  Cancel/Hide/Settings; do not add a large permanent Stop button.
+- Return safely to Dictate ready.
+
+The overlay needs independent light and dark surfaces and sufficient contrast. Respect
+Reduce Motion with opacity/discrete changes, plus Reduce Transparency and Increased
+Contrast. Avoid constant animation during ordinary work.
+
+BRAND AND ICON
+Use docs/final-design/dictate-brand-system.png as reference for one mark: a capital D
+whose negative space contains an insertion cursor and whose open bowl resolves into
+compact signal bars. It represents voice becoming inserted text.
+
+- Rebuild the mark as clean repo-native vector geometry; do not ship the raster board
+  as the app icon.
+- Replace/update Sources/Dictate/Resources/AppIcon.svg and the asset-catalog icon
+  source consistently with correct macOS icon safe area.
+- Create a monochrome template version for the menu bar that remains legible at 16–18
+  points and adapts automatically to menu-bar appearance.
+- Use the small mark beside the Dictate title where shown, but do not repeat it
+  decoratively throughout the app.
+- Large icon may use tiny amber/moss/coral signal ticks; the core mark works in one
+  color.
+- Do not use, trace, or resemble the Apple logo. Do not use a microphone pictogram,
+  speech bubble, generic waveform circle, or copied competitor branding.
+
+MOTION
+Use one restrained motion grammar: 120–180 ms direct feedback and 180–260 ms state
+morphs. Drive the Signal Pebble waveform from real input level only while listening.
+Success is one short pulse. No springy wobble, decorative gradients, continuous idle
+animation, or gratuitous transitions.
+
+ACCESSIBILITY AND NATIVE BEHAVIOR
+- VoiceOver labels/announcements for navigation, filters, insertion/model/recorder
+  states, and recovery actions.
+- Full Keyboard Access, visible focus, correct tab order, and Escape behavior.
+- Never rely on color alone.
+- Support Increased Contrast, Reduce Transparency, and Reduce Motion.
+- Preserve localization and add keys for every new user-facing string.
+- Use native controls where behavior matters, then style their surroundings.
+- The ready overlay must not repeatedly announce or interrupt screen-reader work.
+
+IMPLEMENTATION ORDER
+1. Audit current UI/state architecture and map existing states to new surfaces without
+   modifying behavior.
+2. Implement semantic design tokens and persisted appearance preference.
+3. Implement the app mark, app icon source, and menu-bar template glyph.
+4. Replace the main shell and implement History.
+5. Implement Dictionary list/editor and responsive fallback.
+6. Implement grouped Settings and Appearance.
+7. Implement the full Signal Pebble state presentation, including persistent ready
+   visibility without idle microphone capture or focus theft.
+8. Bring onboarding, permissions, alerts, menus, empty/error/model states, localization,
+   and accessibility into the system.
+9. Build, test, run, and capture visual evidence.
+
+VERIFICATION
+- Run the repository's existing build and test commands.
+- Add focused unit tests for appearance persistence and extracted overlay state mapping.
+- Preserve/run shortcut gesture, transcription accumulator, delivery, Dictionary,
+  History, and model-status tests.
+- Launch and inspect populated/empty History, Dictionary list/editor, Settings,
+  onboarding/permissions, and every Signal Pebble state.
+- Capture light/dark screenshots of History, Dictionary, Settings, and the complete
+  Signal Pebble state matrix.
+- In another app, focus an editable field, hold shortcut, speak, release, confirm the
+  recording stops immediately, insertion occurs at the original cursor, and the
+  pebble returns to Dictate ready.
+- Test click-to-toggle separately.
+- Deny Accessibility and verify Text ready + Copy recovery with no text loss.
+- Confirm the ready pebble never activates Dictate, changes external selection, or
+  opens the microphone before the trigger.
+- Verify System/Light/Dark updates every surface without relaunching.
+- Inspect the 16–18 point menu-bar glyph in both menu-bar appearances.
+
+Do not claim manual checks you could not run. Record environment-only blockers exactly.
+
+ACCEPTANCE CRITERIA
+- The result visibly matches both final reference boards as one Color Index product.
+- There are no alternative themes or leftover theme-choice UI.
+- History, Dictionary, Settings, onboarding, menu bar, and recorder share the same
+  semantic system in light and dark.
+- Dictate ready remains visible but quiet while available; it has no idle waveform and
+  does not capture audio.
+- Hold-to-talk stops on release and the listening visualization stops with it.
+- Successful text inserts at the original cursor; failed insertion preserves text and
+  exposes Copy.
+- Overlay never shows transcript prose and never steals focus.
+- App mark is an original D + insertion cursor + signal design that works as both app
+  icon and tiny monochrome menu-bar glyph.
+- No notetaker, meetings, summaries, dashboard, sidebar, or copied branding is added.
+- Build/tests pass and final handoff lists changed files, commands/results, screenshots,
+  and honest remaining risks.
+
+FINAL HANDOFF FORMAT
+1. Outcome summary.
+2. Changed files grouped by design system, surfaces, overlay, brand/resources,
+   localization, and tests.
+3. Verification commands with pass/fail results.
+4. Screenshot paths.
+5. Any unverified manual behavior or remaining risk.
 ```
-
-The remainder of this document is the implementation specification.
-
-## Role and outcome
-
-You are the senior product designer and native macOS UI engineer for **Dictate**.
-Implement the selected visual theme—or two independent selectable themes—across the
-entire existing app. Each selected theme must have a deliberately designed light mode
-and dark mode.
-
-This is an implementation task, not another concept exercise. Work directly in the
-existing repository, preserve current history and dictionary data, and complete the
-UI end to end. Do not scaffold another application or rewrite the functional core.
-
-If the selection placeholders above have not been replaced with valid theme names,
-stop and ask the owner to select from the seven numbered boards. Do not choose silently.
-
-## Read before editing
-
-1. `PRODUCT.md`
-2. `docs/CURRENT_STATE_AUDIT.md`
-3. `PROMPT_BUILDER_REPAIR_AND_GUI.md`
-4. `docs/theme-concepts/README.md`
-5. The selected PNG board or boards under `docs/theme-concepts/`
-6. `Sources/Dictate/DesignSystem.swift`
-7. All current SwiftUI/AppKit UI files, including the main shell, History, Dictionary,
-   Settings, onboarding, overlay controller/view, menu bar, and accessibility helpers.
-
-Inspect `git status`, current tests, and the running app before editing. Preserve user
-changes and do not reset, clean, or replace unrelated work.
-
-The concept images are visual authority for composition, density, typography
-character, palette, and component relationships. They are not behavioral authority:
-generated labels, counts, example controls, dates, or model names may be fictional or
-misspelled. Use the current code and product documents for factual copy and behavior.
-
-## Product boundary
-
-Dictate is a focused input utility:
-
-- hold a shortcut, speak, release, and insert at the original cursor;
-- click-to-toggle as an optional recording behavior;
-- History for safe recovery and past transcripts;
-- Dictionary for vocabulary and deterministic correction pairs;
-- secondary Settings for shortcut, models, permissions, privacy, appearance, and
-  theme.
-
-Do not add a notetaker, text editor, meetings, folders, projects, documents, AI chat,
-summaries, rewriting, collaboration, or cloud sync.
-
-The UI must not regress shortcut monitoring, recording finalization, cancellation,
-focus capture, insertion, copy recovery, Apple SpeechTranscriber, Parakeet, History,
-or Dictionary behavior.
-
-## Theme selection model
-
-Add two independent persisted preferences:
-
-1. `AppTheme`: the selected visual theme.
-2. `AppearancePreference`: `system`, `light`, or `dark`.
-
-If one theme was selected, ship that theme and its light/dark variants; do not expose
-a fake theme chooser containing unfinished concepts. If two themes were selected,
-ship exactly those two and add a visual Theme chooser in Settings. Switching themes
-must update the main window, Dictionary, Settings, onboarding, empty/error states, and
-the global recorder overlay without relaunching.
-
-Never blend two selected concepts into one hybrid. Each has its own coherent tokens,
-layout grammar, materials, typography, and motion. Shared product behavior and domain
-components remain common.
-
-## Design-system architecture
-
-Replace the single static palette with a semantic theme system. Use names based on
-meaning, never hue:
-
-```text
-background
-surface
-surfaceRaised
-surfaceSelected
-textPrimary
-textSecondary
-textDisabled
-border
-borderStrong
-action
-actionText
-recording
-success
-warning
-failure
-focusRing
-overlayBackground
-overlayText
-overlayBorder
-```
-
-Also theme:
-
-- typography roles: display, navigation, transcript, body, label, metadata;
-- spacing rhythm;
-- radii and border widths;
-- shadows/materials;
-- icons and status marks;
-- selection, hover, press, focus, disabled, and destructive states;
-- motion durations, curves, and Reduce Motion alternatives;
-- main-window structure and recorder-overlay geometry.
-
-Use an environment-injected `ThemeContext` or equivalent so leaf views consume
-semantic tokens. Do not scatter `if theme == ...` color branches throughout views.
-
-Tokens alone are insufficient for structurally different concepts. When selected
-themes have genuinely different composition—such as Focus Deck versus One-Bit
-Modern—create theme-specific shell/layout implementations behind shared History,
-Dictionary, Settings, and session view models. Do not force every theme through the
-old `NavigationSplitView` merely to maximize code reuse.
-
-Centralize all values. No hard-coded RGB values, font sizes, radii, shadows, or
-animation durations inside feature views.
-
-## Shared surface requirements
-
-Every selected theme, in both light and dark mode, must cover:
-
-- main application shell and window chrome treatment;
-- History populated, empty, searching, selected, pinned, correction-audit, copied,
-  insertion-failed, and multi-delete states;
-- Dictionary empty, populated, searching, filtered, selected, editing, adding,
-  validation warning, import/export notice, enabled, and disabled states;
-- Settings sections and all controls;
-- onboarding and Microphone/Accessibility permission states;
-- Apple SpeechTranscriber and Parakeet model selection, unavailable, downloading,
-  validating, loading, ready, retry, and failure states;
-- menus, tooltips, keyboard focus, contextual actions, confirmation dialogs, and
-  transient notices;
-- recorder overlay states: preparing, recording, finalizing, inserted, text ready,
-  copied, cancelled, and failed.
-
-Native sheets, alerts, context menus, and the menu bar may retain platform behavior,
-but their labels, surrounding presentation, icons, and launch points must feel
-intentional within the theme.
-
-## Recorder overlay is part of the theme
-
-The global recorder must be designed at the same time as the main app, not after it.
-
-- Non-activating `NSPanel`; never becomes key or main.
-- Approximately 160-200 points wide and 32-40 points high.
-- Never show live transcript text.
-- Recording: non-color status cue, small level response, and `Recording`.
-- Finalizing: restrained progress cue and `Finishing`.
-- Success: check/status mark and `Inserted`, visible briefly.
-- Recovery: `Text ready` and a real `Copy` button; remains actionable and text remains
-  safe in History.
-- After copy: `Copied`, then dismiss.
-- Failure: concise actionable state without exposing transcript content.
-- Light and dark variants must be designed independently and pass contrast.
-- Theme changes update the overlay even if the main window is closed.
-- Respect Reduce Motion by substituting opacity, fill, or discrete state changes.
-
-Use the selected concept's signature consistently. Examples:
-
-- Quiet Ribbon: metadata ribbon becomes the recorder's slim leading status band.
-- Night Signal: cyan/orange signal ticks become the level response.
-- Color Index: the current date color becomes the recorder edge, with labels retained.
-- Focus Deck: the bottom command deck compresses into the global recorder strip.
-- One-Bit Modern: one-pixel frame, inverted status, and integer-scale indicators.
-- Iridescent Edge: spectral hairline is the sole flourish around an opaque pill.
-- Signal Steps: the step sequence compresses into the level/finalization timeline.
-
-## Theme specifications
-
-Implement only the selected theme or themes, but preserve this written direction when
-rationalizing details from the mockup.
-
-### 1. Quiet Ribbon
-
-- Structure: slim top band; History/Dictionary centered; no permanent sidebar;
-  continuous centered history stream; narrow metadata ribbons.
-- Light: Mist `#F1F3F8`, Paper `#FCFCFE`, Ink `#161922`, Indigo `#5965E8`, Coral
-  `#F05F52`, Quiet `#747A8A`.
-- Dark: Midnight `#111724`, Raised `#192231`, Text `#F0F2F8`, Indigo `#8A8FFF`, Coral
-  `#F57468`, Quiet `#9299AA`.
-- Type: humanist sans UI, literary serif transcript, mono metadata.
-- Signature: metadata ribbon carries time, duration, insertion status, and corrections.
-
-### 2. Night Signal
-
-- Structure: narrow icon rail; dense full-height signal log; oversized timestamps;
-  Dictionary as integrated slide-over inspector.
-- Light: Ice `#F4F7FB`, White `#FFFFFF`, Navy `#101827`, Cyan `#1FB7AE`, Orange
-  `#FF7657`, Steel `#6F7C95`.
-- Dark: Deep Navy `#0D1321`, Panel `#151D2E`, Text `#EDF2FF`, Cyan `#55D8D0`, Orange
-  `#FF7657`, Muted `#8C98B3`.
-- Type: sharp grotesque, large tabular timestamps, mono utility.
-- Signature: transcript luminance and signal marks communicate delivery state.
-
-### 3. Color Index
-
-- Structure: horizontal date index; full-width daily columns; Dictionary as searchable
-  overlay sheet with indexed filters.
-- Light: Chalk `#F7F6F2`, Ink `#11110F`, Cobalt `#3155D9`, Marigold `#E5AA2F`, Moss
-  `#4E7C62`, Error `#C94B43`.
-- Dark: Soot `#151512`, Charcoal `#22221D`, Bone `#F3F0E7`, Cobalt `#7390FF`, Gold
-  `#F2C25D`, Sage `#7DB492`.
-- Type: rounded display labels, neutral sans reading, mono time.
-- Signature: restrained indexed color communicates chronology with redundant labels.
-
-### 4. Focus Deck
-
-- Structure: content above a persistent bottom command deck; Dictionary slides from
-  right; no traditional sidebar. The deck becomes the global recorder outside app.
-- Light: Bone `#ECE9E1`, White `#FFFFFF`, Carbon `#20211F`, Slate `#646A68`, Blue
-  `#2E6BFF`, Record `#E35247`.
-- Dark: Carbon `#171816`, Graphite `#242622`, Bone `#F1EEE6`, Blue `#6792FF`, Coral
-  `#F06A5E`, Silver `#999D98`.
-- Type: condensed sans navigation, humanist sans transcripts, mono metadata.
-- Signature: one command-deck object persists across in-app and global contexts.
-
-### 5. One-Bit Modern
-
-- Structure: compact top strip; continuous ruled History; overlapping rectangular
-  Dictionary editor; controlled dithering and selected-state inversion.
-- Light: Paper `#FAFAF7`, Ink `#101010`, 25% and 50% ordered dither, Blue `#3457FF`,
-  Failure `#E64A42`.
-- Dark: Ink `#101010`, Paper `#F5F5EF`, reversed dithers, Blue `#6F87FF`, Failure
-  `#F0645D`.
-- Type: bitmap-inspired display/navigation, modern sans body, pixel/mono utility.
-- Signature: exact one-pixel geometry and inversion; body text stays highly readable.
-
-### 6. Iridescent Edge
-
-- Structure: top-line navigation; wide opaque content fields; spectral edges show
-  state; Dictionary uses edge-banded rows and a clean inspector.
-- Light: Cloud `#F7F8FA`, White `#FFFFFF`, Slate `#242830`, Muted `#747A84`, Mint
-  `#78D8C4`, Rose `#EF8EA6`, Violet `#8A78E8`.
-- Dark: Eclipse `#11141A`, Cloud Dark `#1B2028`, Text `#EFF2F6`, Muted `#89919F`, Mint
-  `#75E0CC`, Rose `#FF91AD`, Violet `#9A8BFF`.
-- Type: thin humanist UI, medium readable sans transcript, mono time.
-- Signature: color is confined to narrow diffracted edges; surfaces remain opaque.
-
-### 7. Signal Steps
-
-- Structure: top row of twelve slim step markers; history and dictionary align to its
-  rhythm; firm rectangular controls; no literal audio-device metaphor.
-- Light: Warm Gray `#F3F1EC`, Ink `#1B1B1A`, Red `#E64B3C`, Orange `#EE8A32`, Yellow
-  `#E7C94A`, Blue `#3E68D8`, White `#FFFFFF`.
-- Dark: Charcoal `#171817`, Raised `#242522`, White `#F4F0E8`, Red `#F05B4D`, Orange
-  `#F19A43`, Yellow `#ECD35C`, Blue `#6488EE`.
-- Type: compact grotesque caps, readable sans transcripts, segmented/tabular time.
-- Signature: the step sequence expresses chronology, recording level, and finalization.
-
-## Light and dark mode quality bar
-
-Dark mode is not an inverted light palette. For each selected theme:
-
-- redefine surface elevation, border contrast, muted text, focus, hover, selection,
-  recording, success, warning, failure, and overlay colors;
-- avoid pure black-on-white glare and large saturated fields;
-- maintain hierarchy when screenshots are viewed in grayscale;
-- test increased contrast and reduced transparency;
-- meet at least WCAG AA contrast for meaningful text and controls;
-- keep window vibrancy/material use subordinate to legibility;
-- verify inactive-window and disabled-control states.
-
-Support live System appearance changes without stale colors or rebuilding the window.
-
-## Typography and assets
-
-Prefer licensed, bundled fonts only when they materially define the selected concept.
-Otherwise use system faces deliberately. Record all licenses and ensure fonts render
-offline. Never use a display face for long transcripts if it harms reading.
-
-Use SF Symbols only when they fit the chosen grammar. One-Bit Modern and other highly
-specific themes may need a small original icon set drawn in Swift/Core Graphics at
-integer scale. Do not mix visually incompatible icon families.
-
-Do not ship the concept PNGs as interface backgrounds. Recreate the system natively in
-SwiftUI/AppKit so it adapts, localizes, scales, and remains accessible.
-
-## Motion
-
-Give each theme one signature motion system, reflected in the recorder:
-
-- motion must explain recording, finalizing, insertion, or navigation state;
-- no ambient animation when idle;
-- no decorative bouncing, glowing, or endless waveform loops;
-- no transition should delay a recording command or hide state;
-- Reduce Motion receives a deliberate alternative, not simply zero duration.
-
-Keep rendering lightweight while the microphone and recognizer are active.
-
-## Settings information architecture
-
-Settings remains secondary and opens with Command-comma. Organize it into:
-
-- Recording: shortcut and hold/toggle behavior;
-- Transcription: Apple SpeechTranscriber, Parakeet lifecycle, language/model state;
-- Delivery: Accessibility permission and copy fallback behavior;
-- Appearance: Theme when two ship, Appearance System/Light/Dark, Reduce Motion follows
-  system;
-- Privacy: history retention and deletion;
-- About.
-
-Theme the Settings presentation, but keep switches, pickers, keyboard recording,
-permission actions, destructive confirmations, and VoiceOver semantics trustworthy.
-
-## Implementation order
-
-1. Capture baseline screenshots and record the current functional test status.
-2. Confirm the selected theme name(s) and locate the exact board image(s).
-3. Write `docs/THEME_SYSTEM.md` with the chosen tokens, typography, structure, states,
-   light/dark mapping, recorder mapping, and Reduce Motion behavior.
-4. Introduce the semantic theme/appearance infrastructure and persistence.
-5. Implement the selected main-window shell without changing domain behavior.
-6. Implement History and all its states.
-7. Implement Dictionary and all its states.
-8. Implement Settings, onboarding, permissions, model states, dialogs, and notices.
-9. Implement the matching global recorder overlay last only after its in-app visual
-   primitive exists; it must still be completed before validation.
-10. Audit keyboard navigation, VoiceOver, contrast, localization, resizing, and
-    light/dark live switching.
-11. Build and run tests. Fix all regressions caused by the UI work.
-12. Capture the complete screenshot matrix and compare it to the selected concept at
-    readable scale. Perform one bounded correction pass.
-13. Update docs to match the shipped interface.
-
-## Screenshot and verification matrix
-
-For every selected theme, capture at minimum:
-
-```text
-light-history-populated
-dark-history-populated
-light-history-empty
-dark-dictionary-list-editor
-light-settings
-dark-settings
-light-onboarding-permissions
-dark-parakeet-downloading-or-error
-light-overlay-recording
-dark-overlay-recording
-light-overlay-text-ready-copy
-dark-overlay-text-ready-copy
-```
-
-Also verify minimum window size, a wide window, inactive window, increased contrast,
-Reduce Motion, and a real system appearance switch while the app is running.
-
-Run existing state-machine, dictionary, persistence, and recording tests even though
-the task is visual. Add focused UI tests for theme persistence, appearance resolution,
-semantic contrast mapping, and overlay state rendering. Do not claim an interaction
-passed unless it was actually exercised.
-
-## Acceptance criteria
-
-- The app no longer reads visually as the original stock `NavigationSplitView` plus
-  grouped Form composition.
-- The chosen board is recognizable in layout, density, palette, typography character,
-  and signature interaction without being used as a static background.
-- If two themes ship, each remains a complete independent system and switching is
-  immediate and persisted.
-- Every theme has genuinely designed light and dark variants.
-- Main app, History, Dictionary, Settings, onboarding, model states, and recorder all
-  share the selected grammar.
-- The recorder stays compact, never shows transcript text, and preserves all required
-  operational states.
-- History and Dictionary keep all current behavior and data.
-- Recording and delivery behavior do not regress.
-- Keyboard, VoiceOver, contrast, Reduce Motion, increased contrast, resizing, and
-  localization remain functional.
-- No hard-coded one-off visual values remain in feature views.
-- No placeholder UI, fake data path, lorem ipsum, copied third-party branding, or
-  unlicensed asset ships.
-
-## Final handoff
-
-Return:
-
-1. selected theme(s) implemented;
-2. structural and token decisions;
-3. files changed;
-4. build/test commands with exact results;
-5. screenshot paths for the full matrix;
-6. functional regression results for recording and delivery;
-7. accessibility checks;
-8. any unverified item requiring the owner's physical microphone, permission, or
-   external-app test.
-
-Do not call the UI finished because one attractive History screenshot exists. It is
-finished only when the complete app and the global recorder form one coherent theme in
-both light and dark mode while the dictation workflow still works.
-

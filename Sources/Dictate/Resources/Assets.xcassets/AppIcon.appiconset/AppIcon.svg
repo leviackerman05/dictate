@@ -1,6 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" rx="224" fill="#F3F6F5"/>
-  <path d="M512 176v672" stroke="#245E52" stroke-width="72" stroke-linecap="round"/>
-  <path d="M118 598h788" stroke="#E05A47" stroke-width="44" stroke-linecap="round"/>
-  <circle cx="512" cy="598" r="18" fill="#F3F6F5"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Dictate</title>
+  <desc id="desc">A soft white voice wave and dot on a dark rounded square.</desc>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A1B1C"/>
+      <stop offset="0.72" stop-color="#0B0C0D"/>
+      <stop offset="1" stop-color="#030303"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="0.95" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.58" stop-color="#F7F7F7"/>
+      <stop offset="1" stop-color="#BFC1C3"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="20" width="984" height="984" rx="226" fill="url(#tile)" stroke="#343638" stroke-width="12"/>
+  <rect x="35" y="35" width="954" height="954" rx="212" fill="none" stroke="#090A0B" stroke-width="4"/>
+  <g transform="translate(-48 0)">
+    <path d="M198 520C248 580 313 575 363 501C413 428 468 432 518 520C568 608 628 604 678 520C728 436 783 440 833 505" fill="none" stroke="#080909" stroke-width="38" stroke-linecap="round" stroke-linejoin="round" opacity="0.72"/>
+    <path d="M198 512C248 572 313 567 363 493C413 420 468 424 518 512C568 600 628 596 678 512C728 428 783 432 833 497" fill="none" stroke="url(#signal)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="906" cy="512" r="34" fill="#080909" opacity="0.72"/>
+    <circle cx="906" cy="504" r="30" fill="url(#signal)"/>
+  </g>
 </svg>

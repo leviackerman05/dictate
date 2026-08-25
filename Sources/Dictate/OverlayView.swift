@@ -2,108 +2,171 @@ import SwiftUI
 
 struct RecordingOverlayView: View {
     @ObservedObject var controller: DictationController
+    let shortcutTitle: String
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
-        HStack(spacing: DesignSystem.Layout.space2) {
-            Circle()
-                .fill(dotColor)
-                .frame(width: 7, height: 7)
-                .accessibilityHidden(true)
-
+        Group {
             if let notice = controller.deliveryNotice {
                 noticeView(notice)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(statusText)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(DesignSystem.ColorToken.ink)
-                    .lineLimit(1)
-                Spacer(minLength: DesignSystem.Layout.space1)
-                if isRecording {
-                    BreathLine(level: controller.inputLevel, active: true)
-                        .frame(width: 32, height: 12)
-                        .accessibilityHidden(true)
+                switch controller.state {
+                case .idle:
+                    readyView
+                case .preparing, .listening, .transcribing:
+                    listeningView
+                case .finalizing, .delivering:
+                    processingView
+                case .failed:
+                    failureView
                 }
             }
         }
-        .padding(.horizontal, DesignSystem.Layout.space3)
+        .padding(.horizontal, 7)
         .frame(width: DesignSystem.Layout.overlayWidth, height: DesignSystem.Layout.overlayHeight)
-        .background(DesignSystem.ColorToken.canvas)
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlay))
-        .shadow(color: .black.opacity(DesignSystem.Shadow.overlayOpacity), radius: 12, y: 4)
+        .background(
+            DesignSystem.ColorToken.overlay.opacity(
+                reduceTransparency ? 1 : (isQuietReady ? 0.58 : 0.94)
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlayCompact))
+        .overlay {
+            RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlayCompact)
+                .stroke(DesignSystem.ColorToken.border.opacity(isQuietReady ? 0.55 : 1), lineWidth: DesignSystem.Layout.hairline)
+        }
+        .shadow(color: .black.opacity(isQuietReady ? 0.06 : 0.12), radius: isQuietReady ? 8 : 14, y: isQuietReady ? 3 : 5)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var readyView: some View {
+        ReadyWaveform()
+            .opacity(0.68)
+            .help(controllerHelp)
+    }
+
+    private var isQuietReady: Bool {
+        controller.state == .idle && controller.deliveryNotice == nil
+    }
+
+    private var listeningView: some View {
+        PebbleLevelBars(level: controller.inputLevel)
+    }
+
+    private var processingView: some View {
+        PebbleProcessingDots()
+    }
+
+    private var failureView: some View {
+        Image(systemName: "exclamationmark.circle")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(DesignSystem.ColorToken.failure)
+            .accessibilityHidden(true)
     }
 
     @ViewBuilder
     private func noticeView(_ notice: DeliveryNotice) -> some View {
         switch notice {
-        case .inserted:
-            Label(String(localized: "recording.inserted"), systemImage: "checkmark")
-        case .copied:
-            Label(String(localized: "recording.copied"), systemImage: "checkmark")
-        case .textReady(_):
-            HStack(spacing: DesignSystem.Layout.space2) {
-                Text(String(localized: "recording.textReady"))
-                    .foregroundStyle(DesignSystem.ColorToken.ink)
-                Spacer(minLength: DesignSystem.Layout.space1)
-                Button { controller.copyPendingText() } label: {
-                    Text(Copy.copyText)
-                        .font(.system(.caption2, weight: .semibold))
-                        .foregroundStyle(Color.white)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .padding(.horizontal, DesignSystem.Layout.space2)
-                        .padding(.vertical, DesignSystem.Layout.space1)
-                        .background(DesignSystem.ColorToken.action, in: Capsule())
+        case .textReady:
+            HStack(spacing: 6) {
+                PebbleIconButton(systemImage: "doc.on.doc", color: DesignSystem.ColorToken.action, help: Copy.copyText) {
+                    controller.copyPendingText()
                 }
-                .buttonStyle(.plain)
-                .fixedSize()
-                .accessibilityLabel(Copy.copyText)
-                Button { controller.discardPendingText() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(DesignSystem.ColorToken.mutedInk)
-                        .frame(width: 18, height: 18)
-                        .background(DesignSystem.ColorToken.hairline.opacity(0.55), in: Circle())
-                        .contentShape(Circle())
+                PebbleIconButton(systemImage: "xmark", color: DesignSystem.ColorToken.secondaryText, help: Copy.discard) {
+                    controller.discardPendingText()
                 }
-                .buttonStyle(.plain)
-                .fixedSize()
-                .help(Copy.discard)
-                .accessibilityLabel(Copy.discard)
             }
         }
     }
 
-    private var isRecording: Bool {
-        switch controller.state {
-        case .listening, .transcribing: return true
-        default: return false
-        }
-    }
-
-    private var statusText: String {
-        switch controller.state {
-        case .idle: return Copy.cancelled
-        case .preparing: return Copy.preparing
-        case .listening, .transcribing: return Copy.listening
-        case .finalizing: return String(localized: "recording.finishing")
-        case .delivering: return Copy.inserting
-        case .failed: return Copy.recordingFailed
-        }
-    }
-
-    private var dotColor: Color {
-        switch controller.state {
-        case .failed: return DesignSystem.ColorToken.recording
-        case .finalizing, .delivering: return DesignSystem.ColorToken.action
-        default: return DesignSystem.ColorToken.recording
-        }
+    private var controllerHelp: String {
+        String.localizedStringWithFormat(String(localized: "recording.readyHelp"), shortcutTitle)
     }
 
     private var accessibilityLabel: String {
-        if controller.deliveryNotice != nil { return String(localized: "recording.deliveryStatus") }
+        if let notice = controller.deliveryNotice {
+            switch notice {
+            case .textReady: return String(localized: "recording.textReady")
+            }
+        }
         return AccessibilitySupport.status(for: controller.state)
+    }
+}
+
+/// Small icon-only button used inside the overlay pill: 22×18 hit area,
+/// 12pt glyph, raised-surface hover feedback on a 6pt rounded background.
+private struct PebbleIconButton: View {
+    let systemImage: String
+    let color: Color
+    let help: String
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 22, height: 18)
+                .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlayButton))
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlayButton)
+                        .fill(hovering ? DesignSystem.ColorToken.raisedSurface : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(help)
+        .accessibilityLabel(help)
+    }
+}
+
+private struct PebbleLevelBars: View {
+    let level: Double
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 0.06)) { timeline in
+            let phase = timeline.date.timeIntervalSinceReferenceDate * 7.5
+            HStack(alignment: .center, spacing: 2.5) {
+                ForEach(0..<9, id: \.self) { index in
+                    let motion = 0.35 + 0.65 * abs(sin(phase + Double(index) * 0.82))
+                    // Lift quiet speech without amplifying loud input past the
+                    // pill. The square-root-style response makes low levels
+                    // visibly alive while the clamp keeps peaks composed.
+                    let envelope = max(0.14, pow(min(1, level * 2.2), 0.55))
+                    Capsule()
+                        .fill(DesignSystem.ColorToken.listening.opacity(0.52 + envelope * 0.48))
+                        .frame(width: 2.25, height: max(3, CGFloat(3 + 9 * envelope * motion)))
+                }
+            }
+            .frame(height: 13)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ReadyWaveform: View {
+    var body: some View {
+        HStack(alignment: .center, spacing: 4) {
+            ForEach([5.0, 9.0, 6.0], id: \.self) { height in
+                Capsule()
+                    .fill(DesignSystem.ColorToken.secondaryText.opacity(0.72))
+                    .frame(width: 3, height: height)
+            }
+        }
+        .frame(height: 16)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct PebbleProcessingDots: View {
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { _ in
+                Circle().fill(DesignSystem.ColorToken.listening).frame(width: 4, height: 4)
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

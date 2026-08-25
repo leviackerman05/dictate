@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Dictate — Voice Paragraph</title>
+  <desc id="desc">A single voice pulse settling into two written lines.</desc>
+  <rect width="1024" height="1024" rx="224" fill="#151512"/>
+  <path d="M250 390H320C355 390 360 300 400 300C445 300 448 480 493 480C538 480 542 390 580 390H770" fill="none" stroke="#F7F6F2" stroke-width="68" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M286 575H690M286 700H570" fill="none" stroke="#F7F6F2" stroke-width="68" stroke-linecap="round"/>
+  <circle cx="770" cy="575" r="36" fill="#7390FF"/>
+</svg>

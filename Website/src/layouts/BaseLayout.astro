@@ -1,0 +1,87 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Dictate — speak, release, keep writing",
+  description = "A local-first macOS dictation tool for focused writing. Speak, finish, and return the words to the field you were using."
+} = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="theme-color" content="#f7f6f2" />
+    <script is:inline>
+      (() => {
+        const saved = localStorage.getItem("dictate-theme");
+        const preferred = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = saved || preferred;
+      })();
+    </script>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="./dictate-mark.svg" />
+    <link rel="canonical" href="https://dictate.local/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content="https://dictate.local/og-card.svg" />
+    <meta property="og:url" content="https://dictate.local/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>{title}</title>
+    <script is:inline type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Dictate",
+      operatingSystem: "macOS 26",
+      applicationCategory: "UtilitiesApplication",
+      description,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" }
+    })} />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    color-scheme: light;
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --raised: #fbfaf7;
+    --text: #151512;
+    --muted: #686861;
+    --subtle: #8a8981;
+    --border: #dddcd5;
+    --action: #3155d9;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #151512;
+    --surface: #20201d;
+    --raised: #292925;
+    --text: #f3f0e7;
+    --muted: #aaa79d;
+    --subtle: #858279;
+    --border: #3a3a34;
+    --action: #7390ff;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { background: var(--bg); scroll-behavior: smooth; }
+  body { margin: 0; min-width: 320px; background: var(--bg); color: var(--text); transition: background-color 180ms ease, color 180ms ease; }
+  a { color: inherit; text-decoration: none; }
+  button, a { -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 3px solid #3155d9; outline-offset: 4px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.001ms !important; }
+  }
+</style>

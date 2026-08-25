@@ -7,7 +7,6 @@ struct DictateApp: App {
     var body: some Scene {
         WindowGroup(Copy.appName) {
             MainWindowView(model: appDelegate.model)
-                .preferredColorScheme(.light)
         }
         .commands {
             CommandGroup(after: .textEditing) {
@@ -24,10 +23,16 @@ struct DictateApp: App {
                     .disabled(appDelegate.model.dictation.state == .idle)
             }
             CommandMenu(Copy.appName) {
-                Button(Copy.history) { appDelegate.model.section = .history }
+                Button(Copy.dashboard) { appDelegate.model.section = .dashboard }
                     .keyboardShortcut("1", modifiers: [.command])
-                Button(Copy.dictionary) { appDelegate.model.section = .dictionary }
+                Button(Copy.history) { appDelegate.model.section = .history }
                     .keyboardShortcut("2", modifiers: [.command])
+                Button(Copy.dictionary) { appDelegate.model.section = .dictionary }
+                    .keyboardShortcut("3", modifiers: [.command])
+                Button(Copy.statistics) { appDelegate.model.section = .statistics }
+                    .keyboardShortcut("4", modifiers: [.command])
+                Button(Copy.aiModels) { appDelegate.model.section = .aiModels }
+                    .keyboardShortcut("5", modifiers: [.command])
                 Button(Copy.settings) { appDelegate.model.section = .settings }
                     .keyboardShortcut(",", modifiers: [.command])
             }
@@ -37,7 +42,7 @@ struct DictateApp: App {
             SettingsView(model: appDelegate.model)
                 .frame(width: DesignSystem.Layout.settingsWidth, height: DesignSystem.Layout.settingsHeight)
                 .foregroundStyle(DesignSystem.ColorToken.ink)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(appDelegate.model.appearance.colorScheme)
         }
     }
 }

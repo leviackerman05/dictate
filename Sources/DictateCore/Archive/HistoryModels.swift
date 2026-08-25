@@ -54,7 +54,7 @@ public struct HistoryDocument: Codable, Equatable, Sendable {
     }
 }
 
-public enum HistoryRetention: String, Codable, CaseIterable, Sendable, Identifiable {
+public enum HistoryRetention: String, Codable, CaseIterable, Sendable, Identifiable, Equatable {
     case oneDay
     case oneWeek
     case oneMonth

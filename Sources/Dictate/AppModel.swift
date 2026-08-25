@@ -4,14 +4,50 @@ import Foundation
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
+    case dashboard
     case history
     case dictionary
+    case statistics
+    case aiModels
     case settings
 
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .dashboard: return String(localized: "navigation.dashboard")
+        case .history: return Copy.history
+        case .dictionary: return Copy.dictionary
+        case .statistics: return String(localized: "navigation.statistics")
+        case .aiModels: return String(localized: "navigation.aiModels")
+        case .settings: return Copy.settings
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .dashboard: return "square.grid.2x2"
+        case .history: return "clock.arrow.circlepath"
+        case .dictionary: return "character.book.closed"
+        case .statistics: return "chart.bar.xaxis"
+        case .aiModels: return "cpu"
+        case .settings: return "gearshape"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .dashboard: return String(localized: "navigation.dashboardSubtitle")
+        case .history: return String(localized: "navigation.historySubtitle")
+        case .dictionary: return String(localized: "navigation.dictionarySubtitle")
+        case .statistics: return String(localized: "navigation.statisticsSubtitle")
+        case .aiModels: return String(localized: "navigation.aiModelsSubtitle")
+        case .settings: return String(localized: "navigation.settingsSubtitle")
+        }
+    }
 }
 
-enum RecordingMode: String, CaseIterable, Codable, Identifiable {
+enum RecordingMode: String, CaseIterable, Codable, Identifiable, Equatable {
     case holdToTalk
     case clickToToggle
 
@@ -32,9 +68,27 @@ enum RecordingMode: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+extension AppearancePreference {
+    var title: String {
+        switch self {
+        case .system: return String(localized: "appearance.system")
+        case .light: return String(localized: "appearance.light")
+        case .dark: return String(localized: "appearance.dark")
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var section: AppSection = .history
+    @Published var section: AppSection = .dashboard
     @Published var history: [HistoryItem] = []
     @Published var dictionary: [DictionaryEntry] = []
     @Published var historySearch = ""
@@ -68,6 +122,15 @@ final class AppModel: ObservableObject {
     @Published var recordingMode: RecordingMode {
         didSet { UserDefaults.standard.set(recordingMode.rawValue, forKey: Keys.recordingMode) }
     }
+    @Published var appearance: AppearancePreference {
+        didSet {
+            appearanceStore.value = appearance
+            applyAppearance()
+        }
+    }
+    @Published var showReadyIndicator: Bool {
+        didSet { UserDefaults.standard.set(showReadyIndicator, forKey: Keys.showReadyIndicator) }
+    }
     @Published var transcriptionProvider: TranscriptionProvider {
         didSet {
             UserDefaults.standard.set(transcriptionProvider.rawValue, forKey: Keys.transcriptionProvider)
@@ -79,6 +142,7 @@ final class AppModel: ObservableObject {
     let permissions: PermissionService
     private let historyStore: HistoryStore
     private let dictionaryStore: AtomicJSONStore<DictionaryDocument>
+    private let appearanceStore: AppearancePreferenceStore
 
     private enum Keys {
         static let keepHistory = "keepHistory"
@@ -88,6 +152,8 @@ final class AppModel: ObservableObject {
         static let onboardingDismissed = "onboardingDismissed"
         static let microphoneEnabled = "microphoneEnabled"
         static let recordingMode = "recordingMode"
+        static let appearance = "appearance"
+        static let showReadyIndicator = "showReadyIndicator"
         static let transcriptionProvider = "transcriptionProvider"
     }
 
@@ -96,6 +162,7 @@ final class AppModel: ObservableObject {
             .appendingPathComponent("Dictate", isDirectory: true)
         historyStore = HistoryStore(url: appSupport.appendingPathComponent("history.json"))
         dictionaryStore = AtomicJSONStore(url: appSupport.appendingPathComponent("dictionary.json"))
+        appearanceStore = AppearancePreferenceStore()
         permissions = PermissionService()
         dictation = DictationController(permissions: permissions)
         keepHistory = UserDefaults.standard.object(forKey: Keys.keepHistory) as? Bool ?? true
@@ -109,12 +176,30 @@ final class AppModel: ObservableObject {
         onboardingDismissed = UserDefaults.standard.bool(forKey: Keys.onboardingDismissed)
         microphoneEnabled = UserDefaults.standard.object(forKey: Keys.microphoneEnabled) as? Bool ?? true
         recordingMode = RecordingMode(rawValue: UserDefaults.standard.string(forKey: Keys.recordingMode) ?? "") ?? .holdToTalk
-        transcriptionProvider = TranscriptionProvider(rawValue: UserDefaults.standard.string(forKey: Keys.transcriptionProvider) ?? "") ?? .apple
+        appearance = appearanceStore.value
+        showReadyIndicator = UserDefaults.standard.object(forKey: Keys.showReadyIndicator) as? Bool ?? true
+        let storedProvider = TranscriptionProvider(rawValue: UserDefaults.standard.string(forKey: Keys.transcriptionProvider) ?? "") ?? .apple
+        // Apple remains the default for a fresh install. Preserve an explicit
+        // Parakeet choice while its service checks the local cache; otherwise
+        // a cached model would be unnecessarily replaced by Apple on launch.
+        transcriptionProvider = storedProvider
 
         dictation.onCompleted = { [weak self] item in self?.completed(item) }
         dictation.provider = transcriptionProvider
+        applyAppearance()
         permissions.refresh()
         Task { [weak self] in await self?.loadLocalData() }
+    }
+
+    func applyAppearance() {
+        let nsAppearance: NSAppearance?
+        switch appearance {
+        case .system: nsAppearance = nil
+        case .light: nsAppearance = NSAppearance(named: .aqua)
+        case .dark: nsAppearance = NSAppearance(named: .darkAqua)
+        }
+        NSApp.appearance = nsAppearance
+        for window in NSApp.windows { window.appearance = nsAppearance }
     }
 
     var filteredHistory: [HistoryItem] {
@@ -132,6 +217,29 @@ final class AppModel: ObservableObject {
             let textMatches = query.isEmpty || entry.sourcePhrase.localizedCaseInsensitiveContains(query) || entry.targetPhrase?.localizedCaseInsensitiveContains(query) == true
             return kindMatches && textMatches
         }
+    }
+
+    var totalWordCount: Int {
+        history.reduce(0) { total, item in
+            total + item.correctedText.split { $0.isWhitespace || $0.isNewline }.count
+        }
+    }
+
+    var thisWeekHistory: [HistoryItem] {
+        guard let start = Calendar.current.date(byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: .now)) else {
+            return history
+        }
+        return history.filter { $0.timestamp >= start }
+    }
+
+    var thisWeekWordCount: Int {
+        thisWeekHistory.reduce(0) { total, item in
+            total + item.correctedText.split { $0.isWhitespace || $0.isNewline }.count
+        }
+    }
+
+    var totalDuration: TimeInterval {
+        history.reduce(0) { $0 + $1.duration }
     }
 
     func startRecording(source: FocusCaptureSource = .mainWindow) {
@@ -192,6 +300,12 @@ final class AppModel: ObservableObject {
             dictionaryNotice = String(localized: "dictionary.alreadyLearned")
             return
         }
+        do {
+            _ = try DictionaryValidator.validate(learned, against: dictionary)
+        } catch {
+            dictionaryNotice = String(localized: "dictionary.learnFailed")
+            return
+        }
         dictionary.append(learned)
         persistDictionary()
         dictionaryNotice = String(localized: "dictionary.learned")
@@ -214,18 +328,34 @@ final class AppModel: ObservableObject {
             decoder.dateDecodingStrategy = .iso8601
             let document = try decoder.decode(DictionaryDocument.self, from: Data(contentsOf: url))
             try DictionaryValidator.validate(document: document)
-            let imported = merge ? dictionary + document.entries : document.entries
             if merge {
+                // Merge keeps the first occurrence of each rule and skips
+                // entries that fail validation (invalid or duplicate) or that
+                // carry advisory warnings (short, single-word patterns), so an
+                // imported file can never silently widen the matching surface.
                 var unique: [DictionaryEntry] = []
-                for entry in imported {
-                    if (try? DictionaryValidator.validate(entry, against: unique)) != nil { unique.append(entry) }
+                var skipped = 0
+                for entry in dictionary + document.entries {
+                    do {
+                        let warnings = try DictionaryValidator.validate(entry, against: unique)
+                        if warnings.isEmpty {
+                            unique.append(entry)
+                        } else {
+                            skipped += 1
+                        }
+                    } catch {
+                        skipped += 1
+                    }
                 }
                 dictionary = unique
+                dictionaryNotice = skipped > 0
+                    ? String(localized: "dictionary.importSkipped \(skipped)")
+                    : String(localized: "dictionary.imported")
             } else {
-                dictionary = imported
+                dictionary = document.entries
+                dictionaryNotice = String(localized: "dictionary.imported")
             }
             persistDictionary()
-            dictionaryNotice = String(localized: "dictionary.imported")
         } catch {
             dictionaryNotice = String(localized: "dictionary.importFailed")
         }
@@ -239,7 +369,11 @@ final class AppModel: ObservableObject {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try? encoder.encode(DictionaryDocument(entries: dictionary)).write(to: url, options: [.atomic])
+        do {
+            try encoder.encode(DictionaryDocument(entries: dictionary)).write(to: url, options: [.atomic])
+        } catch {
+            dictionaryNotice = String(localized: "dictionary.exportFailed")
+        }
     }
 
     func exportHistory() {

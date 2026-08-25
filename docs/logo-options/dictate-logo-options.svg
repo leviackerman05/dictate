@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="820" viewBox="0 0 1800 820" role="img" aria-labelledby="title desc">
+  <title id="title">Three logo directions for Dictate</title>
+  <desc id="desc">Paragraph Point, Voice Paragraph, and Speech to Lines shown as macOS application icons.</desc>
+  <rect width="1800" height="820" fill="#F7F6F2"/>
+  <text x="72" y="74" fill="#151512" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="38" font-weight="700">Dictate — logo directions</text>
+  <text x="72" y="112" fill="#686861" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20">Three distinct ideas · all remain legible as a one-color menu-bar glyph</text>
+
+  <g transform="translate(60 152)">
+    <rect width="520" height="606" rx="28" fill="#FFFFFF" stroke="#DDDCD5"/>
+    <g transform="translate(105 38) scale(.302734375)">
+      <rect width="1024" height="1024" rx="224" fill="#151512"/>
+      <path d="M724 294H466C346 294 270 360 270 458C270 556 346 622 466 622H520V746M650 294V746" fill="none" stroke="#F7F6F2" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="414" cy="458" r="38" fill="#7390FF"/>
+    </g>
+    <text x="40" y="402" fill="#3155D9" font-family="ui-monospace, SFMono-Regular, monospace" font-size="15" font-weight="700" letter-spacing="2">OPTION A</text>
+    <text x="40" y="448" fill="#151512" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="28" font-weight="700">Paragraph Point</text>
+    <text x="40" y="486" fill="#686861" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18">Editorial and text-first.</text>
+    <text x="40" y="516" fill="#686861" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18">The blue point represents voice.</text>
+    <g transform="translate(420 516) scale(.0625)">
+      <path d="M724 294H466C346 294 270 360 270 458C270 556 346 622 466 622H520V746M650 294V746" fill="none" stroke="#151512" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="414" cy="458" r="44" fill="#151512"/>
+    </g>
+  </g>
+
+  <g transform="translate(640 152)">
+    <rect width="520" height="606" rx="28" fill="#FFFFFF" stroke="#DDDCD5"/>
+    <g transform="translate(105 38) scale(.302734375)">
+      <rect width="1024" height="1024" rx="224" fill="#151512"/>
+      <path d="M250 390H320C355 390 360 300 400 300C445 300 448 480 493 480C538 480 542 390 580 390H770" fill="none" stroke="#F7F6F2" stroke-width="68" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M286 575H690M286 700H570" fill="none" stroke="#F7F6F2" stroke-width="68" stroke-linecap="round"/>
+      <circle cx="770" cy="575" r="36" fill="#7390FF"/>
+    </g>
+    <text x="40" y="402" fill="#3155D9" font-family="ui-monospace, SFMono-Regular, monospace" font-size="15" font-weight="700" letter-spacing="2">OPTION B</text>
+    <text x="40" y="448" fill="#151512" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="28" font-weight="700">Voice Paragraph</text>
+    <text x="40" y="486" fill="#686861" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18">Most literal voice-to-text idea.</text>
+    <text x="40" y="516" fill="#686861" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18">One pulse settles into written lines.</text>
+    <g transform="translate(420 516) scale(.0625)">
+      <path d="M250 390H320C355 390 360 300 400 300C445 300 448 480 493 480C538 480 542 390 580 390H770M286 575H690M286 700H570" fill="none" stroke="#151512" stroke-width="80" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="770" cy="575" r="42" fill="#151512"/>
+    </g>
+  </g>
+
+  <g transform="translate(1220 152)">
+    <rect width="520" height="606" rx="28" fill="#FFFFFF" stroke="#DDDCD5"/>
+    <g transform="translate(105 38) scale(.302734375)">
+      <rect width="1024" height="1024" rx="224" fill="#151512"/>
+      <path d="M320 410C270 445 270 579 320 614M260 340C160 410 160 614 260 684" fill="none" stroke="#F7F6F2" stroke-width="62" stroke-linecap="round"/>
+      <circle cx="390" cy="512" r="42" fill="#7390FF"/>
+      <path d="M500 380H760M500 512H700M500 644H620" fill="none" stroke="#F7F6F2" stroke-width="62" stroke-linecap="round"/>
+    </g>
+    <text x="40" y="402" fill="#3155D9" font-family="ui-monospace, SFMono-Regular, monospace" font-size="15" font-weight="700" letter-spacing="2">OPTION C</text>
+    <text x="40" y="448" fill="#151512" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="28" font-weight="700">Speech to Lines</text>
+    <text x="40" y="486" fill="#686861" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18">The most abstract and ownable.</text>
+    <text x="40" y="516" fill="#686861" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18">Listening on the left, text on the right.</text>
+    <g transform="translate(420 516) scale(.0625)">
+      <path d="M320 410C270 445 270 579 320 614M260 340C160 410 160 614 260 684M500 380H760M500 512H700M500 644H620" fill="none" stroke="#151512" stroke-width="74" stroke-linecap="round"/>
+      <circle cx="390" cy="512" r="48" fill="#151512"/>
+    </g>
+  </g>
+</svg>

@@ -1,5 +1,9 @@
 # Dictate theme concepts
 
+> Archived exploration: these seven boards are no longer implementation choices.
+> The approved consolidated design is in `../final-design/`, with its implementation
+> contract in `../../DESIGN.md` and `../../PROMPT_GPT_5_6_LUNA_UI.md`.
+
 Seven complete visual directions were generated for comparison. Every board includes
 a light-mode main surface, a dark-mode main surface, matching recorder overlays, and
 supporting Settings controls.
@@ -59,7 +63,7 @@ premium direction and the easiest to keep visually calm.
 A colored step sequence turns recording cadence and chronology into the product's
 signature. The most kinetic direction without becoming literal audio hardware.
 
-## Selection method
+## Historical selection method
 
 First choose four concepts by number. Compare those four on daily readability,
 distinctiveness, dark-mode quality, Dictionary usability, and recorder clarity. Then
@@ -83,7 +87,6 @@ avoid list. Shared requirements across all seven were:
 - no notetaker, editor, generic dashboard, giant waveform, or microphone icon;
 - production-level hierarchy and accessible contrast.
 
-Concept-specific generation specifications and implementation tokens are repeated in
-`PROMPT_GPT_5_6_LUNA_UI.md` so the selected board and written direction travel
-together.
-
+The final consolidated direction preserves Color Index's History and Dictionary
+character, Focus Deck's Dictionary editor structure, and Quiet Ribbon's Settings
+discipline. The old concept-specific specifications are not implementation authority.

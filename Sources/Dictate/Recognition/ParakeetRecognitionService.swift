@@ -7,13 +7,46 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
     @Published private(set) var modelStatus: RecognitionModelStatus = .notInstalled
     var modelStatusPublisher: Published<RecognitionModelStatus>.Publisher { $modelStatus }
 
+    private let models: ParakeetModels
+
+    init(modelVersion: AsrModelVersion = .v3) {
+        models = ParakeetModels(version: modelVersion)
+        Task { @MainActor [weak self] in
+            await self?.refreshInstalledStatus()
+        }
+    }
+
     var modelIsAvailable: Bool { modelStatus == .ready }
+
+    /// Re-checks the on-disk model and marks it ready when it is already
+    /// valid — covering models downloaded by an earlier build or placed in
+    /// the cache out of band. No-op while a download or load is in flight.
+    func refreshStatus() {
+        switch modelStatus {
+        case .downloading, .validating, .loading:
+            return
+        default:
+            break
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let installed = await self.models.isInstalled()
+            self.modelStatus = installed ? .ready : .notInstalled
+        }
+    }
+
+    private func refreshInstalledStatus() async {
+        guard modelStatus == .notInstalled else { return }
+        if await models.isInstalled() {
+            modelStatus = .ready
+        }
+    }
 
     func prepare() async throws {
         guard !modelIsAvailable else { return }
         modelStatus = .downloading(progress: nil)
         do {
-            _ = try await ParakeetModels.shared.manager { [weak self] progress, phase in
+            _ = try await models.manager { [weak self] progress, phase in
                 Task { @MainActor in
                     guard let self else { return }
                     switch phase {
@@ -53,7 +86,7 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
 
         guard source.count >= 1_600 else { return "" }
         let samples = try AudioConverter().resample(source, from: sourceRate)
-        let manager = try await ParakeetModels.shared.manager { _, _ in }
+        let manager = try await models.manager { _, _ in }
         var decoderState = TdtDecoderState.make(decoderLayers: await manager.decoderLayerCount)
         let result = try await manager.transcribe(samples, decoderState: &decoderState)
         let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -65,7 +98,7 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
 
     func removeDownloadedModel() {
         Task { @MainActor in
-            await ParakeetModels.shared.remove()
+            await models.remove()
             modelStatus = .notInstalled
         }
     }
@@ -78,9 +111,13 @@ private enum ParakeetLoadPhase: Sendable {
 }
 
 private actor ParakeetModels {
-    static let shared = ParakeetModels()
+    private let version: AsrModelVersion
     private var loaded: AsrManager?
     private var loadTask: Task<AsrManager, Error>?
+
+    init(version: AsrModelVersion) {
+        self.version = version
+    }
 
     func manager(
         progress: @escaping @Sendable (Double?, ParakeetLoadPhase) -> Void
@@ -89,23 +126,28 @@ private actor ParakeetModels {
         if let loadTask { return try await loadTask.value }
 
         let task = Task<AsrManager, Error> {
-            progress(nil, .downloading)
-            let directory = try await AsrModels.download(
-                version: .v3,
-                encoderPrecision: .int8,
-                progressHandler: { update in
-                    progress(update.fractionCompleted, .downloading)
-                }
-            )
+            let directory: URL
+            if await isInstalled() {
+                directory = AsrModels.defaultCacheDirectory(for: version)
+            } else {
+                progress(nil, .downloading)
+                directory = try await AsrModels.download(
+                    version: version,
+                    encoderPrecision: .int8,
+                    progressHandler: { update in
+                        progress(update.fractionCompleted, .downloading)
+                    }
+                )
+            }
             try Task.checkCancellation()
             progress(nil, .validating)
-            guard try await AsrModels.isModelValid(version: .v3, encoderPrecision: .int8) else {
+            guard try await AsrModels.isModelValid(version: version, encoderPrecision: .int8) else {
                 throw RecognitionError.onDeviceModelUnavailable
             }
             progress(nil, .loading)
             let models = try await AsrModels.load(
                 from: directory,
-                version: .v3,
+                version: version,
                 encoderPrecision: .int8
             )
             let manager = AsrManager(config: .default)
@@ -124,11 +166,15 @@ private actor ParakeetModels {
         }
     }
 
+    func isInstalled() async -> Bool {
+        (try? await AsrModels.isModelValid(version: version, encoderPrecision: .int8)) == true
+    }
+
     func remove() {
         loadTask?.cancel()
         loadTask = nil
         loaded = nil
-        let directory = AsrModels.defaultCacheDirectory(for: .v3)
+        let directory = AsrModels.defaultCacheDirectory(for: version)
         try? FileManager.default.removeItem(at: directory)
     }
 }

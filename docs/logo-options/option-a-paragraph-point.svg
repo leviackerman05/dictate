@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Dictate — Paragraph Point</title>
+  <desc id="desc">A minimal paragraph form with a cobalt voice point.</desc>
+  <rect width="1024" height="1024" rx="224" fill="#151512"/>
+  <path d="M724 294H466C346 294 270 360 270 458C270 556 346 622 466 622H520V746M650 294V746" fill="none" stroke="#F7F6F2" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="414" cy="458" r="38" fill="#7390FF"/>
+</svg>

@@ -15,7 +15,9 @@ let package = Package(
     ],
     dependencies: [
         // v0.15.5 is the tested ModelHub/Parakeet API used by the app.
-        .package(url: "https://github.com/FluidInference/FluidAudio.git", exact: "0.15.5")
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", exact: "0.15.5"),
+        // WhisperKit supplies the openai_whisper CoreML model family.
+        .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "1.1.0")
     ],
     targets: [
         .target(
@@ -27,7 +29,8 @@ let package = Package(
             name: "Dictate",
             dependencies: [
                 "DictateCore",
-                .product(name: "FluidAudio", package: "FluidAudio")
+                .product(name: "FluidAudio", package: "FluidAudio"),
+                .product(name: "WhisperKit", package: "WhisperKit")
             ],
             path: "Sources/Dictate",
             exclude: ["Resources/Info.plist"],

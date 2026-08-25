@@ -52,10 +52,17 @@ opened mainly to review History, manage Dictionary, or adjust Settings.
 ## Brand Commitments
 
 - Product name: Dictate.
-- The experience should feel like an authored product rather than a default macOS
-  split-view application.
-- Themes may differ substantially, but each must remain legible, calm during frequent
-  use, and recognizable as the same functional product.
+- The approved visual world is **Color Index**: warm paper-white and graphite surfaces,
+  cobalt action color, and restrained amber, moss, and coral indexing accents.
+- The main app has no permanent sidebar. History uses a horizontal date index;
+  Dictionary uses a compact list-and-editor workspace; Settings uses calm grouped
+  controls.
+- The global recorder is the **Signal Pebble**, including an ultra-quiet persistent
+  `Dictate ready` state when the service is available but is not capturing audio.
+- The Dictate mark is a minimal paper-white paragraph form with a cobalt voice point.
+  It represents speech resolving into written text without a microphone, waveform,
+  quotation mark, or speech bubble.
+- Light and dark appearances are equally authored parts of the same identity.
 
 ## Evidence on Hand
 
@@ -63,7 +70,7 @@ opened mainly to review History, manage Dictionary, or adjust Settings.
 - Existing current-state audit at `docs/CURRENT_STATE_AUDIT.md`.
 - Existing repair prompt at `PROMPT_BUILDER_REPAIR_AND_GUI.md`.
 - The running app has demonstrated accurate transcription into History.
-- No approved final visual identity, commercial claims, or external brand assets.
+- Approved visual references live under `docs/final-design/`.
 
 ## Product Principles
 
@@ -78,4 +85,3 @@ opened mainly to review History, manage Dictionary, or adjust Settings.
 All themes must preserve keyboard navigation, VoiceOver labels, sufficient contrast,
 non-color state cues, increased-contrast behavior, reduced transparency, and Reduce
 Motion. Light and dark modes are equally designed products, not automatic inversions.
-

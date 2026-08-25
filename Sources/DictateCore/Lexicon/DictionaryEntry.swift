@@ -12,6 +12,7 @@ public struct DictionaryEntry: Codable, Hashable, Identifiable, Sendable {
     public var kind: DictionaryEntryKind
     public var sourcePhrase: String
     public var targetPhrase: String?
+    public var notes: String?
     public var isEnabled: Bool
     public let createdAt: Date
     public var updatedAt: Date
@@ -21,6 +22,7 @@ public struct DictionaryEntry: Codable, Hashable, Identifiable, Sendable {
         kind: DictionaryEntryKind,
         sourcePhrase: String,
         targetPhrase: String? = nil,
+        notes: String? = nil,
         isEnabled: Bool = true,
         createdAt: Date = .now,
         updatedAt: Date = .now
@@ -29,6 +31,7 @@ public struct DictionaryEntry: Codable, Hashable, Identifiable, Sendable {
         self.kind = kind
         self.sourcePhrase = sourcePhrase
         self.targetPhrase = targetPhrase
+        self.notes = notes
         self.isEnabled = isEnabled
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -40,6 +43,22 @@ public struct DictionaryEntry: Codable, Hashable, Identifiable, Sendable {
 
     public static func correction(heard: String, written: String) -> DictionaryEntry {
         DictionaryEntry(kind: .correction, sourcePhrase: heard, targetPhrase: written)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, sourcePhrase, targetPhrase, notes, isEnabled, createdAt, updatedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        kind = try container.decode(DictionaryEntryKind.self, forKey: .kind)
+        sourcePhrase = try container.decode(String.self, forKey: .sourcePhrase)
+        targetPhrase = try container.decodeIfPresent(String.self, forKey: .targetPhrase)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 }
 

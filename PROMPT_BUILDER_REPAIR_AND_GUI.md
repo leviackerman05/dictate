@@ -1,4 +1,4 @@
-# Builder prompt: repair Dictate first, then offer GUI choices
+# Builder prompt: repair Dictate before the approved UI implementation
 
 You are working in an existing native macOS repository named **Dictate**. This is a
 targeted repair and design exploration. Do not scaffold a replacement app and do not
@@ -33,10 +33,9 @@ This task has two gates:
 
 1. **Correctness gate:** repair recording, stopping, cancellation, delivery, fallback,
    and model lifecycle; prove them with tests and manual checks.
-2. **Design gate:** present distinct GUI directions and wait for the owner to choose.
-   Do not redesign the main app before that choice. If you cannot ask for a choice,
-   stop after the correctness gate and provide the GUI options without implementing
-   one.
+2. **UI handoff gate:** do not redesign the main app during the repair. The owner has
+   approved one direction; the separate implementation authority is
+   `PROMPT_GPT_5_6_LUNA_UI.md` with references under `docs/final-design/`.
 
 ## Required user behavior
 
@@ -278,14 +277,13 @@ a separate editable app.
 
 ## UI handoff gate
 
-The visual exploration now lives in `docs/theme-concepts/`, with seven complete boards
-covering light mode, dark mode, and recorder overlays. Do not invent or implement a UI
-direction during this repair task.
+The owner has approved one visual direction. Its light/dark surfaces, Signal Pebble,
+and brand references live in `docs/final-design/`. Do not invent or implement the UI
+during this repair task.
 
 After the correctness gate passes, tell the owner the app is ready for the separate UI
-phase. The owner will select finalists from the seven boards and use
-`PROMPT_GPT_5_6_LUNA_UI.md` for implementation. Do not combine concepts or modify the
-main visual structure before that selection.
+phase using `PROMPT_GPT_5_6_LUNA_UI.md`. Do not modify the main visual structure during
+the repair.
 
 ## Handoff format
 
@@ -296,8 +294,7 @@ Return:
 3. Automated commands and exact results.
 4. Manual acceptance-matrix results.
 5. Any cells still requiring the owner's permission or physical microphone test.
-6. Confirmation that the repository is ready for the separate theme-selection and UI
-   phase.
+6. Confirmation that the repository is ready for the approved UI implementation phase.
 
 Do not say “fixed” merely because source compiles. The task is fixed only when release
 stops reliably in hold mode, a second press stops toggle mode, Escape cancels, text is
