@@ -4,6 +4,7 @@ struct RecordingOverlayView: View {
     @ObservedObject var controller: DictationController
     let shortcutTitle: String
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -22,31 +23,47 @@ struct RecordingOverlayView: View {
                 }
             }
         }
-        .padding(.horizontal, 7)
-        .frame(width: DesignSystem.Layout.overlayWidth, height: DesignSystem.Layout.overlayHeight)
+        .padding(.horizontal, isQuietReady ? 5 : 7)
+        .frame(width: overlayWidth, height: overlayHeight)
         .background(
             DesignSystem.ColorToken.overlay.opacity(
                 reduceTransparency ? 1 : (isQuietReady ? 0.58 : 0.94)
             )
         )
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlayCompact))
+        .clipShape(RoundedRectangle(cornerRadius: overlayCornerRadius))
         .overlay {
-            RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusOverlayCompact)
+            RoundedRectangle(cornerRadius: overlayCornerRadius)
                 .stroke(DesignSystem.ColorToken.border.opacity(isQuietReady ? 0.55 : 1), lineWidth: DesignSystem.Layout.hairline)
         }
         .shadow(color: .black.opacity(isQuietReady ? 0.06 : 0.12), radius: isQuietReady ? 8 : 14, y: isQuietReady ? 3 : 5)
+        .animation(reduceMotion ? nil : .easeOut(duration: DesignSystem.Motion.directFeedback), value: isQuietReady)
+        // Keep the actual NSPanel fixed at the full recorder size. Only this
+        // visible capsule changes dimensions, always from the same center.
+        .frame(width: DesignSystem.Layout.overlayWidth, height: DesignSystem.Layout.overlayHeight)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityLabel)
     }
 
     private var readyView: some View {
-        ReadyWaveform()
-            .opacity(0.68)
+        ReadySignalMark()
+            .opacity(0.72)
             .help(controllerHelp)
     }
 
     private var isQuietReady: Bool {
         controller.state == .idle && controller.deliveryNotice == nil
+    }
+
+    private var overlayWidth: CGFloat {
+        isQuietReady ? DesignSystem.Layout.overlayReadyWidth : DesignSystem.Layout.overlayWidth
+    }
+
+    private var overlayHeight: CGFloat {
+        isQuietReady ? DesignSystem.Layout.overlayReadyHeight : DesignSystem.Layout.overlayHeight
+    }
+
+    private var overlayCornerRadius: CGFloat {
+        isQuietReady ? DesignSystem.Layout.radiusOverlayReady : DesignSystem.Layout.radiusOverlayCompact
     }
 
     private var listeningView: some View {
@@ -146,16 +163,28 @@ private struct PebbleLevelBars: View {
     }
 }
 
-private struct ReadyWaveform: View {
+/// Quiet version of Dictate's voice wave. It is static so the idle
+/// pebble signals availability without implying that the microphone is active.
+private struct ReadySignalMark: View {
     var body: some View {
-        HStack(alignment: .center, spacing: 4) {
-            ForEach([5.0, 9.0, 6.0], id: \.self) { height in
-                Capsule()
-                    .fill(DesignSystem.ColorToken.secondaryText.opacity(0.72))
-                    .frame(width: 3, height: height)
+        Canvas { context, size in
+            let lineColor = DesignSystem.ColorToken.secondaryText
+            let midY = size.height / 2
+            let waveWidth = size.width
+            var path = Path()
+            path.move(to: CGPoint(x: 0, y: midY))
+            for x in stride(from: 0.0, through: waveWidth, by: 0.75) {
+                let progress = x / waveWidth
+                let y = midY + sin(progress * .pi * 3.6) * size.height * 0.28
+                path.addLine(to: CGPoint(x: x, y: y))
             }
+            context.stroke(
+                path,
+                with: .color(lineColor),
+                style: StrokeStyle(lineWidth: 1.35, lineCap: .round, lineJoin: .round)
+            )
         }
-        .frame(height: 16)
+        .frame(width: 22, height: 8)
         .accessibilityHidden(true)
     }
 }

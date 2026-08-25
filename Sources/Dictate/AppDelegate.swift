@@ -271,7 +271,17 @@ final class RecordingOverlayController {
     init(controller: DictationController, shortcutTitle: String) {
         self.controller = controller
         self.shortcutTitle = shortcutTitle
-        panel = Panel(contentRect: NSRect(x: 0, y: 0, width: DesignSystem.Layout.overlayWidth, height: DesignSystem.Layout.overlayHeight), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        panel = Panel(
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: DesignSystem.Layout.overlayWidth,
+                height: DesignSystem.Layout.overlayHeight
+            ),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
         panel.level = .floating
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -300,11 +310,6 @@ final class RecordingOverlayController {
         panel.orderFrontRegardless()
     }
 
-    /// The pill never changes size, so every state uses the exact same frame.
-    private static var panelSize: NSSize {
-        NSSize(width: DesignSystem.Layout.overlayWidth, height: DesignSystem.Layout.overlayHeight)
-    }
-
     private func position() {
         if anchoredScreen == nil {
             // The mouse may be anywhere when a global shortcut is released.
@@ -318,12 +323,16 @@ final class RecordingOverlayController {
             anchoredCenterX = frame.midX
         }
         if anchoredBottomY == nil { anchoredBottomY = frame.minY + DesignSystem.Layout.overlayBottomInset }
-        // The anchor and the size are both constant for the panel's visible
-        // lifetime, so the origin can never drift between state changes.
+        let size = NSSize(
+            width: DesignSystem.Layout.overlayWidth,
+            height: DesignSystem.Layout.overlayHeight
+        )
+        // The transparent host panel never resizes. The visible capsule morphs
+        // inside it, so AppKit cannot shift the window between state updates.
         let origin = NSPoint(
-            x: (anchoredCenterX ?? frame.midX) - Self.panelSize.width / 2,
+            x: (anchoredCenterX ?? frame.midX) - size.width / 2,
             y: anchoredBottomY ?? frame.minY + DesignSystem.Layout.overlayBottomInset
         )
-        panel.setFrame(NSRect(origin: origin, size: Self.panelSize), display: true, animate: false)
+        panel.setFrame(NSRect(origin: origin, size: size), display: true, animate: false)
     }
 }

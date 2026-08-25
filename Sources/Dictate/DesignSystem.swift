@@ -72,15 +72,17 @@ enum DesignSystem {
         static let breathLineHeight = 12.0
         static let breathLineWidth = 1.5
         static let breathLineActiveHeight = 2.0
-        // The overlay is a single fixed-size pill. Every state shares the
-        // same width and height, so a state change never resizes the panel
-        // or moves its edges.
+        // The ready indicator stays deliberately tiny during everyday work.
+        // Active, processing, and recovery states expand to the full pebble.
+        static let overlayReadyWidth = 38.0
+        static let overlayReadyHeight = 18.0
         static let overlayWidth = 62.0
         static let overlayHeight = 22.0
         static let overlayBottomInset = 22.0
         static let radiusField = 8.0
         static let radiusSurface = 12.0
         static let radiusOverlay = 18.0
+        static let radiusOverlayReady = 9.0
         static let radiusOverlayCompact = 11.0
         static let radiusOverlayButton = 6.0
         static let space1 = 4.0
