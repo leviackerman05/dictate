@@ -35,8 +35,8 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
         <h1>Speak. Release.<br /><em>Keep writing.</em></h1>
         <p class="lede">Dictate listens for the thought you already have, then returns the finished words to the field you were using. Small on screen. Clear in intent.</p>
         <div class="hero-actions">
-          <a class="button button-primary" href={latestDMGURL} aria-label="Download the latest Dictate DMG for Mac">Download for Mac <span aria-hidden="true">↓</span></a>
-          <a class="text-link" href="#flow">See the flow <span aria-hidden="true">↓</span></a>
+          <a class="button button-primary" href={latestDMGURL} aria-label="Download the latest Dictate DMG for Mac">Download for Mac</a>
+          <a class="text-link github-link" href="https://github.com/leviackerman05/dictate" target="_blank" rel="noreferrer"><GitHubMark size={16} /> Star on GitHub</a>
         </div>
         <p class="release-note" id="release"><span class="status-dot moss-dot"></span> macOS 26+ · Apple silicon · latest GitHub release</p>
       </div>
@@ -50,11 +50,11 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
     </section>
 
     <section class="section flow-section" id="flow">
-      <div class="section-intro"><p class="eyebrow">The useful part</p><h2>Three beats.<br /><em>One less interruption.</em></h2></div>
+      <div class="section-intro"><p class="eyebrow">How it works</p><h2>Hold. Speak.<br /><em>Release.</em></h2></div>
       <div class="flow-grid">
-        <article class="flow-card"><span class="card-number blue">01</span><h3>Hold or tap</h3><p>Choose hold-to-talk or click-to-toggle. The trigger is yours; Dictate stays out of the way.</p></article>
-        <article class="flow-card"><span class="card-number amber">02</span><h3>Finish naturally</h3><p>Release the key, tap again, or press Escape to cancel. A complete sentence stays complete.</p></article>
-        <article class="flow-card"><span class="card-number moss">03</span><h3>Return the words</h3><p>When a real field is focused, text goes there. When it is not, recovery gives you copy or discard.</p></article>
+        <article class="flow-card"><span class="card-number blue">01</span><h3>Start</h3><p>Hold your shortcut or tap once.</p></article>
+        <article class="flow-card"><span class="card-number amber">02</span><h3>Speak</h3><p>Dictate listens locally while you talk.</p></article>
+        <article class="flow-card"><span class="card-number moss">03</span><h3>Continue</h3><p>Release and the words return to your field.</p></article>
       </div>
     </section>
 
@@ -77,7 +77,7 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
       <p class="eyebrow"><span class="index-dot"></span> A calmer writing instrument</p>
       <h2>Say the thing.<br /><em>Keep your place.</em></h2>
       <p class="closing-copy">The website demo is synthetic. The app is the real product: a local macOS tool for short spoken fragments, a living dictionary, and reliable insertion.</p>
-      <a class="button button-primary" href={latestDMGURL} aria-label="Download the latest Dictate DMG for Mac">Download for Mac <span aria-hidden="true">↓</span></a>
+      <a class="button button-primary" href={latestDMGURL} aria-label="Download the latest Dictate DMG for Mac">Download for Mac</a>
     </section>
 
     <footer class="site-footer"><span>Dictate</span><span>Built for macOS 26+</span><a href="https://github.com/leviackerman05/dictate" target="_blank" rel="noreferrer"><GitHubMark size={14} /> Star on GitHub</a></footer>
@@ -101,8 +101,8 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
 
 <style>
   :global(body) { overflow-x: hidden; }
-  main { max-width: 1440px; margin: 0 auto; padding: 0 5vw; }
-  .site-header { display: flex; align-items: center; justify-content: space-between; min-height: 4.65rem; border-bottom: 1px solid var(--border); }
+  main { max-width: 1280px; margin: 0 auto; padding: 0 4vw; }
+  .site-header { display: flex; align-items: center; justify-content: space-between; min-height: 4.3rem; border-bottom: 1px solid var(--border); }
   .wordmark { display: inline-flex; align-items: center; gap: 0.6rem; font-size: 1rem; font-weight: 800; letter-spacing: -0.02em; }
   nav, .nav-links, .nav-actions { display: flex; align-items: center; }
   nav { gap: 1.35rem; color: var(--muted); font-size: 0.78rem; font-weight: 650; }
@@ -117,38 +117,39 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
   :global(:root[data-theme="dark"]) .moon-icon { display: none; }
   :global(:root[data-theme="dark"]) .sun-icon { display: block; }
   .theme-toggle:hover { border-color: var(--action); color: var(--action); }
-  .hero { display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(360px, 0.96fr); align-items: center; gap: clamp(3rem, 8vw, 8rem); min-height: 570px; padding: 3.85rem 0 4.5rem; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(340px, 0.96fr); align-items: center; gap: clamp(2.75rem, 6vw, 5.5rem); min-height: 510px; padding: 3.25rem 0 3.8rem; }
   .eyebrow { display: flex; align-items: center; gap: 0.55rem; margin: 0 0 1.25rem; color: var(--action); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
   .index-dot, .status-dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--action); }
   h1, h2 { margin: 0; letter-spacing: -0.06em; line-height: 0.95; }
-  h1 { max-width: 720px; font-size: clamp(3.6rem, 7vw, 7.8rem); font-weight: 650; }
-  h2 { font-size: clamp(2.5rem, 5vw, 5.1rem); font-weight: 650; }
+  h1 { max-width: 650px; font-size: clamp(3.35rem, 6vw, 6.6rem); font-weight: 650; }
+  h2 { font-size: clamp(2.35rem, 4.4vw, 4.3rem); font-weight: 650; }
   h1 em, h2 em { color: var(--action); font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
-  .lede { max-width: 33rem; margin: 1.8rem 0 2rem; color: var(--muted); font-size: clamp(1rem, 1.45vw, 1.2rem); line-height: 1.6; }
-  .hero-actions { display: flex; align-items: center; gap: 1.3rem; }
-  .button { display: inline-flex; align-items: center; gap: 0.55rem; min-height: 2.9rem; padding: 0.82rem 1.05rem; border-radius: 999px; font-size: 0.8rem; font-weight: 800; }
+  .lede { max-width: 31rem; margin: 1.55rem 0 1.7rem; color: var(--muted); font-size: clamp(0.96rem, 1.3vw, 1.1rem); line-height: 1.6; }
+  .hero-actions { display: flex; align-items: center; gap: 1.15rem; }
+  .button { display: inline-flex; align-items: center; min-height: 2.55rem; padding: 0.7rem 0.92rem; border-radius: 999px; font-size: 0.76rem; font-weight: 800; }
   .button-primary { background: var(--action); color: #fff; box-shadow: 0 10px 24px rgba(49, 85, 217, 0.2); transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
   .button-primary:hover { box-shadow: 0 13px 30px rgba(49, 85, 217, 0.27); transform: translateY(-1px); }
   .button-primary:active { box-shadow: 0 7px 18px rgba(49, 85, 217, 0.2); transform: translateY(0); }
   .text-link { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--text); font-size: 0.8rem; font-weight: 750; }
+  .github-link { color: var(--muted); }
   .release-note { display: flex; align-items: center; gap: 0.5rem; margin: 1.6rem 0 0; color: var(--subtle); font-size: 0.7rem; }
   .status-dot { width: 0.45rem; height: 0.45rem; background: #e5aa2f; }
-  .hero-demo { max-width: 510px; justify-self: end; width: 100%; }
+  .hero-demo { max-width: 470px; justify-self: end; width: 100%; }
   .proof-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 1.2rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--muted); font: 0.68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; text-transform: uppercase; }
   .proof-strip span:nth-child(2) { color: #4e7c62; }.proof-strip span:nth-child(3) { color: #e5aa2f; }.proof-strip span:nth-child(4) { color: #c94b43; }
-  .section { padding: 8rem 0; }
-  .flow-section { display: grid; grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.5fr); gap: 5rem; border-bottom: 1px solid var(--border); }
+  .section { padding: 5.75rem 0; }
+  .flow-section { display: grid; grid-template-columns: minmax(200px, 0.72fr) minmax(0, 1.6fr); gap: 3.25rem; padding: 4.5rem 0; border-bottom: 1px solid var(--border); }
   .flow-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-self: end; }
-  .flow-card { min-height: 19rem; padding: 1.3rem; border-top: 3px solid var(--action); background: var(--raised); }
+  .flow-card { min-height: 10.5rem; padding: 1.15rem; border-top: 3px solid var(--action); background: var(--raised); }
   .flow-card:nth-child(2) { border-color: #e5aa2f; }.flow-card:nth-child(3) { border-color: #4e7c62; }
-  .card-number { display: block; margin-bottom: 5rem; font: 0.7rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }.card-number.blue { color: #3155d9; }.card-number.amber { color: #e5aa2f; }.card-number.moss { color: #4e7c62; }
+  .card-number { display: block; margin-bottom: 1.7rem; font: 0.7rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }.card-number.blue { color: #3155d9; }.card-number.amber { color: #e5aa2f; }.card-number.moss { color: #4e7c62; }
   h3 { margin: 0 0 0.65rem; font-size: 1.08rem; letter-spacing: -0.03em; }.flow-card p, .split-panel p, .closing-copy { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
-  .split-section { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding-top: 5rem; }
-  .split-panel { min-height: 27rem; padding: clamp(1.4rem, 4vw, 3rem); }.dark-panel { display: flex; flex-direction: column; justify-content: space-between; background: #10100e; color: #f3f0e7; }.dark-panel p { color: #aaa79d; }.dark-panel h2 em { color: #f0be4f; }.paper-panel { display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border); background: var(--surface); }.paper-panel h2 em { color: #4e7c62; }.paper-panel .text-link { margin-top: 2rem; }
+  .split-section { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding-top: 4.5rem; }
+  .split-panel { min-height: 23rem; padding: clamp(1.4rem, 3.5vw, 2.6rem); }.dark-panel { display: flex; flex-direction: column; justify-content: space-between; background: #10100e; color: #f3f0e7; }.dark-panel p { color: #aaa79d; }.dark-panel h2 em { color: #f0be4f; }.paper-panel { display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border); background: var(--surface); }.paper-panel h2 em { color: #4e7c62; }.paper-panel .text-link { margin-top: 2rem; }
   .eyebrow.warm { color: #f0be4f; }.quiet-line { display: flex; align-items: center; gap: 0.55rem; color: #aaa79d; font: 0.68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }.moss-dot { background: #69b783; }
-  .closing-section { max-width: 870px; padding-bottom: 7rem; }.closing-copy { max-width: 31rem; margin: 1.5rem 0 1.8rem; }
+  .closing-section { max-width: 760px; padding-bottom: 5.5rem; }.closing-copy { max-width: 31rem; margin: 1.35rem 0 1.6rem; }
   .site-footer { display: flex; justify-content: space-between; gap: 1rem; padding: 1.5rem 0 2rem; border-top: 1px solid var(--border); color: var(--subtle); font: 0.68rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }.site-footer a { display: inline-flex; align-items: center; gap: 0.35rem; }.site-footer a:hover { color: var(--action); }
-  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; min-height: auto; padding: 5rem 0; }.hero-demo { justify-self: start; max-width: 600px; }.flow-section { grid-template-columns: 1fr; gap: 2rem; }.flow-card { min-height: 16rem; }.card-number { margin-bottom: 3rem; } }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; min-height: auto; padding: 4.5rem 0; }.hero-demo { justify-self: start; max-width: 560px; }.flow-section { grid-template-columns: 1fr; gap: 2rem; }.flow-card { min-height: 9.5rem; } }
   @media (max-width: 680px) { main { padding: 0 1.2rem; }.site-header { min-height: 4.35rem; }.nav-links { display: none; }.nav-actions { padding-left: 0; border-left: 0; }.header-cta { font-size: 0.7rem; }.hero { padding: 3.2rem 0 4.5rem; }.hero-actions { align-items: flex-start; flex-direction: column; gap: 1rem; }.proof-strip { grid-template-columns: repeat(2, 1fr); gap: 1rem; }.section { padding: 5rem 0; }.flow-grid, .split-section { grid-template-columns: 1fr; }.split-panel { min-height: 22rem; }.site-footer { align-items: flex-start; flex-direction: column; } }
   @media (max-width: 380px) { h1 { font-size: 3.1rem; } h2 { font-size: 2.5rem; }.signal-demo { padding: 0.8rem; } }
 </style>
