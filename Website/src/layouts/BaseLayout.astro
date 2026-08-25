@@ -8,6 +8,11 @@ const {
   title = "Dictate — speak, release, keep writing",
   description = "A local-first macOS dictation tool for focused writing. Speak, finish, and return the words to the field you were using."
 } = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin);
+const basePath = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/`;
+const faviconPath = `${basePath}dictate-mark.svg`;
+const socialImageURL = new URL(`${basePath}og-card.svg`, Astro.site ?? Astro.url.origin);
 ---
 <!doctype html>
 <html lang="en">
@@ -23,13 +28,13 @@ const {
       })();
     </script>
     <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href="./dictate-mark.svg" />
-    <link rel="canonical" href="https://dictate.local/" />
+    <link rel="icon" type="image/svg+xml" href={faviconPath} />
+    <link rel="canonical" href={canonicalURL} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content="https://dictate.local/og-card.svg" />
-    <meta property="og:url" content="https://dictate.local/" />
+    <meta property="og:image" content={socialImageURL} />
+    <meta property="og:url" content={canonicalURL} />
     <meta name="twitter:card" content="summary_large_image" />
     <title>{title}</title>
     <script is:inline type="application/ld+json" set:html={JSON.stringify({

@@ -1,30 +1,64 @@
-# Dictate
+<p align="center">
+  <img src="Sources/Dictate/Resources/AppIcon.svg" width="104" height="104" alt="Dictate app icon">
+</p>
 
-Dictate is a native macOS push-to-talk dictation notebook for writers, founders,
-researchers, and developers. Hold a shortcut, speak, release, and Dictate
-transcribes locally, applies deterministic personal corrections, and inserts the
-result into the text field that was focused before recording.
+<h1 align="center">Dictate</h1>
 
-The product is called Dictate everywhere and uses the configurable development
-bundle identifier `app.dictate.desktop`. The bundle script accepts
-`DICTATE_BUNDLE_IDENTIFIER` for an owner-controlled reverse-DNS identifier later.
+<p align="center">Hold a key. Say what you mean. Release and keep writing.</p>
 
-## Requirements
+<p align="center">
+  <a href="https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg"><img alt="Download Dictate" src="https://img.shields.io/badge/Download-Dictate.dmg-3155D9?style=for-the-badge&logo=apple&logoColor=white"></a>
+  <a href="https://dictate-macos.vercel.app"><img alt="Dictate website" src="https://img.shields.io/badge/Visit-Website-4E7C62?style=for-the-badge&logo=vercel&logoColor=white"></a>
+  <a href="https://github.com/leviackerman05/dictate/releases"><img alt="GitHub releases" src="https://img.shields.io/badge/GitHub-Releases-4E7C62?style=for-the-badge&logo=github&logoColor=white"></a>
+</p>
 
-- macOS 26 or newer at runtime.
-- Swift 6.2 or newer and Xcode with the macOS 26 SDK for the full app build.
-- Microphone permission for recording. The app uses Apple's modern on-device
-  SpeechAnalyzer path; there is no separate legacy “Speech Recognition” step.
-- Accessibility permission for automatic insertion into another application.
-  Dictate remains useful for copying transcripts without it.
+<p align="center">
+  <img alt="macOS 26 or newer" src="https://img.shields.io/badge/macOS-26%2B-3155D9?style=flat-square">
+  <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-native-4E7C62?style=flat-square">
+  <img alt="Local first" src="https://img.shields.io/badge/transcription-local%20first-3155D9?style=flat-square">
+  <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-4E7C62?style=flat-square&logo=swift&logoColor=white">
+</p>
 
-The included SwiftPM manifest uses a compatibility platform floor because the
-Command Line Tools manifest API available in some environments predates the
-macOS 26 enum. The produced app bundle enforces `LSMinimumSystemVersion` 26.0.
+<p align="center">
+  <img src="docs/evidence/ui/dictate-dashboard.png" width="1100" alt="Dictate dashboard in dark mode">
+</p>
 
-## Build and test
+Dictate is a small macOS app for getting spoken words into the field you are
+already using. Pick a shortcut, hold it while you speak, and release it to
+finish. If Dictate cannot safely return the words to your current field, the
+transcript stays available to copy instead.
 
-From the repository root:
+Everything runs on your Mac. There is no account, analytics service, or stored
+raw audio.
+
+## Download
+
+[Download the latest DMG](https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg), open it, and drag Dictate into Applications.
+
+Dictate currently requires macOS 26 or newer on Apple silicon. Public builds are
+distributed through GitHub Releases. Until they are Developer ID signed and
+notarized, macOS may ask you to Control-click Dictate and choose **Open** the
+first time.
+
+## Using Dictate
+
+1. Allow Microphone access. Allow Accessibility access if you want automatic
+   insertion into other apps.
+2. Choose a trigger key and either **Hold to talk** or **Click to toggle**.
+3. Put the cursor in a text field, then dictate.
+4. Review previous transcripts in History or teach Dictate names and preferred
+   corrections in Dictionary.
+
+Dictate supports Apple's on-device speech model, NVIDIA Parakeet, and Whisper.
+Raw audio is only used for the active recording session and is never saved.
+
+<p align="center">
+  <img src="docs/evidence/ui/dictate-statistics.png" width="1100" alt="Dictate statistics screen in dark mode">
+</p>
+
+## Build it locally
+
+You will need Swift 6.2 or newer and the macOS 26 SDK.
 
 ```sh
 swift test
@@ -32,96 +66,21 @@ swift build -c release --product Dictate
 make app
 ```
 
-`make app` creates `build/Dictate.app`. To use an owner-controlled development
+The app bundle will be written to `build/Dictate.app`. To use your own bundle
 identifier:
 
 ```sh
 DICTATE_BUNDLE_IDENTIFIER=com.example.dictate make app
 ```
 
-The bundle script creates a normal Dock application with a resizable SwiftUI
-window, app menu, Settings scene, menu bar item, resource bundle, permissions
-usage descriptions, and the original vector icon source.
+## Project notes
 
-## Install and uninstall
-
-For a local install:
-
-```sh
-mkdir -p "$HOME/Applications"
-cp -R build/Dictate.app "$HOME/Applications/Dictate.app"
-open "$HOME/Applications/Dictate.app"
-```
-
-Remove that local copy by moving `$HOME/Applications/Dictate.app` to the Trash.
-This does not remove local history or dictionary data. Those live under the user
-Application Support directory in the `Dictate` folder and can be removed from
-the app's own controls or Finder after quitting the app.
-
-## First run and permissions
-
-The first-run window checks Microphone and Accessibility, derives state from
-Apple's permission APIs, opens the relevant System Settings pane, and rechecks
-when Dictate becomes active again. Accessibility is optional for notebook/copy
-use; the insertion status is explicit when it is not available. Dictate does
-not use a stored “completed” flag as permission truth and does not issue
-privacy-reset commands.
-
-## Privacy
-
-Speech recognition is requested in on-device mode. Raw audio is streamed through
-the active session and never stored. History and the personal dictionary are
-local JSON documents written atomically; no account, analytics, tracking,
-advertising, telemetry, or cloud dependency exists. See [PRIVACY.md](PRIVACY.md).
-
-## Features implemented
-
-- Deterministic `idle → preparing → listening → transcribing → inserting → idle`
-  state machine with cancellation, silence handling, failure states, and busy
-  finalization protection.
-- Right Option, Fn, Right Command, and custom shortcuts. The Fn path uses a
-  Quartz event tap when Input Monitoring is available so the configured key can
-  take priority over macOS's emoji picker. Repeated modifier events are
-  de-duplicated.
-- Hold-to-talk and click-to-toggle recording modes, with a compact non-activating
-  overlay and no visible cancel control.
-- Ordered copied audio stream, on-device Speech adapter, contextual vocabulary,
-  focus snapshot, Accessibility insertion, and pasteboard/Command-V fallback.
-- Personal dictionary with vocabulary and correction entries; search, filters,
-  enable/disable, add/edit/delete, import/merge/replace validation, export, JSON
-  schema, risk warnings, bounded vocabulary selection, and correction audit.
-- Searchable, grouped history with pin, copy, retry insertion, multi-select
-  deletion, retention, export, and an empty-state Start recording action.
-- SwiftUI split-view interface, Settings scene, onboarding, menu bar controls,
-  non-activating recording overlay, reduced-motion breath line, accessibility
-  labels/state announcements, localized English string catalog, and original
-  caret/breath-line vector icon.
-
-## Documentation
-
-- [Design system and wireframes](docs/DESIGN_SYSTEM.md)
-- [Architecture and concurrency boundaries](docs/ARCHITECTURE.md)
-- [Dictionary schema and matching algorithm](docs/DICTIONARY_SCHEMA.md)
 - [Privacy policy](PRIVACY.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Design system](docs/DESIGN_SYSTEM.md)
+- [Dictionary format](docs/DICTIONARY_SCHEMA.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
-- [Execution checklist and verification boundary](docs/EXECUTION_CHECKLIST.md)
 
-## Verification status
-
-Verified in the available environment:
-
-- Swift 6 source typechecking for all `DictateCore` files.
-- Swift 6 macOS source typechecking for all `Dictate` files against the macOS 26
-  SDK, with no source errors.
-- Repository audit for copied reference names, generated artifacts, and secrets.
-
-Not verifiable in this environment:
-
-- `swift test` and full `swift build`: the installed Command Line Tools have a
-  Swift compiler/SDK revision mismatch and no XCTest module/full Xcode runtime.
-- Human microphone, Speech model installation, Accessibility insertion,
-  pasteboard restoration, VoiceOver, and visual screenshot verification on a
-  signed macOS 26 machine.
-
-The GitHub Actions workflow runs `swift test` and a release build on a macOS
-runner with the normal Xcode toolchain.
+Dictate is still early. If something behaves differently in a particular app,
+please [open an issue](https://github.com/leviackerman05/dictate/issues) and say
+which app and macOS version you were using.

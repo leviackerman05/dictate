@@ -1,10 +1,11 @@
 import { defineConfig } from "astro/config";
 
+const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
 export default defineConfig({
-  site: "https://dictate.local",
+  site: productionHost ? `https://${productionHost}` : "https://dictate-macos.vercel.app",
   output: "static",
   compressHTML: true,
-  // Keep the single-page download site portable: opening dist/index.html
-  // directly or hosting it below a repository subpath must not break styles.
+  // The landing page stays self-contained and loads correctly from any CDN.
   build: { inlineStylesheets: "always" }
 });

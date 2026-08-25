@@ -17,3 +17,4 @@ Sources/Dictate/Resources/*.generated/
 Website/node_modules/
 Website/.astro/
 Website/dist/
+Website/.vercel/

@@ -1,7 +1,8 @@
-name: Website
+name: Website checks
 
 on:
   push:
+    branches: [main]
     paths:
       - "Website/**"
       - ".github/workflows/website.yml"
@@ -9,6 +10,14 @@ on:
     paths:
       - "Website/**"
       - ".github/workflows/website.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
