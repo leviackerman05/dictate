@@ -33,6 +33,7 @@ enum RecognitionModelStatus: Equatable, Sendable {
 @MainActor
 protocol FocusDelivering: AnyObject {
     func captureFocus(source: FocusCaptureSource) -> FocusSnapshot
+    func settledCompletionFocus() async -> FocusSnapshot
     func rememberExternalFocus()
     func insert(_ text: String, into focus: FocusSnapshot?) async -> DeliveryResult
 }

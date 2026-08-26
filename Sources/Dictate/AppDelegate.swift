@@ -248,6 +248,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         case .idle:
             switch model.dictation.readiness {
             case .settingUp: return String(localized: "navigation.settingUp")
+            case .modelLoaded:
+                return String.localizedStringWithFormat(
+                    String(localized: "recording.modelLoaded"),
+                    model.transcriptionProvider.readinessTitle
+                )
             case .ready: return String(localized: "menubar.ready")
             case .unavailable: return String(localized: "navigation.setupFailed")
             }

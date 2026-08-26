@@ -185,6 +185,11 @@ struct DictateSidebar: View {
         }
         switch model.dictation.readiness {
         case .settingUp: return String(localized: "navigation.settingUp")
+        case .modelLoaded:
+            return String.localizedStringWithFormat(
+                String(localized: "recording.modelLoaded"),
+                model.transcriptionProvider.readinessTitle
+            )
         case .ready: return String(localized: "navigation.ready")
         case .unavailable: return String(localized: "navigation.setupFailed")
         }
@@ -194,6 +199,7 @@ struct DictateSidebar: View {
         if model.dictation.state != .idle { return DesignSystem.ColorToken.listening }
         switch model.dictation.readiness {
         case .settingUp: return DesignSystem.ColorToken.action
+        case .modelLoaded: return DesignSystem.ColorToken.success
         case .ready: return DesignSystem.ColorToken.success
         case .unavailable: return DesignSystem.ColorToken.failure
         }
@@ -248,11 +254,23 @@ struct DashboardView: View {
                     title: String(localized: "dashboard.title"),
                     subtitle: String(localized: "dashboard.subtitle")
                 ) {
-                    DashboardRecordButton(isRecording: isRecording) {
-                        if isRecording {
-                            model.finishRecording()
-                        } else {
-                            model.startRecording()
+                    HStack(spacing: 10) {
+                        DashboardModelStatusButton(
+                            provider: model.transcriptionProvider,
+                            readiness: dictation.readiness
+                        ) {
+                            model.section = .aiModels
+                        }
+
+                        DashboardRecordButton(
+                            isRecording: isRecording,
+                            isEnabled: isRecording || dictation.readiness == .ready
+                        ) {
+                            if isRecording {
+                                model.finishRecording()
+                            } else {
+                                model.startRecording()
+                            }
                         }
                     }
                 }
@@ -287,12 +305,101 @@ struct DashboardView: View {
     }
 }
 
+private struct DashboardModelStatusButton: View {
+    let provider: TranscriptionProvider
+    let readiness: DictationReadiness
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                readinessMark
+                    .frame(width: 15, height: 15)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(provider.title)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DesignSystem.ColorToken.primaryText)
+                        .lineLimit(1)
+                    Text(statusTitle)
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(statusColor)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 2)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(DesignSystem.ColorToken.secondaryText)
+            }
+            .padding(.horizontal, 11)
+            .frame(width: 232, height: 38)
+            .background {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(hovering ? DesignSystem.ColorToken.raisedSurface : DesignSystem.ColorToken.surface)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(hovering ? DesignSystem.ColorToken.action.opacity(0.55) : DesignSystem.ColorToken.border, lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(String(localized: "dashboard.model.open"))
+        .accessibilityLabel("\(provider.title), \(statusTitle)")
+        .accessibilityHint(String(localized: "dashboard.model.open"))
+    }
+
+    @ViewBuilder
+    private var readinessMark: some View {
+        switch readiness {
+        case .settingUp:
+            ProgressView()
+                .controlSize(.mini)
+                .scaleEffect(0.72)
+        case .modelLoaded:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DesignSystem.ColorToken.success)
+        case .ready:
+            Circle()
+                .fill(DesignSystem.ColorToken.success)
+                .frame(width: 7, height: 7)
+        case .unavailable:
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DesignSystem.ColorToken.failure)
+        }
+    }
+
+    private var statusTitle: String {
+        switch readiness {
+        case .settingUp: return String(localized: "dashboard.model.settingUp")
+        case .modelLoaded: return String(localized: "dashboard.model.loaded")
+        case .ready: return String(localized: "dashboard.model.ready")
+        case .unavailable: return String(localized: "dashboard.model.unavailable")
+        }
+    }
+
+    private var statusColor: Color {
+        switch readiness {
+        case .settingUp: return DesignSystem.ColorToken.action
+        case .modelLoaded, .ready: return DesignSystem.ColorToken.success
+        case .unavailable: return DesignSystem.ColorToken.failure
+        }
+    }
+}
+
 /// The dashboard's start/stop control. Deliberately not an Apple default
 /// button: a tall cobalt capsule with an inner top highlight, a soft cobalt
 /// glow, hover lift, and — while a session is running — a pulsing white dot
 /// and a coral stop affordance.
 private struct DashboardRecordButton: View {
     let isRecording: Bool
+    let isEnabled: Bool
     let action: () -> Void
     @State private var hovering = false
 
@@ -326,9 +433,12 @@ private struct DashboardRecordButton: View {
             }
             .shadow(color: tint.opacity(0.38), radius: 10, y: 4)
         }
+        .disabled(!isEnabled)
         .buttonStyle(DashboardRecordButtonStyle(hovering: $hovering))
-        .onHover { hovering = $0 }
+        .onHover { hovering = isEnabled && $0 }
+        .opacity(isEnabled ? 1 : 0.48)
         .animation(.spring(duration: DesignSystem.Motion.stateMorph, bounce: 0.18), value: isRecording)
+        .animation(.easeOut(duration: DesignSystem.Motion.directFeedback), value: isEnabled)
         .accessibilityLabel(isRecording ? Copy.stopRecording : Copy.startRecording)
     }
 

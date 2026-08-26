@@ -80,7 +80,11 @@ struct HistoryView: View {
         let groups = Dictionary(grouping: sortedItems) { calendar.startOfDay(for: $0.timestamp) }
             .map { HistoryDayGroup(day: $0.key, items: $0.value.sorted { $0.timestamp > $1.timestamp }) }
             .sorted { $0.day > $1.day }
-        return HistorySnapshot(items: sortedItems, groups: groups)
+        let rows = groups.enumerated().flatMap { index, group in
+            [HistoryListRow.header(day: group.day, itemCount: group.items.count, sectionIndex: index)]
+                + group.items.map(HistoryListRow.item)
+        }
+        return HistorySnapshot(items: sortedItems, rows: rows)
     }
 
     var body: some View {
@@ -96,27 +100,21 @@ struct HistoryView: View {
                 EmptyHistoryView(model: model, isFiltered: !model.historySearch.isEmpty || selectedDay != .all && selectedDay != .today)
             } else {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 22) {
-                        ForEach(Array(snapshot.groups.enumerated()), id: \.element.id) { index, group in
-                            VStack(alignment: .leading, spacing: 10) {
+                    // Every card must be a direct child of the lazy stack.
+                    // Nesting an eager VStack per day constructed all 136+
+                    // cards for a busy day before the first frame appeared.
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        ForEach(snapshot.rows) { row in
+                            switch row {
+                            case let .header(day, itemCount, sectionIndex):
                                 HistorySectionHeader(
-                                    day: group.day,
-                                    itemCount: group.items.count,
-                                    accent: sectionAccents[index % sectionAccents.count]
+                                    day: day,
+                                    itemCount: itemCount,
+                                    accent: sectionAccents[sectionIndex % sectionAccents.count]
                                 )
-                                ForEach(group.items) { item in
-                                    HistoryCard(
-                                        item: item,
-                                        onCopy: {
-                                            model.copyHistoryItem(item)
-                                            flashCopyToast()
-                                        },
-                                        onDelete: { model.deleteHistory(ids: [item.id]) },
-                                        onTogglePin: { model.togglePin(item) },
-                                        onRetryInsertion: { model.dictation.retryInsertion(for: item) },
-                                        onLearnCorrection: { model.learnCorrection($0) }
-                                    )
-                                }
+                                .padding(.top, sectionIndex == 0 ? 0 : 12)
+                            case let .item(item):
+                                historyCard(item)
                             }
                         }
                     }
@@ -138,6 +136,20 @@ struct HistoryView: View {
         } message: {
             Text(String(localized: "history.deleteConfirmation"))
         }
+    }
+
+    private func historyCard(_ item: HistoryItem) -> some View {
+        HistoryCard(
+            item: item,
+            onCopy: {
+                model.copyHistoryItem(item)
+                flashCopyToast()
+            },
+            onDelete: { model.deleteHistory(ids: [item.id]) },
+            onTogglePin: { model.togglePin(item) },
+            onRetryInsertion: { model.dictation.retryInsertion(for: item) },
+            onLearnCorrection: { model.learnCorrection($0) }
+        )
     }
 
     private func headerBar(itemCount: Int) -> some View {
@@ -237,7 +249,24 @@ private struct HistoryDayGroup: Identifiable {
 
 private struct HistorySnapshot {
     let items: [HistoryItem]
-    let groups: [HistoryDayGroup]
+    let rows: [HistoryListRow]
+}
+
+private enum HistoryListRow: Identifiable {
+    enum ID: Hashable {
+        case header(Date)
+        case item(UUID)
+    }
+
+    case header(day: Date, itemCount: Int, sectionIndex: Int)
+    case item(HistoryItem)
+
+    var id: ID {
+        switch self {
+        case let .header(day, _, _): return .header(day)
+        case let .item(item): return .item(item.id)
+        }
+    }
 }
 
 private enum HistoryDayFilter: Equatable {

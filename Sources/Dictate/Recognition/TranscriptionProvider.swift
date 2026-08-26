@@ -31,6 +31,22 @@ enum TranscriptionProvider: String, CaseIterable, Codable, Identifiable, Sendabl
         }
     }
 
+    /// A compact, user-facing model name for transient recorder status.
+    /// The full catalog title remains available through `title`.
+    var readinessTitle: String {
+        switch self {
+        case .apple: return String(localized: "model.readiness.apple")
+        case .parakeet: return String(localized: "model.readiness.parakeet")
+        case .parakeetV2: return String(localized: "model.readiness.parakeetV2")
+        case .parakeet110m: return String(localized: "model.readiness.parakeet110m")
+        case .whisperTiny: return String(localized: "model.readiness.whisperTiny")
+        case .whisperBase: return String(localized: "model.readiness.whisperBase")
+        case .whisperSmall: return String(localized: "model.readiness.whisperSmall")
+        case .whisperMedium: return String(localized: "model.readiness.whisperMedium")
+        case .whisperLargeV3Turbo: return String(localized: "model.readiness.whisperLargeV3Turbo")
+        }
+    }
+
     var detail: String {
         switch self {
         case .apple: return String(localized: "model.appleDetail")

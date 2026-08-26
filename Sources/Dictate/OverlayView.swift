@@ -37,6 +37,7 @@ struct RecordingOverlayView: View {
         }
         .shadow(color: .black.opacity(isQuietReady ? 0.06 : 0.12), radius: isQuietReady ? 8 : 14, y: isQuietReady ? 3 : 5)
         .animation(reduceMotion ? nil : .easeOut(duration: DesignSystem.Motion.directFeedback), value: isQuietReady)
+        .animation(reduceMotion ? nil : .easeOut(duration: DesignSystem.Motion.directFeedback), value: controller.readiness)
         // Keep the actual NSPanel fixed at the full recorder size. Only this
         // visible capsule changes dimensions, always from the same center.
         .frame(width: DesignSystem.Layout.overlayHostWidth, height: DesignSystem.Layout.overlayHeight)
@@ -55,6 +56,8 @@ struct RecordingOverlayView: View {
         switch controller.readiness {
         case .settingUp:
             setupView
+        case .modelLoaded:
+            loadedView
         case .ready:
             readyView
         case .unavailable:
@@ -67,10 +70,28 @@ struct RecordingOverlayView: View {
             ProgressView()
                 .controlSize(.mini)
                 .scaleEffect(0.7)
-            Text(String(localized: "recording.settingUp"))
+            Text(String(localized: "recording.settingUpLocalModel"))
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(DesignSystem.ColorToken.secondaryText)
                 .lineLimit(1)
+        }
+    }
+
+    private var loadedView: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(DesignSystem.ColorToken.success)
+            Text(
+                String.localizedStringWithFormat(
+                    String(localized: "recording.modelLoaded"),
+                    controller.provider.readinessTitle
+                )
+            )
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(DesignSystem.ColorToken.primaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.88)
         }
     }
 
@@ -79,10 +100,12 @@ struct RecordingOverlayView: View {
     }
 
     private var overlayWidth: CGFloat {
-        if controller.state == .idle,
-           controller.deliveryNotice == nil,
-           controller.readiness == .settingUp {
-            return DesignSystem.Layout.overlaySetupWidth
+        if controller.state == .idle, controller.deliveryNotice == nil {
+            switch controller.readiness {
+            case .settingUp: return DesignSystem.Layout.overlaySetupWidth
+            case .modelLoaded: return DesignSystem.Layout.overlayLoadedWidth
+            case .ready, .unavailable: break
+            }
         }
         return isQuietReady ? DesignSystem.Layout.overlayReadyWidth : DesignSystem.Layout.overlayWidth
     }
@@ -137,7 +160,12 @@ struct RecordingOverlayView: View {
         }
         if controller.state == .idle {
             switch controller.readiness {
-            case .settingUp: return String(localized: "recording.settingUp")
+            case .settingUp: return String(localized: "recording.settingUpLocalModel")
+            case .modelLoaded:
+                return String.localizedStringWithFormat(
+                    String(localized: "recording.modelLoaded"),
+                    controller.provider.readinessTitle
+                )
             case .unavailable: return String(localized: "recording.modelSetupFailed")
             case .ready: break
             }

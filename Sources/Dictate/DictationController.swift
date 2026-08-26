@@ -10,6 +10,7 @@ enum DeliveryNotice: Equatable {
 
 enum DictationReadiness: Equatable {
     case settingUp
+    case modelLoaded
     case ready
     case unavailable
 }
@@ -42,6 +43,7 @@ final class DictationController: ObservableObject {
     private var noticeTask: Task<Void, Never>?
     private var finalizationWatchdog: Task<Void, Never>?
     private var warmupTask: Task<Void, Never>?
+    private var readyConfirmationTask: Task<Void, Never>?
     private var warmupID = UUID()
     private var sessionID: UUID?
     private var captureStarted = false
@@ -94,6 +96,8 @@ final class DictationController: ObservableObject {
 
     func warmUpSelectedModel() {
         warmupTask?.cancel()
+        readyConfirmationTask?.cancel()
+        readyConfirmationTask = nil
         let id = UUID()
         warmupID = id
         let selectedProvider = provider
@@ -109,7 +113,7 @@ final class DictationController: ObservableObject {
                 guard !Task.isCancelled,
                       self.warmupID == id,
                       self.provider == selectedProvider else { return }
-                self.readiness = .ready
+                self.beginReadyConfirmation(for: selectedProvider, id: id)
                 self.warmupTask = nil
                 DictateLog.lifecycle.debug("model warm-up completed provider=\(String(describing: selectedProvider), privacy: .public)")
             } catch is CancellationError {
@@ -132,6 +136,14 @@ final class DictationController: ObservableObject {
     }
 
     func prepareModel(for provider: TranscriptionProvider) {
+        let id = UUID()
+        if self.provider == provider {
+            warmupTask?.cancel()
+            warmupTask = nil
+            readyConfirmationTask?.cancel()
+            readyConfirmationTask = nil
+            warmupID = id
+        }
         Task { @MainActor [weak self] in
             guard let self else { return }
             if self.provider == provider {
@@ -139,11 +151,11 @@ final class DictationController: ObservableObject {
             }
             do {
                 try await self.recognitionService(for: provider).prepare()
-                if self.provider == provider {
-                    self.readiness = .ready
+                if self.provider == provider, self.warmupID == id {
+                    self.beginReadyConfirmation(for: provider, id: id)
                 }
             } catch {
-                if self.provider == provider {
+                if self.provider == provider, self.warmupID == id {
                     self.readiness = .unavailable
                 }
                 switch provider {
@@ -161,6 +173,8 @@ final class DictationController: ObservableObject {
         if self.provider == provider {
             warmupTask?.cancel()
             warmupTask = nil
+            readyConfirmationTask?.cancel()
+            readyConfirmationTask = nil
             warmupID = UUID()
             readiness = .unavailable
             feedbackMessage = String(localized: "recording.modelNotReady")
@@ -254,7 +268,19 @@ final class DictationController: ObservableObject {
             return
         }
         guard readiness == .ready else {
-            feedbackMessage = String(localized: readiness == .settingUp ? "recording.settingUp" : "recording.modelSetupFailed")
+            switch readiness {
+            case .settingUp:
+                feedbackMessage = String(localized: "recording.settingUpLocalModel")
+            case .modelLoaded:
+                feedbackMessage = String.localizedStringWithFormat(
+                    String(localized: "recording.modelLoadedWaiting"),
+                    provider.readinessTitle
+                )
+            case .unavailable:
+                feedbackMessage = String(localized: "recording.modelSetupFailed")
+            case .ready:
+                break
+            }
             if readiness == .unavailable { warmUpSelectedModel() }
             return
         }
@@ -440,7 +466,11 @@ final class DictationController: ObservableObject {
         // deliberately move to another field before release. captureFocus
         // still applies the click-away guard, so an abandoned last responder
         // cannot become an implicit destination.
-        let completionFocus = delivery.captureFocus(source: .completion)
+        // Accessibility bridges in Electron/WebKit can briefly expose their
+        // editor as a generic group while committing layout. Give that bridge
+        // a few yielding retries instead of turning a valid caret into a
+        // spurious no-target result.
+        let completionFocus = await delivery.settledCompletionFocus()
         let insertion = await delivery.insert(result.correctedText, into: completionFocus)
         recovery.resolve(result.correctedText, outcome: recoveryOutcome(for: insertion))
         pendingCopyText = recovery.text
@@ -475,6 +505,8 @@ final class DictationController: ObservableObject {
     private func fail(_ failure: DictationFailure) {
         DictateLog.lifecycle.error("dictation failed: \(failure.rawValue, privacy: .public)")
         if failure == .speechModelUnavailable {
+            readyConfirmationTask?.cancel()
+            readyConfirmationTask = nil
             readiness = .unavailable
         }
         let retainedRecovery = preserveLiveTextForRecovery()
@@ -491,6 +523,29 @@ final class DictationController: ObservableObject {
         } else {
             lastFailure = failure
             publish()
+        }
+    }
+
+    private func beginReadyConfirmation(for provider: TranscriptionProvider, id: UUID) {
+        guard self.provider == provider, warmupID == id else { return }
+        readyConfirmationTask?.cancel()
+        readiness = .modelLoaded
+        feedbackMessage = ""
+
+        readyConfirmationTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(3))
+            } catch {
+                return
+            }
+            guard let self,
+                  !Task.isCancelled,
+                  self.provider == provider,
+                  self.warmupID == id,
+                  self.readiness == .modelLoaded else { return }
+            self.readiness = .ready
+            if self.state == .idle { self.feedbackMessage = "" }
+            self.readyConfirmationTask = nil
         }
     }
 
@@ -684,6 +739,7 @@ final class FocusSnapshotService {
     private var axObserver: AXObserver?
     private var axObserverSource: CFRunLoopSource?
     private var observedProcessIdentifier: pid_t?
+    private var focusRefreshTask: Task<Void, Never>?
 
     init() {
         let pointerTap = ExternalPointerEventTap { [weak self] location, sourcePID in
@@ -741,9 +797,7 @@ final class FocusSnapshotService {
         )
         switch selection {
         case .current:
-            preservedExternalFocus = current
-            activeIntent = current.focusFingerprint.map { intentTracker.begin($0) }
-            observeAccessibility(for: current)
+            adopt(current)
             DictateLog.delivery.debug("focus target=current source=\(source.rawValue, privacy: .public)")
             return current
         case .preserved:
@@ -758,6 +812,36 @@ final class FocusSnapshotService {
             DictateLog.delivery.debug("focus target=missing source=\(source.rawValue, privacy: .public)")
             return current
         }
+    }
+
+    func settledCompletionFocus() async -> FocusSnapshot {
+        var latest = FocusSnapshot.capture(hitTestLocation: currentHitTestLocation)
+        for attempt in 0..<4 {
+            if latest.isUsableExternalTarget, hasPositiveFocusIntent(for: latest) {
+                adopt(latest)
+                DictateLog.delivery.debug("focus target=settled completion attempt=\(attempt, privacy: .public)")
+                return latest
+            }
+            guard attempt < 3 else { break }
+            do {
+                try await Task.sleep(for: .milliseconds(70))
+            } catch {
+                break
+            }
+            latest = FocusSnapshot.capture(hitTestLocation: currentHitTestLocation)
+        }
+
+        preservedExternalFocus = nil
+        activeIntent = nil
+        intentTracker.invalidate()
+        DictateLog.delivery.debug("focus target=missing after completion settling")
+        return latest
+    }
+
+    private func adopt(_ snapshot: FocusSnapshot) {
+        preservedExternalFocus = snapshot
+        activeIntent = snapshot.focusFingerprint.map { intentTracker.begin($0) }
+        observeAccessibility(for: snapshot)
     }
 
     func insert(_ text: String, into focus: FocusSnapshot?) async -> DeliveryResult {
@@ -818,6 +902,15 @@ final class FocusSnapshotService {
         guard let click = lastExternalClick,
               click.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier,
               Date().timeIntervalSince(click.date) <= 10 else { return nil }
+        // Once Accessibility confirms a real editor after the click, that
+        // editor is the newer intent. Continuing to constrain resolution to
+        // the older pointer location can make a perfectly focused AXTextArea
+        // appear missing for ten seconds.
+        if let focusChange = lastAccessibilityFocusChange,
+           focusChange.date > click.date,
+           focusChange.fingerprint != nil {
+            return nil
+        }
         return click.location
     }
 
@@ -864,6 +957,8 @@ final class FocusSnapshotService {
     }
 
     private func removeAccessibilityObserver() {
+        focusRefreshTask?.cancel()
+        focusRefreshTask = nil
         if let source = axObserverSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
         }
@@ -875,11 +970,20 @@ final class FocusSnapshotService {
     private func handleAccessibilityNotification(_ notification: CFString) {
         let name = notification as String
         guard name == kAXFocusedUIElementChangedNotification || name == kAXFocusedWindowChangedNotification else { return }
-        let current = FocusSnapshot.capture()
-        lastAccessibilityFocusChange = (Date(), current.focusFingerprint)
-        intentTracker.focusChanged(to: current.focusFingerprint)
-        if current.isUsableExternalTarget { preservedExternalFocus = current }
-        DictateLog.delivery.debug("AX focus intent updated notification=\(notification, privacy: .public) target=\(current.focusFingerprint != nil, privacy: .public)")
+        let notificationName = name
+        // Custom UI frameworks often emit several focus notifications for one
+        // visual change. Coalesce the burst so we do one AX traversal instead
+        // of repeatedly blocking the main run loop.
+        focusRefreshTask?.cancel()
+        focusRefreshTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(45))
+            guard !Task.isCancelled, let self else { return }
+            let current = FocusSnapshot.capture()
+            self.lastAccessibilityFocusChange = (Date(), current.focusFingerprint)
+            self.intentTracker.focusChanged(to: current.focusFingerprint)
+            if current.isUsableExternalTarget { self.preservedExternalFocus = current }
+            DictateLog.delivery.debug("AX focus intent updated notification=\(notificationName, privacy: .public) target=\(current.focusFingerprint != nil, privacy: .public)")
+        }
     }
 }
 

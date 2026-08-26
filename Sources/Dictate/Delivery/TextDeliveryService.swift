@@ -169,9 +169,13 @@ final class FocusSnapshot {
             "focus capture trusted=\(AXIsProcessTrusted(), privacy: .public) systemRole=\(rawRole, privacy: .public) resolvedRole=\(resolvedRole, privacy: .public) systemPID=\(systemElementPID ?? 0, privacy: .public) elementPID=\(elementPID ?? 0, privacy: .public) frontmostBundle=\(frontmostBundle, privacy: .public) targetBundle=\(targetBundle, privacy: .public) isEditable=\(isEditable, privacy: .public) windowPaste=\(windowPasteTarget, privacy: .public) hasFocusedWindow=\(windowState.hasFocusedWindow, privacy: .public) frontmostIsActive=\(frontmostIsActive, privacy: .public) windowRelation=\(windowState.relation, privacy: .public) frame=\(frameDescription, privacy: .public)"
         )
         if element == nil || !isEditable {
-            DictateLog.delivery.info("focus capture: no editable target; window tree follows")
-            if let systemElement {
-                for line in Self.describeTree(root: systemElement) {
+            DictateLog.delivery.info("focus capture: no editable target")
+            // Full AX tree dumps are intentionally opt-in. Traversing hundreds
+            // of remote accessibility nodes on the main run loop made ordinary
+            // focus changes visibly stall the recorder after long sessions.
+            if ProcessInfo.processInfo.environment["DICTATE_AX_DIAGNOSTICS"] == "1",
+               let systemElement {
+                for line in Self.describeTree(root: systemElement, maxDepth: 3, maxNodes: 40) {
                     DictateLog.delivery.info("\(line, privacy: .public)")
                 }
             }

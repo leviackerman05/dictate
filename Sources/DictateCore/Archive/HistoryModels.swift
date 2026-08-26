@@ -77,22 +77,30 @@ public actor HistoryStore {
     private let url: URL
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private var cachedItems: [HistoryItem]?
 
     public init(url: URL) {
         self.url = url
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        // This is an app-owned archive, not a hand-edited document. Compact
+        // output substantially reduces repeated atomic-write work as history
+        // grows, while sorted keys keep exports deterministic.
+        encoder.outputFormatting = [.sortedKeys]
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
     }
 
     public func load() throws -> [HistoryItem] {
-        try loadDocument().items
+        if let cachedItems { return cachedItems }
+        let items = try loadDocument().items
+        cachedItems = items
+        return items
     }
 
     public func save(_ items: [HistoryItem]) throws {
         try saveDocument(HistoryDocument(items: items))
+        cachedItems = items
     }
 
     public func append(_ item: HistoryItem) throws {
@@ -102,19 +110,27 @@ public actor HistoryStore {
     }
 
     public func delete(ids: Set<UUID>) throws {
-        try save(try load().filter { !ids.contains($0.id) })
+        guard !ids.isEmpty else { return }
+        let current = try load()
+        let remaining = current.filter { !ids.contains($0.id) }
+        guard remaining.count != current.count else { return }
+        try save(remaining)
     }
 
     public func setPinned(_ pinned: Bool, id: UUID) throws {
         var items = try load()
         guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        guard items[index].isPinned != pinned else { return }
         items[index].isPinned = pinned
         try save(items)
     }
 
     public func applyRetention(_ retention: HistoryRetention, now: Date = .now) throws {
         guard let cutoff = retention.cutoff(now: now) else { return }
-        try save(try load().filter { $0.isPinned || $0.timestamp >= cutoff })
+        let current = try load()
+        let retained = current.filter { $0.isPinned || $0.timestamp >= cutoff }
+        guard retained.count != current.count else { return }
+        try save(retained)
     }
 
     private func loadDocument() throws -> HistoryDocument {

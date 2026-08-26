@@ -22,4 +22,21 @@ final class ArchiveTests: XCTestCase {
         XCTAssertEqual(decoded, document)
         XCTAssertNoThrow(try DictionaryValidator.validate(document: decoded))
     }
+
+    func testHistoryStoreCachedMutationsStayCoherent() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = HistoryStore(url: directory.appendingPathComponent("history.json"))
+        let first = HistoryItem(originalTranscript: "first", correctedText: "first", duration: 1, insertionResult: .inserted)
+        let second = HistoryItem(originalTranscript: "second", correctedText: "second", duration: 1, insertionResult: .noTarget)
+
+        try await store.save([first])
+        _ = try await store.load() // Populate the actor's decoded cache.
+        try await store.append(second)
+        try await store.setPinned(true, id: first.id)
+        try await store.delete(ids: [second.id])
+
+        let loaded = try await store.load()
+        XCTAssertEqual(loaded.map(\.id), [first.id])
+        XCTAssertTrue(loaded[0].isPinned)
+    }
 }
