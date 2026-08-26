@@ -95,3 +95,7 @@ open build/Dictate.app
 Dictate is still early. If something behaves differently in a particular app,
 please [open an issue](https://github.com/leviackerman05/dictate/issues) and say
 which app and macOS version you were using.
+
+## License
+
+Dictate is available under the [MIT License](LICENSE).
