@@ -149,8 +149,8 @@ new tint on the same split view.
 ## GUI directions from the initial audit
 
 This initial text study and the later seven-board exploration are archived. The owner
-approved one consolidated direction. Use `DESIGN.md`, the boards in
-`docs/final-design/`, and `PROMPT_GPT_5_6_LUNA_UI.md` for implementation.
+approved one consolidated direction, represented by the shipped application and the
+boards in `docs/final-design/`.
 
 All directions keep exactly two primary destinations: History and Dictionary.
 Settings remains secondary, opened from a gear/menu or Command-comma. None adds a
@@ -220,5 +220,5 @@ Single job: verify that speech landed, then get back to work.
 4. Repair focus capture, insertion, and copy recovery.
 5. Complete Parakeet model lifecycle and reproducible dependency linking.
 6. Run the full interaction matrix with a real editable target app.
-7. Use `PROMPT_GPT_5_6_LUNA_UI.md` to implement the approved Color Index system,
-   Signal Pebble, and Dictate identity from `docs/final-design/`.
+7. Implement the approved Color Index system, Signal Pebble, and Dictate identity
+   represented in `docs/final-design/`.

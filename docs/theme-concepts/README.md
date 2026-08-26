@@ -1,8 +1,8 @@
 # Dictate theme concepts
 
 > Archived exploration: these seven boards are no longer implementation choices.
-> The approved consolidated design is in `../final-design/`, with its implementation
-> contract in `../../DESIGN.md` and `../../PROMPT_GPT_5_6_LUNA_UI.md`.
+> The approved consolidated design is in `../final-design/`; the shipped application
+> is the source of truth for the current interface.
 
 Seven complete visual directions were generated for comparison. Every board includes
 a light-mode main surface, a dark-mode main surface, matching recorder overlays, and
