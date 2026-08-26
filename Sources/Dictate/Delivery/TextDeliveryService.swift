@@ -236,12 +236,11 @@ final class FocusSnapshot {
     }
 
     func insert(_ text: String) async -> DeliveryResult {
-        // Without Accessibility trust macOS withholds the focused AX element,
-        // so checking the snapshot first incorrectly reports "no target" and
-        // never asks for the permission required to discover that target.
+        // Without Accessibility trust macOS withholds the focused AX element.
+        // Do not prompt from a background delivery attempt: return a recoverable
+        // result and let the user request the optional permission explicitly.
         guard AXIsProcessTrusted() else {
             DictateLog.delivery.info("insert skipped: Accessibility trust missing")
-            requestAccessibilityIfNeeded()
             return .permissionMissing
         }
 
@@ -275,7 +274,11 @@ final class FocusSnapshot {
         }
 
         let focusedRole = role(of: focusedElement) ?? "none"
-        let prefersPaste = Self.isWebBacked(focusedElement) || Self.isElectronApplication(frontmostApplication)
+        let strategy = TextDeliveryStrategyPolicy.strategy(
+            isWebBacked: Self.isWebBacked(focusedElement),
+            isElectronApplication: Self.isElectronApplication(frontmostApplication)
+        )
+        let prefersPaste = strategy == .pasteFirst
 
         // Web content-editables and Electron controls can expose a stale or
         // whole-document AXSelectedTextRange even while the visible caret is at
@@ -358,12 +361,6 @@ final class FocusSnapshot {
             return false
         }
         return true
-    }
-
-    private func requestAccessibilityIfNeeded() {
-        guard !AXIsProcessTrusted() else { return }
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
     }
 
     private static func resolveTextInput(from element: AXUIElement) -> AXUIElement? {
@@ -1098,7 +1095,10 @@ private struct PasteboardSnapshot {
 
     func restoreIfUnchanged(expectedChangeCount: Int) {
         let pasteboard = NSPasteboard.general
-        guard pasteboard.changeCount == expectedChangeCount else {
+        guard PasteboardRestorationPolicy.shouldRestore(
+            temporaryChangeCount: expectedChangeCount,
+            currentChangeCount: pasteboard.changeCount
+        ) else {
             DictateLog.delivery.debug("pasteboard changed during fallback; leaving user content untouched")
             return
         }

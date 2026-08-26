@@ -157,7 +157,7 @@ final class AppModel: ObservableObject {
         static let transcriptionProvider = "transcriptionProvider"
     }
 
-    init() {
+    init(startBackgroundWork: Bool = true) {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Dictate", isDirectory: true)
         historyStore = HistoryStore(url: appSupport.appendingPathComponent("history.json"))
@@ -185,10 +185,14 @@ final class AppModel: ObservableObject {
         transcriptionProvider = storedProvider
 
         dictation.onCompleted = { [weak self] item in self?.completed(item) }
-        dictation.selectProvider(transcriptionProvider)
+        if startBackgroundWork {
+            dictation.selectProvider(transcriptionProvider)
+        }
         applyAppearance()
         permissions.refresh()
-        Task { [weak self] in await self?.loadLocalData() }
+        if startBackgroundWork {
+            Task { [weak self] in await self?.loadLocalData() }
+        }
     }
 
     func applyAppearance() {

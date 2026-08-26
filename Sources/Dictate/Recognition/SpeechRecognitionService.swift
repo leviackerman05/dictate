@@ -49,6 +49,22 @@ final class SpeechRecognitionService {
         }
     }
 
+    /// Prepares only when the OS-managed SpeechTranscriber assets are already
+    /// installed. The benchmark uses this path so running it cannot initiate a
+    /// model download or otherwise require a network connection.
+    func prepareForOfflineBenchmark() async throws {
+        guard SpeechTranscriber.isAvailable,
+              let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale.current) else {
+            throw RecognitionError.onDeviceModelUnavailable
+        }
+        let transcriber = Self.makeTranscriber(locale: locale)
+        guard await AssetInventory.status(forModules: [transcriber]) == .installed else {
+            throw RecognitionError.onDeviceModelUnavailable
+        }
+        assetsPrepared = true
+        modelStatus = .ready
+    }
+
     func transcribe(
         stream: AsyncStream<AudioChunk>,
         contextualVocabulary: [String],

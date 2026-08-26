@@ -97,5 +97,6 @@ final class AudioCaptureService {
         sink = nil
         self.engine = nil
         isRunning = false
+        assert(self.engine == nil && self.sink == nil && !isRunning, "Audio session resources must be released after stop")
     }
 }

@@ -1,11 +1,12 @@
 import AppKit
 import Combine
+import Darwin
 import DictateCore
 import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let model = AppModel()
+    let model = AppModel(startBackgroundWork: !BenchmarkCommandLine.isRequested)
     private var menuBar: MenuBarController?
     private var overlay: RecordingOverlayController?
     private var shortcutMonitor: ShortcutMonitor?
@@ -21,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var workspaceFocusObserver: NSObjectProtocol?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        guard !BenchmarkCommandLine.isRequested else { return }
         let currentPID = ProcessInfo.processInfo.processIdentifier
         if let existing = Bundle.main.bundleIdentifier.flatMap({ bundleID in
             NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
@@ -32,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillBecomeActive(_ notification: Notification) {
+        guard !BenchmarkCommandLine.isRequested else { return }
         // Capture synchronously, before Dictate's own window/button becomes the
         // Accessibility focus. This is the target used when recording starts
         // from the main window instead of the global shortcut.
@@ -39,6 +42,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if BenchmarkCommandLine.isRequested {
+            NSApp.setActivationPolicy(.prohibited)
+            Task { @MainActor in
+                let status = await BenchmarkCommandLine.run()
+                fflush(stdout)
+                fflush(stderr)
+                Darwin.exit(Int32(status))
+            }
+            return
+        }
         NSApp.setActivationPolicy(.regular)
         model.applyAppearance()
         menuBar = MenuBarController(model: model)

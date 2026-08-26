@@ -8,7 +8,7 @@ let package = Package(
     name: "Dictate",
     defaultLocalization: "en",
     // FluidAudio 0.15.5 requires macOS 14; the app itself requires macOS 26.
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS("26.0")],
     products: [
         .library(name: "DictateCore", targets: ["DictateCore"]),
         .executable(name: "Dictate", targets: ["Dictate"])

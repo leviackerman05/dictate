@@ -8,7 +8,7 @@ public struct CorrectionMatcher: Sendable {
         let source: String
         let target: String
         let expression: NSRegularExpression
-        let order: Int
+        let stableKey: String
     }
 
     public init() {}
@@ -18,19 +18,18 @@ public struct CorrectionMatcher: Sendable {
 
         let patterns = entries
             .filter { $0.isEnabled && $0.kind == .correction }
-            .enumerated()
-            .compactMap { offset, entry in makePattern(entry, offset: offset) }
+            .compactMap(makePattern)
             .sorted {
-                if $0.source.count == $1.source.count { return $0.order < $1.order }
+                if $0.source.count == $1.source.count { return $0.stableKey < $1.stableKey }
                 return $0.source.count > $1.source.count
             }
 
         guard !patterns.isEmpty else { return CorrectionResult(originalText: text, correctedText: text, audits: []) }
         let fullRange = NSRange(text.startIndex..<text.endIndex, in: text)
-        var candidates: [(range: NSRange, replacement: String, source: String, order: Int)] = []
+        var candidates: [(range: NSRange, replacement: String, source: String, stableKey: String)] = []
         for pattern in patterns {
             for match in pattern.expression.matches(in: text, range: fullRange) {
-                candidates.append((match.range, pattern.target, pattern.source, pattern.order))
+                candidates.append((match.range, pattern.target, pattern.source, pattern.stableKey))
             }
         }
 
@@ -38,7 +37,7 @@ public struct CorrectionMatcher: Sendable {
         // overlapping corrections cannot produce ambiguous output.
         candidates.sort {
             if $0.range.location == $1.range.location {
-                if $0.range.length == $1.range.length { return $0.order < $1.order }
+                if $0.range.length == $1.range.length { return $0.stableKey < $1.stableKey }
                 return $0.range.length > $1.range.length
             }
             return $0.range.location < $1.range.location
@@ -63,7 +62,7 @@ public struct CorrectionMatcher: Sendable {
         return CorrectionResult(originalText: text, correctedText: corrected, audits: audits)
     }
 
-    private func makePattern(_ entry: DictionaryEntry, offset: Int) -> Pattern? {
+    private func makePattern(_ entry: DictionaryEntry) -> Pattern? {
         guard let target = entry.targetPhrase?.trimmingCharacters(in: .whitespacesAndNewlines), !target.isEmpty else { return nil }
         let source = entry.sourcePhrase.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !source.isEmpty else { return nil }
@@ -73,7 +72,12 @@ public struct CorrectionMatcher: Sendable {
         let joined = pieces.map(NSRegularExpression.escapedPattern).joined(separator: "(?:\\s|[-])*" )
         let expressionText = "(?<![\\p{L}\\p{N}_])" + joined + "(?![\\p{L}\\p{N}_])"
         guard let expression = try? NSRegularExpression(pattern: expressionText, options: [.caseInsensitive]) else { return nil }
-        return Pattern(source: source, target: target, expression: expression, order: offset)
+        let stableKey = source.folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            + "\u{0}"
+            + target.folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            + "\u{0}"
+            + entry.id.uuidString
+        return Pattern(source: source, target: target, expression: expression, stableKey: stableKey)
     }
 }
 

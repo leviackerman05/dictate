@@ -70,6 +70,14 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
         }
     }
 
+    /// Loads an existing cache but never downloads model assets.
+    func prepareForOfflineBenchmark() async throws {
+        guard await models.isInstalled() else {
+            throw RecognitionError.onDeviceModelUnavailable
+        }
+        try await prepare()
+    }
+
     func transcribe(
         stream: AsyncStream<AudioChunk>,
         contextualVocabulary: [String],
@@ -93,12 +101,18 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
         let manager = try await models.manager { _, _ in }
         var decoderState = TdtDecoderState.make(decoderLayers: await manager.decoderLayerCount)
         let result = try await manager.transcribe(samples, decoderState: &decoderState)
+        guard !Task.isCancelled else { throw RecognitionError.cancelled }
         let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
         onPartial(text)
         return text
     }
 
-    func cancel() {}
+    func cancel() {
+        // FluidAudio does not currently expose an inference cancellation API.
+        // The owning session task is cancelled and the result is discarded;
+        // explicit cancellation checks before and after inference keep it from
+        // becoming a completed transcript.
+    }
 
     func removeDownloadedModel() {
         Task { @MainActor in

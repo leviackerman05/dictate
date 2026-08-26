@@ -32,18 +32,23 @@ already using. Pick a shortcut, hold it while you speak, and release it to
 finish. If Dictate cannot safely return the words to your current field, the
 transcript stays available to copy instead.
 
-Everything runs on your Mac. There is no account, analytics service, or stored
-raw audio.
+Recognition and correction run on your Mac after the selected model is
+installed. There is no account, telemetry, analytics service, or raw-audio
+file. Accessibility is optional: without it, Dictate keeps completed text
+available to copy instead of repeatedly asking for permission.
 
 ## Download
 
-[Download the latest DMG](https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg), open it, and drag Dictate into Applications.
+[Check the Releases page](https://github.com/leviackerman05/dictate/releases) for
+a release that contains `Dictate.dmg` and `Dictate.dmg.sha256`. If no DMG is
+attached yet, build from source below.
 
 Dictate currently requires macOS 26 or newer on Apple silicon. Public builds are
 distributed through GitHub Releases. This is currently an open-source community
 build: it is not signed with an Apple Developer ID or notarized by Apple. After
 dragging Dictate to Applications, macOS may ask you to Control-click the app and
-choose **Open** the first time.
+choose **Open** the first time. See the full [installation and checksum
+guide](docs/INSTALLATION.md); it does not recommend disabling macOS security.
 
 ## Using Dictate
 
@@ -55,7 +60,9 @@ choose **Open** the first time.
    corrections in Dictionary.
 
 Dictate supports Apple's on-device speech model, NVIDIA Parakeet, and Whisper.
-Raw audio is only used for the active recording session and is never saved.
+Apple may install an OS-managed speech asset, while Parakeet and Whisper models
+are downloaded from their documented Hugging Face repositories. Raw microphone
+audio is only used for the active recording session and is not written to disk.
 
 <p align="center">
   <img src="docs/evidence/ui/dictate-statistics.png" width="1100" alt="Dictate statistics screen in dark mode">
@@ -84,9 +91,55 @@ Launch the locally built app with:
 open build/Dictate.app
 ```
 
+To reproduce the release package checks:
+
+```sh
+make preflight
+```
+
+This creates an arm64 app and DMG, validates bundle metadata, permissions text,
+resources, signature integrity, DMG contents, and produces a SHA-256 checksum.
+It reports the current ad-hoc signing state; it does not Developer ID sign or
+notarize the build.
+
+## Benchmark recognition locally
+
+The benchmark uses the same recognizers as the app, accepts your own audio and
+reference transcript, and writes machine-readable JSON plus a Markdown report.
+It never downloads a model; prepare the model in Dictate first.
+
+```sh
+make benchmark ARGS='--audio /path/to/sample.wav \
+  --reference /path/to/reference.txt \
+  --engine apple --engine parakeet --engine whisperBase \
+  --json /tmp/dictate-benchmark.json \
+  --markdown /tmp/dictate-benchmark.md'
+```
+
+Each result records the engine and model, hardware and OS, audio and recognition
+duration, real-time factor, word error rate when a reference is supplied, raw
+recognizer output, and explicit unavailable or failure details. Dictionary
+correction and text insertion are intentionally excluded so the recognition
+result stays comparable. No benchmark result is checked into this repository.
+
+## Test
+
+```sh
+swift test
+swift build -c release --product Dictate
+```
+
+The suite covers shortcut state transitions, transcript recovery, deterministic
+dictionary correction, focus-target policy, paste-first editor delivery, guarded
+pasteboard restoration, and benchmark metric calculation. Live cross-app focus
+and insertion checks remain a manual macOS integration step documented in the
+[compatibility matrix](docs/evidence/manual-compatibility-matrix.md).
+
 ## Project notes
 
 - [Privacy policy](PRIVACY.md)
+- [Installation and release checks](docs/INSTALLATION.md)
+- [Release-readiness audit](docs/release-readiness-audit.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Design system](docs/DESIGN_SYSTEM.md)
 - [Dictionary format](docs/DICTIONARY_SCHEMA.md)

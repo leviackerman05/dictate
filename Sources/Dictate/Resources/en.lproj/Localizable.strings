@@ -337,8 +337,15 @@
 "menubar.quit" = "Quit Dictate";
 "onboarding.title" = "A private place for spoken words";
 "onboarding.intro" = "Dictate listens on this Mac, applies your personal corrections, and returns your words to the field you were using.";
-"onboarding.microphoneDetail" = "Needed to capture your voice. Dictate does not save raw audio.";
-"onboarding.accessibilityDetail" = "Needed to insert text into another app. Dictate remains useful for copying without it.";
+"onboarding.microphoneDetail" = "Required to record. Audio stays in memory during the session and is discarded when it ends.";
+"onboarding.accessibilityDetail" = "Optional. It lets Dictate insert into another app. Without it, completed text remains available to copy or find in History.";
+"onboarding.localStorageDetail" = "History and dictionary entries stay in Application Support on this Mac. Preferences and pending recovery text are also stored locally.";
+"onboarding.readyTitle" = "Dictate is ready";
+"onboarding.readyDetail" = "Microphone access and automatic insertion are available on this Mac.";
+"privacy.localDataTitle" = "Stored on this Mac";
+"privacy.localDataDetail" = "History and dictionary entries use Application Support. Preferences and pending recovery text use local app preferences. Raw microphone audio is not written to disk.";
+"privacy.readPolicy" = "Read the privacy policy";
+"privacy.readPolicyHint" = "Opens the Dictate privacy policy on GitHub.";
 "onboarding.allow" = "Allow and continue";
 "onboarding.continue" = "Continue";
 "onboarding.continueWithoutAccessibility" = "Continue without automatic insertion";

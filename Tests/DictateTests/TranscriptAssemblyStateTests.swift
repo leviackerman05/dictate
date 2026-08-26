@@ -64,6 +64,25 @@ final class TranscriptAssemblyStateTests: XCTestCase {
         XCTAssertEqual(recovery.text, "failed transcript")
     }
 
+    func testPartialDeliveryFailurePreservesCompleteUnicodePayload() {
+        let sentence = "Line one: café №42.\nLine two: 你好, Dictate!"
+        let longPayload = Array(repeating: sentence, count: 200).joined(separator: "\n")
+        var recovery = DeliveryRecoveryState()
+
+        recovery.resolve(longPayload, outcome: .deliveryFailed)
+
+        XCTAssertEqual(recovery.text, TranscriptText.normalize(longPayload))
+        XCTAssertFalse(recovery.canStartNewSession)
+    }
+
+    func testPermissionRevocationKeepsCompletedTranscriptRecoverable() {
+        var recovery = DeliveryRecoveryState()
+
+        recovery.resolve("Accessibility was revoked after recording.", outcome: .permissionMissing)
+
+        XCTAssertEqual(recovery.text, "Accessibility was revoked after recording.")
+    }
+
     func testPendingRecoveryBlocksSilentOverwriteAndClearsExplicitly() {
         var recovery = DeliveryRecoveryState()
         XCTAssertTrue(recovery.canStartNewSession)

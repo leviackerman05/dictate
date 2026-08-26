@@ -56,6 +56,14 @@ final class WhisperRecognitionService: ObservableObject, SpeechRecognizing {
         try await task.value
     }
 
+    /// Loads an existing WhisperKit model but never invokes the downloader.
+    func prepareForOfflineBenchmark() async throws {
+        guard Self.isModelDownloaded(variant) else {
+            throw RecognitionError.onDeviceModelUnavailable
+        }
+        try await prepare()
+    }
+
     private func performPrepare() async throws {
         guard engine == nil else {
             modelStatus = .ready
@@ -115,6 +123,7 @@ final class WhisperRecognitionService: ObservableObject, SpeechRecognizing {
         let samples = try AudioConverter().resample(source, from: sourceRate)
         guard let engine else { throw RecognitionError.onDeviceModelUnavailable }
         let text = try await engine.transcribe(samples: samples)
+        guard !Task.isCancelled else { throw RecognitionError.cancelled }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         onPartial(trimmed)
         return trimmed

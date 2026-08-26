@@ -159,7 +159,11 @@ public enum DictionaryValidator {
     }
 
     private static func normalizedPhrase(_ phrase: String) -> String {
-        phrase.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        phrase
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split { $0.isWhitespace || $0 == "-" }
+            .joined()
+            .lowercased()
     }
 }
 

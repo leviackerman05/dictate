@@ -24,14 +24,8 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name || inputs.tag }}
 
-      - name: Build release app
-        run: ./Scripts/build-app.sh
-
-      - name: Create DMG and checksum
-        run: |
-          sh ./Scripts/create-dmg.sh build/Dictate.app dist/Dictate.dmg
-          cd dist
-          shasum -a 256 Dictate.dmg > Dictate.dmg.sha256
+      - name: Build and verify release package
+        run: ./Scripts/release-preflight.sh
 
       - name: Attach DMG to GitHub release
         env:

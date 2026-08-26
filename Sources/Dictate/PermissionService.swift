@@ -2,6 +2,10 @@
 import AppKit
 @preconcurrency import ApplicationServices
 
+enum TrustLinks {
+    static let privacyPolicy = URL(string: "https://github.com/leviackerman05/dictate/blob/main/PRIVACY.md")!
+}
+
 struct PermissionSnapshot: Equatable, Sendable {
     var microphone = false
     var accessibility = false

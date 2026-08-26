@@ -276,6 +276,15 @@ struct SettingsView: View {
                 detail: String(localized: "settings.localOnly"),
                 icon: "hand.raised"
             ) {
+                SettingsFieldLabel(
+                    title: String(localized: "privacy.localDataTitle"),
+                    detail: String(localized: "privacy.localDataDetail")
+                )
+                Link(String(localized: "privacy.readPolicy"), destination: TrustLinks.privacyPolicy)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DesignSystem.ColorToken.action)
+                    .accessibilityHint(String(localized: "privacy.readPolicyHint"))
+                Divider().overlay(DesignSystem.ColorToken.border)
                 SettingsToggleRow(
                     title: Copy.keepHistory,
                     detail: String(localized: "settings.localOnly"),

@@ -93,9 +93,9 @@ struct OnboardingView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 34, weight: .medium))
                             .foregroundStyle(DesignSystem.ColorToken.success)
-                        Text("Dictate is ready")
+                        Text(String(localized: "onboarding.readyTitle"))
                             .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        Text("Your microphone and insertion permissions are allowed on this Mac.")
+                        Text(String(localized: "onboarding.readyDetail"))
                             .font(.system(size: 12))
                             .foregroundStyle(DesignSystem.ColorToken.secondaryText)
                             .multilineTextAlignment(.center)
@@ -139,6 +139,18 @@ struct OnboardingView: View {
             .padding(.top, 18)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: step)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: allPermissionsGranted)
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(String(localized: "onboarding.localStorageDetail"))
+                    .font(.system(size: 10))
+                    .foregroundStyle(DesignSystem.ColorToken.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Link(String(localized: "privacy.readPolicy"), destination: TrustLinks.privacyPolicy)
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DesignSystem.ColorToken.action)
+            }
+            .padding(.top, 10)
 
             Spacer()
 

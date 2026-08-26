@@ -45,12 +45,60 @@ final class CorrectionMatcherTests: XCTestCase {
         XCTAssertEqual(CorrectionMatcher().apply("a", entries: entries).correctedText, "b")
     }
 
+    func testCorrectionsPreserveRawTranscriptAndRespectUnicodeBoundaries() {
+        let raw = "Zoë met résumé_writer, then said résumé!\nVersion 2 stayed résumé-based."
+        let entries = [
+            DictionaryEntry.correction(heard: "Zoë", written: "Zoë Saldaña"),
+            DictionaryEntry.correction(heard: "résumé", written: "CV")
+        ]
+
+        let result = CorrectionMatcher().apply(raw, entries: entries)
+
+        XCTAssertEqual(result.originalText, raw)
+        XCTAssertEqual(
+            result.correctedText,
+            "Zoë Saldaña met résumé_writer, then said CV!\nVersion 2 stayed CV-based."
+        )
+        XCTAssertEqual(result.audits.map(\.heard), ["Zoë", "résumé", "résumé"])
+    }
+
+    func testEqualPriorityCorrectionsAreIndependentOfEntryOrder() {
+        let spaced = DictionaryEntry.correction(heard: "new york", written: "New York")
+        let hyphenated = DictionaryEntry.correction(heard: "new-york", written: "NY")
+        let matcher = CorrectionMatcher()
+
+        let forward = matcher.apply("new-york", entries: [spaced, hyphenated])
+        let reversed = matcher.apply("new-york", entries: [hyphenated, spaced])
+
+        XCTAssertEqual(forward.correctedText, reversed.correctedText)
+        XCTAssertEqual(forward.audits.map { [$0.heard, $0.written] }, reversed.audits.map { [$0.heard, $0.written] })
+    }
+
+    func testCorrectionDoesNotCorruptUnrelatedWordsNumbersOrPunctuation() {
+        let entries = [DictionaryEntry.correction(heard: "cat", written: "CAT")]
+        let input = "cat, concatenate, bobcat, cat_2, cat2, (cat), and 42 cats."
+
+        XCTAssertEqual(
+            CorrectionMatcher().apply(input, entries: entries).correctedText,
+            "CAT, concatenate, bobcat, cat_2, cat2, (CAT), and 42 cats."
+        )
+    }
+
     func testValidationAllowsRiskWarningButRejectsDuplicates() throws {
         let first = DictionaryEntry.correction(heard: "x", written: "X")
         let warnings = try DictionaryValidator.validate(first)
         XCTAssertFalse(warnings.isEmpty)
         let duplicate = DictionaryEntry.correction(heard: "x", written: "X")
         XCTAssertThrowsError(try DictionaryValidator.validate(duplicate, against: [first])) { error in
+            XCTAssertEqual(error as? DictionaryValidationError, .duplicate)
+        }
+    }
+
+    func testValidationTreatsEquivalentSeparatorsAsDuplicates() throws {
+        let existing = DictionaryEntry.correction(heard: "Claude Code", written: "Claude Code")
+        let duplicate = DictionaryEntry.correction(heard: "claude-code", written: "claude code")
+
+        XCTAssertThrowsError(try DictionaryValidator.validate(duplicate, against: [existing])) { error in
             XCTAssertEqual(error as? DictionaryValidationError, .duplicate)
         }
     }

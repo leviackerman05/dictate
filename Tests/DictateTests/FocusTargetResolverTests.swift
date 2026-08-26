@@ -18,6 +18,40 @@ final class FocusTargetResolverTests: XCTestCase {
         XCTAssertFalse(tracker.allows(capture, current: target))
     }
 
+    func testOriginalTargetRemainingFocusedIsAllowed() {
+        let original = target(frame: CGRect(x: 10, y: 10, width: 300, height: 40))
+        var tracker = FocusIntentTracker()
+        let capture = tracker.begin(original)
+
+        XCTAssertTrue(tracker.allows(capture, current: original))
+    }
+
+    func testSwitchingToAnotherFieldRejectsOriginalCapture() {
+        let original = target(frame: CGRect(x: 10, y: 10, width: 300, height: 40))
+        let second = target(frame: CGRect(x: 10, y: 80, width: 300, height: 40))
+        var tracker = FocusIntentTracker()
+        let capture = tracker.begin(original)
+
+        tracker.focusChanged(to: second)
+
+        XCTAssertFalse(tracker.allows(capture, current: second))
+        XCTAssertFalse(tracker.allows(capture, current: original))
+    }
+
+    func testClosedOrUnavailableTargetRejectsOriginalCapture() {
+        let original = target(frame: CGRect(x: 10, y: 10, width: 300, height: 40))
+        var tracker = FocusIntentTracker()
+        let capture = tracker.begin(original)
+
+        tracker.focusChanged(to: nil)
+
+        XCTAssertFalse(tracker.allows(capture, current: nil))
+        XCTAssertEqual(
+            FocusTargetResolver.select(source: .completion, currentIsUsable: false, preservedIsUsable: true),
+            .missing
+        )
+    }
+
     func testPointerOutsideTargetInvalidatesWithoutTimeout() {
         let target = FocusTargetFingerprint(
             processIdentifier: 42,
@@ -166,6 +200,36 @@ final class FocusTargetResolverTests: XCTestCase {
         XCTAssertEqual(
             FocusTargetResolver.select(source: .retry, currentIsUsable: false, preservedIsUsable: false),
             .missing
+        )
+    }
+
+    func testElectronAndWebEditorsUsePasteFirstStrategy() {
+        XCTAssertEqual(
+            TextDeliveryStrategyPolicy.strategy(isWebBacked: true, isElectronApplication: false),
+            .pasteFirst
+        )
+        XCTAssertEqual(
+            TextDeliveryStrategyPolicy.strategy(isWebBacked: false, isElectronApplication: true),
+            .pasteFirst
+        )
+        XCTAssertEqual(
+            TextDeliveryStrategyPolicy.strategy(isWebBacked: false, isElectronApplication: false),
+            .accessibilityFirst
+        )
+    }
+
+    func testClipboardRestoresOnlyWhenTemporaryValueIsStillCurrent() {
+        XCTAssertTrue(PasteboardRestorationPolicy.shouldRestore(temporaryChangeCount: 12, currentChangeCount: 12))
+        XCTAssertFalse(PasteboardRestorationPolicy.shouldRestore(temporaryChangeCount: 12, currentChangeCount: 13))
+    }
+
+    private func target(frame: CGRect) -> FocusTargetFingerprint {
+        FocusTargetFingerprint(
+            processIdentifier: 42,
+            bundleIdentifier: "com.example.Editor",
+            role: "AXTextArea",
+            subrole: nil,
+            frame: frame
         )
     }
 }
