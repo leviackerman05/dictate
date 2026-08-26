@@ -67,35 +67,37 @@ struct HistoryView: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }
     }
 
-    private var visibleItems: [HistoryItem] {
+    private var snapshot: HistorySnapshot {
         let items = model.filteredHistory
-        guard case .date(let date) = selectedDay else { return items.sorted { $0.timestamp > $1.timestamp } }
-        return items
-            .filter { Calendar.current.isDate($0.timestamp, inSameDayAs: date) }
-            .sorted { $0.timestamp > $1.timestamp }
-    }
-
-    private var groupedItems: [HistoryDayGroup] {
         let calendar = Calendar.current
-        return Dictionary(grouping: visibleItems) { calendar.startOfDay(for: $0.timestamp) }
+        let visibleItems: [HistoryItem]
+        if case .date(let date) = selectedDay {
+            visibleItems = items.filter { calendar.isDate($0.timestamp, inSameDayAs: date) }
+        } else {
+            visibleItems = items
+        }
+        let sortedItems = visibleItems.sorted { $0.timestamp > $1.timestamp }
+        let groups = Dictionary(grouping: sortedItems) { calendar.startOfDay(for: $0.timestamp) }
             .map { HistoryDayGroup(day: $0.key, items: $0.value.sorted { $0.timestamp > $1.timestamp }) }
             .sorted { $0.day > $1.day }
+        return HistorySnapshot(items: sortedItems, groups: groups)
     }
 
     var body: some View {
+        let snapshot = snapshot
         VStack(spacing: 0) {
             DayIndex(selectedDay: $selectedDay, dates: availableDates)
 
-            headerBar
+            headerBar(itemCount: snapshot.items.count)
 
             SessionStatusStrip(controller: model.dictation)
 
-            if visibleItems.isEmpty {
+            if snapshot.items.isEmpty {
                 EmptyHistoryView(model: model, isFiltered: !model.historySearch.isEmpty || selectedDay != .all && selectedDay != .today)
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 22) {
-                        ForEach(Array(groupedItems.enumerated()), id: \.element.id) { index, group in
+                        ForEach(Array(snapshot.groups.enumerated()), id: \.element.id) { index, group in
                             VStack(alignment: .leading, spacing: 10) {
                                 HistorySectionHeader(
                                     day: group.day,
@@ -103,10 +105,17 @@ struct HistoryView: View {
                                     accent: sectionAccents[index % sectionAccents.count]
                                 )
                                 ForEach(group.items) { item in
-                                    HistoryCard(item: item, model: model) {
-                                        model.dictation.copy(item)
-                                        flashCopyToast()
-                                    }
+                                    HistoryCard(
+                                        item: item,
+                                        onCopy: {
+                                            model.copyHistoryItem(item)
+                                            flashCopyToast()
+                                        },
+                                        onDelete: { model.deleteHistory(ids: [item.id]) },
+                                        onTogglePin: { model.togglePin(item) },
+                                        onRetryInsertion: { model.dictation.retryInsertion(for: item) },
+                                        onLearnCorrection: { model.learnCorrection($0) }
+                                    )
                                 }
                             }
                         }
@@ -131,7 +140,7 @@ struct HistoryView: View {
         }
     }
 
-    private var headerBar: some View {
+    private func headerBar(itemCount: Int) -> some View {
         HStack(alignment: .center, spacing: DesignSystem.Layout.space3) {
             Text(Copy.history)
                 .font(.system(size: 24, weight: .semibold, design: .rounded))
@@ -162,7 +171,7 @@ struct HistoryView: View {
                 .padding(.leading, 20)
                 .accessibilityLabel(Copy.searchHistory)
 
-            Text(String.localizedStringWithFormat(String(localized: "history.itemCount"), visibleItems.count))
+            Text(String.localizedStringWithFormat(String(localized: "history.itemCount"), itemCount))
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(DesignSystem.ColorToken.secondaryText)
                 .frame(minWidth: 50, alignment: .trailing)
@@ -224,6 +233,11 @@ private struct HistoryDayGroup: Identifiable {
     let day: Date
     let items: [HistoryItem]
     var id: Date { day }
+}
+
+private struct HistorySnapshot {
+    let items: [HistoryItem]
+    let groups: [HistoryDayGroup]
 }
 
 private enum HistoryDayFilter: Equatable {
@@ -435,8 +449,11 @@ private struct HistorySectionHeader: View {
 
 private struct HistoryCard: View {
     let item: HistoryItem
-    @ObservedObject var model: AppModel
     let onCopy: () -> Void
+    let onDelete: () -> Void
+    let onTogglePin: () -> Void
+    let onRetryInsertion: () -> Void
+    let onLearnCorrection: (CorrectionAudit) -> Void
 
     @State private var isHovering = false
     @State private var isExpanded = false
@@ -455,6 +472,7 @@ private struct HistoryCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusSurface)
                 .fill(DesignSystem.ColorToken.action.opacity(isHovering || isExpanded ? 0.045 : 0))
+                .allowsHitTesting(false)
         }
         .overlay {
             RoundedRectangle(cornerRadius: DesignSystem.Layout.radiusSurface)
@@ -462,6 +480,7 @@ private struct HistoryCard: View {
                     isHovering || isExpanded ? DesignSystem.ColorToken.action.opacity(0.35) : DesignSystem.ColorToken.border,
                     lineWidth: DesignSystem.Layout.hairline
                 )
+                .allowsHitTesting(false)
         }
         .shadow(
             color: .black.opacity(isHovering || isExpanded ? 0.09 : 0.05),
@@ -473,7 +492,7 @@ private struct HistoryCard: View {
         }
         .confirmationDialog(String(localized: "history.deleteItemTitle"), isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button(Copy.delete, role: .destructive) {
-                model.deleteHistory(ids: [item.id])
+                onDelete()
             }
             Button(Copy.cancel, role: .cancel) {}
         } message: {
@@ -486,26 +505,30 @@ private struct HistoryCard: View {
 
     private var mainRow: some View {
         HStack(alignment: .top, spacing: 14) {
-            dateBadge
+            Button(action: toggleExpanded) {
+                HStack(alignment: .top, spacing: 14) {
+                    dateBadge
 
-            VStack(alignment: .leading, spacing: 9) {
-                Text(item.correctedText)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DesignSystem.ColorToken.primaryText)
-                    .lineLimit(2)
-                    .lineSpacing(3)
-                    .frame(maxWidth: DesignSystem.Layout.transcriptMeasure, alignment: .leading)
-                metadataRow
+                    VStack(alignment: .leading, spacing: 9) {
+                        Text(item.correctedText)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(DesignSystem.ColorToken.primaryText)
+                            .lineLimit(2)
+                            .lineSpacing(3)
+                            .frame(maxWidth: DesignSystem.Layout.transcriptMeasure, alignment: .leading)
+                        metadataRow
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(.plain)
 
             quickActions
                 .padding(.top, 1)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: toggleExpanded)
     }
 
     private var dateBadge: some View {
@@ -609,7 +632,7 @@ private struct HistoryCard: View {
                         Text(audit.written)
                             .foregroundStyle(DesignSystem.ColorToken.primaryText)
                         Spacer(minLength: 8)
-                        Button(String(localized: "dictionary.learn")) { model.learnCorrection(audit) }
+                        Button(String(localized: "dictionary.learn")) { onLearnCorrection(audit) }
                             .buttonStyle(.plain)
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(DesignSystem.ColorToken.action)
@@ -637,14 +660,14 @@ private struct HistoryCard: View {
             }
             .buttonStyle(HistoryActionButtonStyle(tint: DesignSystem.ColorToken.action))
 
-            Button { model.togglePin(item) } label: {
+            Button { onTogglePin() } label: {
                 Label(item.isPinned ? String(localized: "history.unpin") : String(localized: "history.pin"),
                       systemImage: item.isPinned ? "pin.slash" : "pin")
             }
             .buttonStyle(HistoryActionButtonStyle())
 
             if item.insertionResult.canRetryInsertion {
-                Button { model.dictation.retryInsertion(for: item) } label: {
+                Button { onRetryInsertion() } label: {
                     Label(Copy.retryInsertion, systemImage: "arrow.uturn.forward")
                 }
                 .buttonStyle(HistoryActionButtonStyle())

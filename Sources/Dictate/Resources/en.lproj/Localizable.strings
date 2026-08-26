@@ -15,6 +15,8 @@
 "navigation.settingsSubtitle" = "Shape how Dictate behaves";
 "navigation.workspace" = "WORKSPACE";
 "navigation.ready" = "Dictate ready";
+"navigation.settingUp" = "Setting up Dictate";
+"navigation.setupFailed" = "Model unavailable";
 "navigation.localOnly" = "LOCAL · PRIVATE";
 "dashboard.eyebrow" = "Your voice, in motion";
 "dashboard.title" = "Good to hear you.";
@@ -87,6 +89,8 @@
 "recording.cancel" = "Cancel recording";
 "recording.listening" = "Listening";
 "recording.preparing" = "Preparing";
+"recording.settingUp" = "Setting up…";
+"recording.modelSetupFailed" = "The selected speech model could not be prepared. Press the shortcut to retry or choose another model in Settings.";
 "recording.transcribing" = "Transcribing";
 "recording.inserting" = "Inserting";
 "recording.failed" = "Recording needs attention";

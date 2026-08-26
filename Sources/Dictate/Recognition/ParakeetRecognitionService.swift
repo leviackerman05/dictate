@@ -43,8 +43,12 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
     }
 
     func prepare() async throws {
-        guard !modelIsAvailable else { return }
-        modelStatus = .downloading(progress: nil)
+        // A valid model on disk is not the same as a model loaded into its
+        // Core ML manager. Warm the manager here so the first recording never
+        // pays the load cost after the user has already started speaking.
+        if modelStatus == .notInstalled {
+            modelStatus = .downloading(progress: nil)
+        }
         do {
             _ = try await models.manager { [weak self] progress, phase in
                 Task { @MainActor in

@@ -7,6 +7,10 @@
 <p align="center">Hold a key. Say what you mean. Release and keep writing.</p>
 
 <p align="center">
+  Website: <a href="https://dictate-macos.vercel.app">dictate-macos.vercel.app</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg"><img alt="Download Dictate" src="https://img.shields.io/badge/Download-Dictate.dmg-3155D9?style=for-the-badge&logo=apple&logoColor=white"></a>
   <a href="https://dictate-macos.vercel.app"><img alt="Dictate website" src="https://img.shields.io/badge/Visit-Website-4E7C62?style=for-the-badge&logo=vercel&logoColor=white"></a>
   <a href="https://github.com/leviackerman05/dictate/releases"><img alt="GitHub releases" src="https://img.shields.io/badge/GitHub-Releases-4E7C62?style=for-the-badge&logo=github&logoColor=white"></a>

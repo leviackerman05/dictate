@@ -13,7 +13,7 @@ struct RecordingOverlayView: View {
             } else {
                 switch controller.state {
                 case .idle:
-                    readyView
+                    idleView
                 case .preparing, .listening, .transcribing:
                     listeningView
                 case .finalizing, .delivering:
@@ -39,7 +39,7 @@ struct RecordingOverlayView: View {
         .animation(reduceMotion ? nil : .easeOut(duration: DesignSystem.Motion.directFeedback), value: isQuietReady)
         // Keep the actual NSPanel fixed at the full recorder size. Only this
         // visible capsule changes dimensions, always from the same center.
-        .frame(width: DesignSystem.Layout.overlayWidth, height: DesignSystem.Layout.overlayHeight)
+        .frame(width: DesignSystem.Layout.overlayHostWidth, height: DesignSystem.Layout.overlayHeight)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -50,12 +50,41 @@ struct RecordingOverlayView: View {
             .help(controllerHelp)
     }
 
+    @ViewBuilder
+    private var idleView: some View {
+        switch controller.readiness {
+        case .settingUp:
+            setupView
+        case .ready:
+            readyView
+        case .unavailable:
+            failureView
+        }
+    }
+
+    private var setupView: some View {
+        HStack(spacing: 5) {
+            ProgressView()
+                .controlSize(.mini)
+                .scaleEffect(0.7)
+            Text(String(localized: "recording.settingUp"))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(DesignSystem.ColorToken.secondaryText)
+                .lineLimit(1)
+        }
+    }
+
     private var isQuietReady: Bool {
-        controller.state == .idle && controller.deliveryNotice == nil
+        controller.state == .idle && controller.deliveryNotice == nil && controller.readiness == .ready
     }
 
     private var overlayWidth: CGFloat {
-        isQuietReady ? DesignSystem.Layout.overlayReadyWidth : DesignSystem.Layout.overlayWidth
+        if controller.state == .idle,
+           controller.deliveryNotice == nil,
+           controller.readiness == .settingUp {
+            return DesignSystem.Layout.overlaySetupWidth
+        }
+        return isQuietReady ? DesignSystem.Layout.overlayReadyWidth : DesignSystem.Layout.overlayWidth
     }
 
     private var overlayHeight: CGFloat {
@@ -104,6 +133,13 @@ struct RecordingOverlayView: View {
         if let notice = controller.deliveryNotice {
             switch notice {
             case .textReady: return String(localized: "recording.textReady")
+            }
+        }
+        if controller.state == .idle {
+            switch controller.readiness {
+            case .settingUp: return String(localized: "recording.settingUp")
+            case .unavailable: return String(localized: "recording.modelSetupFailed")
+            case .ready: break
             }
         }
         return AccessibilitySupport.status(for: controller.state)

@@ -160,10 +160,10 @@ struct DictateSidebar: View {
 
             HStack(spacing: 9) {
                 Circle()
-                    .fill(model.dictation.state == .idle ? DesignSystem.ColorToken.success : DesignSystem.ColorToken.listening)
+                    .fill(sidebarStatusColor)
                     .frame(width: 8, height: 8)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.dictation.state == .idle ? String(localized: "navigation.ready") : Copy.listening)
+                    Text(sidebarStatusTitle)
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                     Text(String(localized: "navigation.localOnly"))
                         .font(.system(size: 10, design: .monospaced))
@@ -177,6 +177,26 @@ struct DictateSidebar: View {
         }
         .frame(width: DesignSystem.Layout.sidebarWidth)
         .background(DesignSystem.ColorToken.sidebarBackground)
+    }
+
+    private var sidebarStatusTitle: String {
+        guard model.dictation.state == .idle else {
+            return AccessibilitySupport.status(for: model.dictation.state)
+        }
+        switch model.dictation.readiness {
+        case .settingUp: return String(localized: "navigation.settingUp")
+        case .ready: return String(localized: "navigation.ready")
+        case .unavailable: return String(localized: "navigation.setupFailed")
+        }
+    }
+
+    private var sidebarStatusColor: Color {
+        if model.dictation.state != .idle { return DesignSystem.ColorToken.listening }
+        switch model.dictation.readiness {
+        case .settingUp: return DesignSystem.ColorToken.action
+        case .ready: return DesignSystem.ColorToken.success
+        case .unavailable: return DesignSystem.ColorToken.failure
+        }
     }
 }
 

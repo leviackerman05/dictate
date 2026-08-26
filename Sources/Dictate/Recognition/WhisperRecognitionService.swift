@@ -5,9 +5,9 @@ import WhisperKit
 
 /// Speech recognition backed by a locally downloaded WhisperKit Core ML model.
 ///
-/// The model is intentionally not loaded at launch: compiling/specializing
-/// the Core ML models can take minutes, so loading is deferred to `prepare()`.
-/// Status checks between sessions only touch the file system.
+/// Loading is performed by `prepare()`. The controller calls it during its
+/// explicit startup warm-up so Core ML specialization completes before the
+/// first recording begins.
 @MainActor
 final class WhisperRecognitionService: ObservableObject, SpeechRecognizing {
     @Published private(set) var modelStatus: RecognitionModelStatus = .notInstalled

@@ -271,6 +271,21 @@ final class FocusSnapshot {
         }
 
         let focusedRole = role(of: focusedElement) ?? "none"
+        let prefersPaste = Self.isWebBacked(focusedElement) || Self.isElectronApplication(frontmostApplication)
+
+        // Web content-editables and Electron controls can expose a stale or
+        // whole-document AXSelectedTextRange even while the visible caret is at
+        // the end. Writing AXSelectedText then replaces the previous sentence.
+        // Their native Command-V path uses the real DOM/editor selection and
+        // emits the input events the application expects.
+        if prefersPaste {
+            DictateLog.delivery.info("trying guarded paste-first delivery role=\(focusedRole, privacy: .public)")
+            if await pasteIntoFocusedApplication(text, focusedElement: focusedElement) {
+                DictateLog.delivery.info("insert succeeded through paste-first delivery")
+                return .insertedViaPaste
+            }
+        }
+
         // Prefer the narrow AXSelectedText write when the target exposes a
         // readable caret. Unlike rewriting AXValue, this changes only the
         // selection and cannot pull adjacent accessibility labels into the
@@ -286,7 +301,7 @@ final class FocusSnapshot {
         // writes and silently discard them. A temporary, restored pasteboard
         // lets those apps process their normal paste command instead.
         DictateLog.delivery.info("trying exact paste delivery role=\(focusedRole, privacy: .public)")
-        if await pasteIntoFocusedApplication(text, focusedElement: focusedElement) {
+        if !prefersPaste, await pasteIntoFocusedApplication(text, focusedElement: focusedElement) {
             DictateLog.delivery.info("insert succeeded through exact paste")
             return .insertedViaPaste
         }
@@ -295,6 +310,25 @@ final class FocusSnapshot {
         // dispatched to a valid editable target, so recovery is appropriate.
         DictateLog.delivery.error("Could not dispatch paste to focused editor")
         return .deliveryFailed
+    }
+
+    private static func isWebBacked(_ element: AXUIElement) -> Bool {
+        var candidate: AXUIElement? = element
+        for _ in 0..<16 {
+            guard let current = candidate else { return false }
+            if role(of: current) == "AXWebArea" { return true }
+            candidate = elementAttribute(current, kAXParentAttribute)
+        }
+        return false
+    }
+
+    private static func isElectronApplication(_ application: NSRunningApplication?) -> Bool {
+        guard let bundleURL = application?.bundleURL else { return false }
+        let framework = bundleURL
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("Frameworks", isDirectory: true)
+            .appendingPathComponent("Electron Framework.framework", isDirectory: true)
+        return FileManager.default.fileExists(atPath: framework.path)
     }
 
     private func insertViaAccessibility(_ text: String, focusedElement: AXUIElement) -> Bool {

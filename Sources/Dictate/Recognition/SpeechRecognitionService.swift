@@ -63,7 +63,6 @@ final class SpeechRecognitionService {
         }
 
         let transcriber = Self.makeTranscriber(locale: locale)
-        try await installAssets(for: transcriber)
         let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
             ?? AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!
         let converter = AudioBufferConverter(outputFormat: analyzerFormat)
@@ -144,6 +143,16 @@ final class SpeechRecognitionService {
                         }
 
                         inputContinuation.finish()
+                        guard speechStarted else {
+                            // SpeechAnalyzer can leave its results sequence open
+                            // forever when finalization is requested without any
+                            // analyzer input. Resolve an empty utterance locally
+                            // and tear the analyzer down instead of leaving the
+                            // recorder on its processing dots.
+                            self?.resolve(.success(""))
+                            await analyzer.cancelAndFinishNow()
+                            return
+                        }
                         try await analyzer.finalizeAndFinishThroughEndOfInput()
                     } catch is CancellationError {
                         inputContinuation.finish()

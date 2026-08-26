@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var shortcutCancellable: AnyCancellable?
     private var recordingModeCancellable: AnyCancellable?
     private var readyIndicatorCancellable: AnyCancellable?
+    private var readinessCancellable: AnyCancellable?
     private var noticeCancellables = Set<AnyCancellable>()
     private var escapeMonitor: Any?
     private var activeObserver: NSObjectProtocol?
@@ -58,6 +59,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.overlay?.update(state: self.model.dictation.state, notice: notice, showReadyIndicator: self.model.showReadyIndicator)
         }.store(in: &noticeCancellables)
+        readinessCancellable = model.dictation.$readiness.sink { [weak self] _ in
+            guard let self else { return }
+            self.overlay?.update(
+                state: self.model.dictation.state,
+                notice: self.model.dictation.deliveryNotice,
+                showReadyIndicator: self.model.showReadyIndicator
+            )
+            self.menuBar?.update(state: self.model.dictation.state)
+        }
         shortcutCancellable = model.$shortcut.combineLatest(model.$customShortcut).sink { [weak self] choice, custom in
             guard let self else { return }
             self.overlay?.updateShortcutTitle(self.shortcutTitle(choice: choice, custom: custom))
@@ -109,6 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let externalFocusObserver { NotificationCenter.default.removeObserver(externalFocusObserver) }
         if let workspaceFocusObserver { NSWorkspace.shared.notificationCenter.removeObserver(workspaceFocusObserver) }
         readyIndicatorCancellable = nil
+        readinessCancellable = nil
     }
 
     private func configureShortcutMonitor(
@@ -168,7 +179,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         let record = NSMenuItem(title: state == .idle ? Copy.startRecording : state == .finalizing || state == .delivering ? String(localized: "recording.finishing") : Copy.stopRecording, action: #selector(toggleRecording), keyEquivalent: "")
         record.target = self
-        record.isEnabled = state != .finalizing && state != .delivering
+        record.isEnabled = state != .finalizing
+            && state != .delivering
+            && (state != .idle || model.dictation.readiness == .ready)
         menu.addItem(record)
         let open = NSMenuItem(title: String(localized: "menubar.open"), action: #selector(openApp), keyEquivalent: "")
         open.target = self
@@ -232,7 +245,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func stateTitle(_ state: DictationState) -> String {
         switch state {
-        case .idle: return String(localized: "menubar.ready")
+        case .idle:
+            switch model.dictation.readiness {
+            case .settingUp: return String(localized: "navigation.settingUp")
+            case .ready: return String(localized: "menubar.ready")
+            case .unavailable: return String(localized: "navigation.setupFailed")
+            }
         case .preparing: return Copy.preparing
         case .listening: return Copy.listening
         case .transcribing: return Copy.transcribing
@@ -275,7 +293,7 @@ final class RecordingOverlayController {
             contentRect: NSRect(
                 x: 0,
                 y: 0,
-                width: DesignSystem.Layout.overlayWidth,
+                width: DesignSystem.Layout.overlayHostWidth,
                 height: DesignSystem.Layout.overlayHeight
             ),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -299,7 +317,10 @@ final class RecordingOverlayController {
     }
 
     func update(state: DictationState, notice: DeliveryNotice?, showReadyIndicator: Bool) {
-        if state == .idle, notice == nil, !showReadyIndicator {
+        if state == .idle,
+           notice == nil,
+           controller.readiness == .ready,
+           !showReadyIndicator {
             panel.orderOut(nil)
             anchoredCenterX = nil
             anchoredScreen = nil
@@ -324,7 +345,7 @@ final class RecordingOverlayController {
         }
         if anchoredBottomY == nil { anchoredBottomY = frame.minY + DesignSystem.Layout.overlayBottomInset }
         let size = NSSize(
-            width: DesignSystem.Layout.overlayWidth,
+            width: DesignSystem.Layout.overlayHostWidth,
             height: DesignSystem.Layout.overlayHeight
         )
         // The transparent host panel never resizes. The visible capsule morphs

@@ -28,6 +28,17 @@ final class TranscriptAssemblyStateTests: XCTestCase {
         XCTAssertEqual(state.finish(), state.visibleText)
     }
 
+    func testLongPauseKeepsEarlierFinalizedSentence() {
+        var state = TranscriptAssemblyState()
+        XCTAssertEqual(state.apply("First sentence.", isFinal: true), "First sentence.")
+        XCTAssertEqual(state.apply("", isFinal: false), "First sentence.")
+        XCTAssertEqual(
+            state.apply("Second sentence after a pause.", isFinal: true),
+            "First sentence. Second sentence after a pause."
+        )
+        XCTAssertEqual(state.finish(), "First sentence. Second sentence after a pause.")
+    }
+
     func testEmptyVolatileResultRevokesPreviousHypothesis() {
         var state = TranscriptAssemblyState()
         _ = state.apply("A", isFinal: true)

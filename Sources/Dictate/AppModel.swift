@@ -134,7 +134,7 @@ final class AppModel: ObservableObject {
     @Published var transcriptionProvider: TranscriptionProvider {
         didSet {
             UserDefaults.standard.set(transcriptionProvider.rawValue, forKey: Keys.transcriptionProvider)
-            dictation.provider = transcriptionProvider
+            dictation.selectProvider(transcriptionProvider)
         }
     }
 
@@ -185,7 +185,7 @@ final class AppModel: ObservableObject {
         transcriptionProvider = storedProvider
 
         dictation.onCompleted = { [weak self] item in self?.completed(item) }
-        dictation.provider = transcriptionProvider
+        dictation.selectProvider(transcriptionProvider)
         applyAppearance()
         permissions.refresh()
         Task { [weak self] in await self?.loadLocalData() }
@@ -265,6 +265,12 @@ final class AppModel: ObservableObject {
     func deleteAllHistory() {
         history.removeAll()
         Task { [historyStore] in try? await historyStore.save([]) }
+    }
+
+    func copyHistoryItem(_ item: HistoryItem) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        _ = pasteboard.setString(item.correctedText, forType: .string)
     }
 
     func togglePin(_ item: HistoryItem) {
@@ -399,8 +405,10 @@ final class AppModel: ObservableObject {
     }
 
     private func loadLocalData() async {
-        let loadedHistory = (try? await historyStore.load()) ?? []
-        let loadedDictionary = (try? await dictionaryStore.load(default: DictionaryDocument(entries: [])))?.entries ?? []
+        async let historyLoad = historyStore.load()
+        async let dictionaryLoad = dictionaryStore.load(default: DictionaryDocument(entries: []))
+        let loadedHistory = (try? await historyLoad) ?? []
+        let loadedDictionary = (try? await dictionaryLoad)?.entries ?? []
         await MainActor.run { [weak self] in
             guard let self else { return }
             let loadedIDs = Set(loadedHistory.map(\.id))
@@ -408,6 +416,7 @@ final class AppModel: ObservableObject {
             self.history = (loadedHistory + completedWhileLoading).sorted { $0.timestamp > $1.timestamp }
             self.dictionary = loadedDictionary
         }
+        guard retention.cutoff(now: .now) != nil else { return }
         try? await historyStore.applyRetention(retention)
         let retainedHistory = (try? await historyStore.load()) ?? loadedHistory
         await MainActor.run { [weak self] in

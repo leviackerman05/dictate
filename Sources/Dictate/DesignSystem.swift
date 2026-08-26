@@ -77,6 +77,8 @@ enum DesignSystem {
         static let overlayReadyWidth = 38.0
         static let overlayReadyHeight = 18.0
         static let overlayWidth = 62.0
+        static let overlaySetupWidth = 112.0
+        static let overlayHostWidth = 112.0
         static let overlayHeight = 22.0
         static let overlayBottomInset = 22.0
         static let radiusField = 8.0

@@ -8,6 +8,12 @@ enum DeliveryNotice: Equatable {
     case textReady(DeliveryResult)
 }
 
+enum DictationReadiness: Equatable {
+    case settingUp
+    case ready
+    case unavailable
+}
+
 @MainActor
 final class DictationController: ObservableObject {
     @Published private(set) var state: DictationState = .idle
@@ -17,6 +23,7 @@ final class DictationController: ObservableObject {
     @Published private(set) var feedbackMessage = ""
     @Published private(set) var deliveryNotice: DeliveryNotice?
     @Published private(set) var pendingCopyText: String?
+    @Published private(set) var readiness: DictationReadiness = .settingUp
 
     var onCompleted: ((HistoryItem) -> Void)?
     /// Legacy accessor kept for the pre-multi-model UI; mirrors the v3 service.
@@ -33,6 +40,9 @@ final class DictationController: ObservableObject {
     private var startedAt: Date?
     private var sessionTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
+    private var finalizationWatchdog: Task<Void, Never>?
+    private var warmupTask: Task<Void, Never>?
+    private var warmupID = UUID()
     private var sessionID: UUID?
     private var captureStarted = false
     private var stopRequested = false
@@ -44,7 +54,7 @@ final class DictationController: ObservableObject {
     /// SwiftUI views (including the legacy computed `parakeetModelStatus`)
     /// stay live.
     private var statusSubscriptions: [TranscriptionProvider: AnyCancellable] = [:]
-    var provider: TranscriptionProvider = .apple
+    private(set) var provider: TranscriptionProvider = .apple
 
     init(
         capture: any AudioCapturing = AudioCaptureService(),
@@ -77,17 +87,65 @@ final class DictationController: ObservableObject {
 
     // MARK: - Model management
 
+    func selectProvider(_ provider: TranscriptionProvider) {
+        self.provider = provider
+        warmUpSelectedModel()
+    }
+
+    func warmUpSelectedModel() {
+        warmupTask?.cancel()
+        let id = UUID()
+        warmupID = id
+        let selectedProvider = provider
+        let recognition = recognitionService(for: selectedProvider)
+        readiness = .settingUp
+        if state == .idle { feedbackMessage = "" }
+        DictateLog.lifecycle.debug("model warm-up started provider=\(String(describing: selectedProvider), privacy: .public)")
+
+        warmupTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await recognition.prepare()
+                guard !Task.isCancelled,
+                      self.warmupID == id,
+                      self.provider == selectedProvider else { return }
+                self.readiness = .ready
+                self.warmupTask = nil
+                DictateLog.lifecycle.debug("model warm-up completed provider=\(String(describing: selectedProvider), privacy: .public)")
+            } catch is CancellationError {
+                // Provider changes deliberately cancel the superseded warm-up.
+            } catch RecognitionError.cancelled {
+                // Recognition services normalize cancellation to their own error.
+            } catch {
+                guard self.warmupID == id,
+                      self.provider == selectedProvider else { return }
+                self.readiness = .unavailable
+                self.warmupTask = nil
+                self.feedbackMessage = String(localized: "recording.modelSetupFailed")
+                DictateLog.lifecycle.error("model warm-up failed provider=\(String(describing: selectedProvider), privacy: .public) error=\(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
     func modelStatus(for provider: TranscriptionProvider) -> RecognitionModelStatus {
         provider == .apple ? .ready : recognitionService(for: provider).modelStatus
     }
 
     func prepareModel(for provider: TranscriptionProvider) {
-        guard provider != .apple else { return }
         Task { @MainActor [weak self] in
             guard let self else { return }
+            if self.provider == provider {
+                self.readiness = .settingUp
+            }
             do {
                 try await self.recognitionService(for: provider).prepare()
+                if self.provider == provider {
+                    self.readiness = .ready
+                }
             } catch {
+                if self.provider == provider {
+                    self.readiness = .unavailable
+                }
                 switch provider {
                 case .parakeet, .parakeetV2, .parakeet110m:
                     self.feedbackMessage = String(localized: "settings.parakeet.failed")
@@ -100,6 +158,13 @@ final class DictationController: ObservableObject {
     }
 
     func removeModel(for provider: TranscriptionProvider) {
+        if self.provider == provider {
+            warmupTask?.cancel()
+            warmupTask = nil
+            warmupID = UUID()
+            readiness = .unavailable
+            feedbackMessage = String(localized: "recording.modelNotReady")
+        }
         switch provider {
         case .apple:
             return
@@ -188,6 +253,11 @@ final class DictationController: ObservableObject {
             feedbackMessage = String(localized: "recording.busy")
             return
         }
+        guard readiness == .ready else {
+            feedbackMessage = String(localized: readiness == .settingUp ? "recording.settingUp" : "recording.modelSetupFailed")
+            if readiness == .unavailable { warmUpSelectedModel() }
+            return
+        }
 
         activeEntries = entries
         lastFailure = nil
@@ -214,12 +284,6 @@ final class DictationController: ObservableObject {
         publish()
         DictateLog.lifecycle.debug("dictation start source=\(source.rawValue, privacy: .public) provider=\(String(describing: self.provider), privacy: .public)")
         guard permissions.snapshot.microphone else { fail(.microphonePermissionDenied); return }
-        if provider != .apple, !activeRecognition.modelIsAvailable {
-            feedbackMessage = String(localized: "recording.modelNotReady")
-            fail(.speechModelUnavailable)
-            return
-        }
-
         sessionTask = Task { @MainActor [weak self] in
             await self?.runSession(id: newSessionID, recognition: recognition, entries: entries)
         }
@@ -241,6 +305,7 @@ final class DictationController: ObservableObject {
         _ = machine.send(.stopRequested)
         publish()
         if captureStarted { stopCapture() }
+        armFinalizationWatchdog()
     }
 
     func rememberExternalFocus() {
@@ -262,6 +327,8 @@ final class DictationController: ObservableObject {
         sessionTask = nil
         noticeTask?.cancel()
         noticeTask = nil
+        finalizationWatchdog?.cancel()
+        finalizationWatchdog = nil
         _ = machine.send(.cancel)
         resetPublishedState()
         if retainedRecovery { showRecoveryNotice(.copiedForRecovery) }
@@ -407,6 +474,9 @@ final class DictationController: ObservableObject {
 
     private func fail(_ failure: DictationFailure) {
         DictateLog.lifecycle.error("dictation failed: \(failure.rawValue, privacy: .public)")
+        if failure == .speechModelUnavailable {
+            readiness = .unavailable
+        }
         let retainedRecovery = preserveLiveTextForRecovery()
         sessionID = nil
         stopCapture()
@@ -448,6 +518,8 @@ final class DictationController: ObservableObject {
     }
 
     private func resetPublishedState(keepFailure: Bool = false) {
+        finalizationWatchdog?.cancel()
+        finalizationWatchdog = nil
         sessionTask = nil
         captureStarted = false
         stopRequested = false
@@ -466,6 +538,21 @@ final class DictationController: ObservableObject {
         capture.stop()
         captureStarted = false
         DictateLog.capture.debug("audio capture stopped")
+    }
+
+    private func armFinalizationWatchdog() {
+        finalizationWatchdog?.cancel()
+        let expectedSessionID = sessionID
+        let timeout: Duration = provider == .apple ? .seconds(12) : .seconds(45)
+        finalizationWatchdog = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: timeout)
+            guard !Task.isCancelled,
+                  let self,
+                  self.sessionID == expectedSessionID,
+                  self.state == .finalizing || self.state == .delivering else { return }
+            DictateLog.lifecycle.error("dictation finalization timed out")
+            self.cancel()
+        }
     }
 
     private func isCurrent(_ id: UUID) -> Bool { sessionID == id }
