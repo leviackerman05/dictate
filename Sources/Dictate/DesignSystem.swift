@@ -74,8 +74,8 @@ enum DesignSystem {
         static let breathLineActiveHeight = 2.0
         // The ready indicator stays deliberately tiny during everyday work.
         // Active, processing, and recovery states expand to the full pebble.
-        static let overlayReadyWidth = 38.0
-        static let overlayReadyHeight = 18.0
+        static let overlayReadyWidth = 32.0
+        static let overlayReadyHeight = 16.0
         static let overlayWidth = 62.0
         static let overlaySetupWidth = 146.0
         static let overlayLoadedWidth = 152.0
@@ -85,7 +85,7 @@ enum DesignSystem {
         static let radiusField = 8.0
         static let radiusSurface = 12.0
         static let radiusOverlay = 18.0
-        static let radiusOverlayReady = 9.0
+        static let radiusOverlayReady = 8.0
         static let radiusOverlayCompact = 11.0
         static let radiusOverlayButton = 6.0
         static let space1 = 4.0

@@ -27,13 +27,13 @@ struct RecordingOverlayView: View {
         .frame(width: overlayWidth, height: overlayHeight)
         .background(
             DesignSystem.ColorToken.overlay.opacity(
-                reduceTransparency ? 1 : (isQuietReady ? 0.58 : 0.94)
+                reduceTransparency ? 1 : (isQuietReady ? 0.48 : 0.94)
             )
         )
         .clipShape(RoundedRectangle(cornerRadius: overlayCornerRadius))
         .overlay {
             RoundedRectangle(cornerRadius: overlayCornerRadius)
-                .stroke(DesignSystem.ColorToken.border.opacity(isQuietReady ? 0.55 : 1), lineWidth: DesignSystem.Layout.hairline)
+                .stroke(DesignSystem.ColorToken.border.opacity(isQuietReady ? 0.4 : 1), lineWidth: DesignSystem.Layout.hairline)
         }
         .shadow(color: .black.opacity(isQuietReady ? 0.06 : 0.12), radius: isQuietReady ? 8 : 14, y: isQuietReady ? 3 : 5)
         .animation(reduceMotion ? nil : .easeOut(duration: DesignSystem.Motion.directFeedback), value: isQuietReady)
@@ -227,28 +227,20 @@ private struct PebbleLevelBars: View {
     }
 }
 
-/// Quiet version of Dictate's voice wave. It is static so the idle
-/// pebble signals availability without implying that the microphone is active.
+/// Five quiet level strokes: recognizable as voice without looking like a
+/// recording control, logo, warning dot, or animated microphone.
 private struct ReadySignalMark: View {
+    private let heights: [CGFloat] = [2, 4, 7, 4, 2]
+
     var body: some View {
-        Canvas { context, size in
-            let lineColor = DesignSystem.ColorToken.secondaryText
-            let midY = size.height / 2
-            let waveWidth = size.width
-            var path = Path()
-            path.move(to: CGPoint(x: 0, y: midY))
-            for x in stride(from: 0.0, through: waveWidth, by: 0.75) {
-                let progress = x / waveWidth
-                let y = midY + sin(progress * .pi * 3.6) * size.height * 0.28
-                path.addLine(to: CGPoint(x: x, y: y))
+        HStack(alignment: .center, spacing: 1.5) {
+            ForEach(Array(heights.enumerated()), id: \.offset) { _, height in
+                Capsule()
+                    .fill(DesignSystem.ColorToken.secondaryText.opacity(0.72))
+                    .frame(width: 1.5, height: height)
             }
-            context.stroke(
-                path,
-                with: .color(lineColor),
-                style: StrokeStyle(lineWidth: 1.35, lineCap: .round, lineJoin: .round)
-            )
         }
-        .frame(width: 22, height: 8)
+        .frame(width: 16, height: 8)
         .accessibilityHidden(true)
     }
 }

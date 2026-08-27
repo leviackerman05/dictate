@@ -65,6 +65,8 @@ final class FocusSnapshot {
             ? unsafeDowncast(focused!, to: AXUIElement.self)
             : nil
         let frontmost = NSWorkspace.shared.frontmostApplication
+        let pointerElement = hitTestLocation.flatMap(Self.element(at:))
+        let pointerElementPID = pointerElement.flatMap(Self.pid(of:))
         let systemElementPID = systemElement.flatMap { element in
             var pid: pid_t = 0
             return AXUIElementGetPid(element, &pid) == .success ? pid : nil
@@ -85,8 +87,10 @@ final class FocusSnapshot {
             if let frontmost,
                isExternal(frontmost),
                frontmost.isActive,
-               Self.element(processIdentifier: systemElementPID, belongsTo: frontmost) {
-                return frontmost
+               (Self.element(processIdentifier: systemElementPID, belongsTo: frontmost) ||
+                Self.element(processIdentifier: pointerElementPID, belongsTo: frontmost) ||
+                (systemElement == nil && hitTestLocation != nil)) {
+                    return frontmost
             }
             guard let systemElementPID,
                   let accessory = NSRunningApplication(processIdentifier: systemElementPID),
@@ -99,10 +103,19 @@ final class FocusSnapshot {
         // application for AXFocusedUIElement can return its last first
         // responder even after the cursor has left that field.
         let rawElement: AXUIElement? = externalFocusOwner.flatMap { application -> AXUIElement? in
-            guard let systemElement,
-                  Self.element(processIdentifier: systemElementPID, belongsTo: application),
-                  Self.isInFocusedWindow(systemElement, of: application) else { return nil }
-            return systemElement
+            if let systemElement,
+               Self.element(processIdentifier: systemElementPID, belongsTo: application),
+               Self.isInFocusedWindow(systemElement, of: application) {
+                return systemElement
+            }
+            // Codex and a few other custom editors expose no system-wide
+            // focused AX element at all. A recent pointer hit can still expose
+            // the editor (or its wrapper) at the exact clicked position.
+            if let pointerElement,
+               Self.element(processIdentifier: pointerElementPID, belongsTo: application) {
+                return pointerElement
+            }
+            return nil
         }
         // The system-wide focused element can be the WINDOW itself (Zed's agent
         // chat, Raycast) rather than the text field inside it. Resolve the real
@@ -131,14 +144,28 @@ final class FocusSnapshot {
                   Self.element(processIdentifier: pid, belongsTo: targetApp) else { return nil }
             return element
         }
-        let windowPasteTarget = storedElement == nil && externalFocusOwner.map { application in
-            Self.canUseWindowPasteTarget(
+        let opaquePasteFrame: CGRect? = storedElement == nil ? externalFocusOwner.flatMap { application in
+            Self.opaquePasteTargetFrame(
                 systemElement: systemElement,
                 application: application,
                 hitTestLocation: hitTestLocation
             )
-        } == true
-        let frame = storedElement.flatMap(Self.frame(of:)) ?? (windowPasteTarget ? systemElement.flatMap(Self.frame(of:)) : nil)
+        } : nil
+        // Final compatibility tier for AX-blind applications: when the active
+        // app exposes neither system focus nor a hit-test element, a recent
+        // click is the only focus intent macOS makes available. The service
+        // supplies that click for at most ten seconds and never activates an
+        // old/background app, matching normal paste behavior without reviving
+        // a long-stale responder.
+        let applicationPasteTarget = storedElement == nil &&
+            opaquePasteFrame == nil &&
+            AXBlindApplicationPastePolicy.mayUse(
+                systemFocusAvailable: systemElement != nil,
+                recentPointerIntentAvailable: hitTestLocation != nil,
+                activeExternalApplicationAvailable: externalFocusOwner != nil
+            )
+        let windowPasteTarget = opaquePasteFrame != nil || applicationPasteTarget
+        let frame = storedElement.flatMap(Self.frame(of:)) ?? opaquePasteFrame
         let snapshot = FocusSnapshot(
             focusedElement: storedElement,
             isWindowPasteTarget: windowPasteTarget,
@@ -147,7 +174,7 @@ final class FocusSnapshot {
             frame: frame,
             capturedAt: Date(),
             hitTestLocation: hitTestLocation,
-            hitTestConfirmedTarget: hitTestLocation != nil && element != nil
+            hitTestConfirmedTarget: hitTestLocation != nil && (element != nil || applicationPasteTarget)
         )
         let rawRole = role(of: systemElement) ?? "none"
         let resolvedRole = role(of: element) ?? "none"
@@ -166,7 +193,7 @@ final class FocusSnapshot {
         let frontmostIsActive = frontmost?.isActive ?? false
         let frameDescription = frame.map { "\($0.origin.x),\($0.origin.y) \($0.size.width)x\($0.size.height)" } ?? "none"
         DictateLog.delivery.info(
-            "focus capture trusted=\(AXIsProcessTrusted(), privacy: .public) systemRole=\(rawRole, privacy: .public) resolvedRole=\(resolvedRole, privacy: .public) systemPID=\(systemElementPID ?? 0, privacy: .public) elementPID=\(elementPID ?? 0, privacy: .public) frontmostBundle=\(frontmostBundle, privacy: .public) targetBundle=\(targetBundle, privacy: .public) isEditable=\(isEditable, privacy: .public) windowPaste=\(windowPasteTarget, privacy: .public) hasFocusedWindow=\(windowState.hasFocusedWindow, privacy: .public) frontmostIsActive=\(frontmostIsActive, privacy: .public) windowRelation=\(windowState.relation, privacy: .public) frame=\(frameDescription, privacy: .public)"
+            "focus capture trusted=\(AXIsProcessTrusted(), privacy: .public) systemRole=\(rawRole, privacy: .public) resolvedRole=\(resolvedRole, privacy: .public) systemPID=\(systemElementPID ?? 0, privacy: .public) elementPID=\(elementPID ?? 0, privacy: .public) pointerHit=\(pointerElement != nil, privacy: .public) frontmostBundle=\(frontmostBundle, privacy: .public) targetBundle=\(targetBundle, privacy: .public) isEditable=\(isEditable, privacy: .public) windowPaste=\(windowPasteTarget, privacy: .public) appPaste=\(applicationPasteTarget, privacy: .public) hasFocusedWindow=\(windowState.hasFocusedWindow, privacy: .public) frontmostIsActive=\(frontmostIsActive, privacy: .public) windowRelation=\(windowState.relation, privacy: .public) frame=\(frameDescription, privacy: .public)"
         )
         if element == nil || !isEditable {
             DictateLog.delivery.info("focus capture: no editable target")
@@ -225,6 +252,20 @@ final class FocusSnapshot {
 
     var externalProcessIdentifier: pid_t? { processIdentifier }
 
+    var isCurrentApplicationActive: Bool {
+        guard let application = frontmostApplication,
+              let processIdentifier else { return false }
+        return Self.isCurrentFocusOwner(application, expectedProcessIdentifier: processIdentifier)
+    }
+
+    var deliveryStrategy: TextDeliveryStrategy {
+        guard let focusedElement else { return .pasteFirst }
+        return TextDeliveryStrategyPolicy.strategy(
+            isWebBacked: Self.isWebBacked(focusedElement),
+            isElectronApplication: Self.isElectronApplication(frontmostApplication)
+        )
+    }
+
     func wasConfirmedByHitTest(at location: CGPoint) -> Bool {
         guard hitTestConfirmedTarget, let hitTestLocation else { return false }
         return abs(hitTestLocation.x - location.x) <= 2 &&
@@ -235,7 +276,7 @@ final class FocusSnapshot {
         frontmostApplication != nil && processIdentifier != nil
     }
 
-    func insert(_ text: String) async -> DeliveryResult {
+    func insert(_ text: String, permitsFreshPasteSnapshot: Bool = false) async -> DeliveryResult {
         // Without Accessibility trust macOS withholds the focused AX element.
         // Do not prompt from a background delivery attempt: return a recoverable
         // result and let the user request the optional permission explicitly.
@@ -251,7 +292,11 @@ final class FocusSnapshot {
 
         if isWindowPasteTarget {
             DictateLog.delivery.info("trying guarded window paste delivery")
-            return await pasteIntoFocusedApplication(text, focusedElement: nil)
+            return await pasteIntoFocusedApplication(
+                text,
+                focusedElement: nil,
+                requireExactTarget: !permitsFreshPasteSnapshot
+            )
                 ? .insertedViaPaste
                 : .deliveryFailed
         }
@@ -268,16 +313,13 @@ final class FocusSnapshot {
         // an editor. The user may move focus while speaking; in that case the
         // transcript must remain recoverable instead of being pasted into the
         // old field.
-        guard isCurrentlyFocusedExternalTarget(focusedElement) else {
+        guard permitsFreshPasteSnapshot || isCurrentlyFocusedExternalTarget(focusedElement) else {
             DictateLog.delivery.info("insert skipped: captured editor is no longer the current focus")
             return .noTarget
         }
 
         let focusedRole = role(of: focusedElement) ?? "none"
-        let strategy = TextDeliveryStrategyPolicy.strategy(
-            isWebBacked: Self.isWebBacked(focusedElement),
-            isElectronApplication: Self.isElectronApplication(frontmostApplication)
-        )
+        let strategy = deliveryStrategy
         let prefersPaste = strategy == .pasteFirst
 
         // Web content-editables and Electron controls can expose a stale or
@@ -287,7 +329,11 @@ final class FocusSnapshot {
         // emits the input events the application expects.
         if prefersPaste {
             DictateLog.delivery.info("trying guarded paste-first delivery role=\(focusedRole, privacy: .public)")
-            if await pasteIntoFocusedApplication(text, focusedElement: focusedElement) {
+            if await pasteIntoFocusedApplication(
+                text,
+                focusedElement: focusedElement,
+                requireExactTarget: !permitsFreshPasteSnapshot
+            ) {
                 DictateLog.delivery.info("insert succeeded through paste-first delivery")
                 return .insertedViaPaste
             }
@@ -437,6 +483,19 @@ final class FocusSnapshot {
                     DictateLog.delivery.info("focus discovery: wrapper hit confirmed by focused editor frame")
                     return systemEditor
                 }
+
+                // A number of hybrid editors expose a wrapper through the
+                // system-wide API but a concrete text control through their
+                // application-scoped focused element. Accept that second view
+                // only when its own geometry proves this exact click landed in
+                // it; this does not revive a stale responder after a click on
+                // blank content or another control.
+                if let appEditor = applicationFocusedTextElement(in: application),
+                   let appFrame = frame(of: appEditor),
+                   appFrame.insetBy(dx: -8, dy: -8).contains(hitTestLocation) {
+                    DictateLog.delivery.info("focus discovery: pointer hit confirmed application-focused editor")
+                    return appEditor
+                }
                 return nil
             }
 
@@ -450,6 +509,12 @@ final class FocusSnapshot {
                systemFrame.insetBy(dx: -8, dy: -8).contains(hitTestLocation) {
                 DictateLog.delivery.info("focus discovery: unavailable hit confirmed by focused editor frame")
                 return systemEditor
+            }
+            if let appEditor = applicationFocusedTextElement(in: application),
+               let appFrame = frame(of: appEditor),
+               appFrame.insetBy(dx: -8, dy: -8).contains(hitTestLocation) {
+                DictateLog.delivery.info("focus discovery: unavailable hit confirmed application-focused editor")
+                return appEditor
             }
             return nil
         }
@@ -480,12 +545,7 @@ final class FocusSnapshot {
         // precise than the system-wide one. Only accept an editable result whose
         // PID belongs to the application, so a stale first responder in another
         // process or window can never win.
-        let applicationElement = AXUIElementCreateApplication(application.processIdentifier)
-        if let appFocused = elementAttribute(applicationElement, kAXFocusedUIElementAttribute),
-           let resolved = resolveTextInput(from: appFocused),
-           EditableElementClassifier.isEditable(resolved),
-           let resolvedPID = pid(of: resolved),
-           element(processIdentifier: resolvedPID, belongsTo: application) {
+        if let resolved = applicationFocusedTextElement(in: application) {
             DictateLog.delivery.info("focus discovery: app-focused element role=\(role(of: resolved) ?? "none", privacy: .public)")
             return resolved
         }
@@ -525,6 +585,16 @@ final class FocusSnapshot {
         return nil
     }
 
+    private static func applicationFocusedTextElement(in application: NSRunningApplication) -> AXUIElement? {
+        let applicationElement = AXUIElementCreateApplication(application.processIdentifier)
+        guard let appFocused = elementAttribute(applicationElement, kAXFocusedUIElementAttribute),
+              let resolved = resolveTextInput(from: appFocused),
+              EditableElementClassifier.isEditable(resolved),
+              let resolvedPID = pid(of: resolved),
+              element(processIdentifier: resolvedPID, belongsTo: application) else { return nil }
+        return resolved
+    }
+
     private static func element(at location: CGPoint) -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
         var result: AXUIElement?
@@ -538,39 +608,106 @@ final class FocusSnapshot {
     /// window (for example a GPU-rendered editor). It is deliberately *not*
     /// used for AXGroup/AXWebArea focus: those are the stale-container shapes
     /// produced by browsers when an old input remains first responder.
-    private static func canUseWindowPasteTarget(
+    private static func opaquePasteTargetFrame(
         systemElement: AXUIElement?,
         application: NSRunningApplication,
         hitTestLocation: CGPoint?
-    ) -> Bool {
+    ) -> CGRect? {
         guard let systemElement,
-              role(of: systemElement) == kAXWindowRole,
               let systemPID = pid(of: systemElement),
               element(processIdentifier: systemPID, belongsTo: application),
               let hitTestLocation,
               let hit = element(at: hitTestLocation),
               let hitPID = pid(of: hit),
-              element(processIdentifier: hitPID, belongsTo: application),
-              let windowFrame = frame(of: systemElement),
+              element(processIdentifier: hitPID, belongsTo: application) else { return nil }
+
+        // The original opaque-window path remains for GPU-rendered editors
+        // that expose no text descendants at all.
+        guard let windowFrame = frame(of: systemElement),
               windowFrame.contains(hitTestLocation),
+              role(of: systemElement) == kAXWindowRole,
               // Exclude title-bar/chrome clicks. The remaining window content
               // is the only target surface custom editors give macOS.
-              hitTestLocation.y >= windowFrame.minY + 30 else { return false }
+              hitTestLocation.y >= windowFrame.minY + 30 else {
+            return compactOpaqueEditorFrame(
+                systemElement: systemElement,
+                application: application,
+                hitTestLocation: hitTestLocation,
+                hit: hit
+            )
+        }
 
         let controlRoles: Set<String> = [
             kAXButtonRole, kAXCheckBoxRole, kAXRadioButtonRole, kAXPopUpButtonRole,
             kAXMenuButtonRole, kAXMenuItemRole, "AXLink", kAXSliderRole,
             kAXTabGroupRole, kAXToolbarRole
         ]
-        if let hitRole = role(of: hit), controlRoles.contains(hitRole) { return false }
+        if let hitRole = role(of: hit), controlRoles.contains(hitRole) { return nil }
 
         // If the window exposes a real editor, the exact-element path must be
         // used. Window-paste is reserved for genuinely opaque AX trees.
         guard editableDescendants(from: systemElement, maxDepth: 8, maxNodes: 600).isEmpty else {
-            return false
+            return nil
         }
         DictateLog.delivery.info("focus discovery: using guarded opaque-window paste target")
-        return true
+        return windowFrame
+    }
+
+    /// Hybrid editors can expose the focused composer as a compact AXGroup
+    /// instead of AXTextArea. Treat that wrapper as a paste destination only
+    /// when both the current focus and the pointer hit land inside the same
+    /// field-sized rectangle. Whole-window/web-area frames are rejected, which
+    /// keeps a click on blank content from reviving an old first responder.
+    private static func compactOpaqueEditorFrame(
+        systemElement: AXUIElement,
+        application: NSRunningApplication,
+        hitTestLocation: CGPoint,
+        hit: AXUIElement
+    ) -> CGRect? {
+        let applicationElement = AXUIElementCreateApplication(application.processIdentifier)
+        guard let focusedWindow = elementAttribute(applicationElement, kAXFocusedWindowAttribute)
+            ?? elementAttribute(applicationElement, kAXMainWindowAttribute),
+              let windowFrame = frame(of: focusedWindow),
+              windowFrame.contains(hitTestLocation),
+              hitTestLocation.y >= windowFrame.minY + 30 else { return nil }
+
+        let controlRoles: Set<String> = [
+            kAXButtonRole, kAXCheckBoxRole,
+            kAXRadioButtonRole, kAXPopUpButtonRole, kAXMenuButtonRole,
+            kAXMenuItemRole, kAXSliderRole, kAXToolbarRole, "AXLink"
+        ]
+        var hitAncestor: AXUIElement? = hit
+        for _ in 0..<8 {
+            guard let current = hitAncestor else { break }
+            if let currentRole = role(of: current) {
+                if currentRole == kAXWindowRole || currentRole == kAXApplicationRole { break }
+                if controlRoles.contains(currentRole) { return nil }
+            }
+            hitAncestor = elementAttribute(current, kAXParentAttribute)
+        }
+
+        let appFocused = elementAttribute(applicationElement, kAXFocusedUIElementAttribute)
+        for candidate in [systemElement, appFocused].compactMap({ $0 }) {
+            guard let candidatePID = pid(of: candidate),
+                  element(processIdentifier: candidatePID, belongsTo: application),
+                  let candidateRole = role(of: candidate),
+                  candidateRole != kAXWindowRole,
+                  candidateRole != kAXApplicationRole,
+                  !controlRoles.contains(candidateRole),
+                  let candidateFrame = frame(of: candidate),
+                  candidateFrame.insetBy(dx: -8, dy: -8).contains(hitTestLocation),
+                  candidateFrame.width >= 80,
+                  candidateFrame.height >= 20,
+                  candidateFrame.height <= min(260, windowFrame.height * 0.45),
+                  candidateFrame.width * candidateFrame.height <= windowFrame.width * windowFrame.height * 0.45 else {
+                continue
+            }
+            DictateLog.delivery.info(
+                "focus discovery: using compact opaque editor role=\(candidateRole, privacy: .public)"
+            )
+            return candidateFrame
+        }
+        return nil
     }
 
     private static func editableDescendants(from root: AXUIElement, maxDepth: Int, maxNodes: Int) -> [AXUIElement] {
@@ -627,7 +764,11 @@ final class FocusSnapshot {
         return CGRect(origin: point, size: size)
     }
 
-    private func pasteIntoFocusedApplication(_ text: String, focusedElement: AXUIElement?) async -> Bool {
+    private func pasteIntoFocusedApplication(
+        _ text: String,
+        focusedElement: AXUIElement?,
+        requireExactTarget: Bool = true
+    ) async -> Bool {
         guard let application = frontmostApplication,
               let processIdentifier,
               !application.isTerminated,
@@ -641,14 +782,14 @@ final class FocusSnapshot {
         // to the Desktop, another window, or another control. Delivery is valid
         // only while the exact editor captured at shortcut-down is still the
         // system's current focused editor.
-        let targetStillCurrent = focusedElement.map {
+        let targetStillCurrent = !requireExactTarget || (focusedElement.map {
             Self.currentFocusedElementMatches(
                 $0,
                 in: application,
                 capturedFrame: frame,
                 hitTestLocation: hitTestLocation
             )
-        } ?? Self.currentWindowPasteTargetMatches(in: application, capturedFrame: frame)
+        } ?? Self.currentWindowPasteTargetMatches(in: application, capturedFrame: frame))
         guard targetStillCurrent else {
             DictateLog.delivery.info("paste skipped: captured editor is no longer focused")
             return false
@@ -659,13 +800,22 @@ final class FocusSnapshot {
         guard copyToPasteboard(text) else { return false }
         let temporaryChangeCount = NSPasteboard.general.changeCount
         defer { pasteboardSnapshot.restoreIfUnchanged(expectedChangeCount: temporaryChangeCount) }
-        guard let source = CGEventSource(stateID: .combinedSessionState),
+        guard let source = CGEventSource(stateID: .privateState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false) else {
             return false
         }
         down.flags = .maskCommand
         up.flags = .maskCommand
+
+        // Give pasteboard observers one run-loop beat to see the temporary
+        // string before the command arrives. This matters in custom editors
+        // that bridge paste through another process.
+        do {
+            try await Task.sleep(for: .milliseconds(40))
+        } catch {
+            return false
+        }
 
         // The AX lookups and pasteboard write above take real time during
         // which the user can switch apps. Re-check frontmost state right

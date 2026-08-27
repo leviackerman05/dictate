@@ -223,6 +223,65 @@ final class FocusTargetResolverTests: XCTestCase {
         XCTAssertFalse(PasteboardRestorationPolicy.shouldRestore(temporaryChangeCount: 12, currentChangeCount: 13))
     }
 
+    func testFreshWebSnapshotCanUseNativePasteWithoutStableAXIdentity() {
+        XCTAssertTrue(CompletionPastePolicy.mayUseFreshSnapshot(
+            strategy: .pasteFirst,
+            snapshotAge: 0.12,
+            applicationStillActive: true,
+            targetWasAbandoned: false
+        ))
+    }
+
+    func testFreshSnapshotFallbackKeepsSafetyBoundaries() {
+        XCTAssertFalse(CompletionPastePolicy.mayUseFreshSnapshot(
+            strategy: .accessibilityFirst,
+            snapshotAge: 0.12,
+            applicationStillActive: true,
+            targetWasAbandoned: false
+        ))
+        XCTAssertFalse(CompletionPastePolicy.mayUseFreshSnapshot(
+            strategy: .pasteFirst,
+            snapshotAge: 1.01,
+            applicationStillActive: true,
+            targetWasAbandoned: false
+        ))
+        XCTAssertFalse(CompletionPastePolicy.mayUseFreshSnapshot(
+            strategy: .pasteFirst,
+            snapshotAge: 0.12,
+            applicationStillActive: false,
+            targetWasAbandoned: false
+        ))
+        XCTAssertFalse(CompletionPastePolicy.mayUseFreshSnapshot(
+            strategy: .pasteFirst,
+            snapshotAge: 0.12,
+            applicationStillActive: true,
+            targetWasAbandoned: true
+        ))
+    }
+
+    func testAXBlindApplicationPasteRequiresFreshPointerIntentAndActiveApp() {
+        XCTAssertTrue(AXBlindApplicationPastePolicy.mayUse(
+            systemFocusAvailable: false,
+            recentPointerIntentAvailable: true,
+            activeExternalApplicationAvailable: true
+        ))
+        XCTAssertFalse(AXBlindApplicationPastePolicy.mayUse(
+            systemFocusAvailable: false,
+            recentPointerIntentAvailable: false,
+            activeExternalApplicationAvailable: true
+        ))
+        XCTAssertFalse(AXBlindApplicationPastePolicy.mayUse(
+            systemFocusAvailable: true,
+            recentPointerIntentAvailable: true,
+            activeExternalApplicationAvailable: true
+        ))
+        XCTAssertFalse(AXBlindApplicationPastePolicy.mayUse(
+            systemFocusAvailable: false,
+            recentPointerIntentAvailable: true,
+            activeExternalApplicationAvailable: false
+        ))
+    }
+
     private func target(frame: CGRect) -> FocusTargetFingerprint {
         FocusTargetFingerprint(
             processIdentifier: 42,

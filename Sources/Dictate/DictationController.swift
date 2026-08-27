@@ -723,7 +723,6 @@ private extension DictationState {
 final class FocusSnapshotService {
     private var preservedExternalFocus: FocusSnapshot?
     private var intentTracker = FocusIntentTracker()
-    private var activeIntent: FocusIntentCapture?
 
     /// Most recent mouse-down observed in ANOTHER process, with the frame of
     /// the element that held AX focus at that moment. Global monitors never
@@ -740,6 +739,7 @@ final class FocusSnapshotService {
     private var axObserverSource: CFRunLoopSource?
     private var observedProcessIdentifier: pid_t?
     private var focusRefreshTask: Task<Void, Never>?
+    private var externalClickSequence: UInt64 = 0
 
     init() {
         let pointerTap = ExternalPointerEventTap { [weak self] location, sourcePID in
@@ -760,12 +760,23 @@ final class FocusSnapshotService {
 
     private func recordExternalClick(at location: CGPoint) {
         intentTracker.pointerDown(at: location)
-        lastExternalClick = (
-            location: location,
-            date: Date(),
-            focusedFrameAtClick: FocusSnapshot.frameOfSystemFocusedElement(),
-            processIdentifier: NSWorkspace.shared.frontmostApplication?.processIdentifier
-        )
+        externalClickSequence &+= 1
+        let sequence = externalClickSequence
+
+        // A session event tap sees mouse-down before AppKit necessarily makes
+        // the clicked window frontmost. Resolve the owner and AX focus one
+        // run-loop beat later; otherwise a click into Codex from another app is
+        // incorrectly attributed to the app behind it.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(45))
+            guard let self, sequence == self.externalClickSequence else { return }
+            self.lastExternalClick = (
+                location: location,
+                date: Date(),
+                focusedFrameAtClick: FocusSnapshot.frameOfSystemFocusedElement(),
+                processIdentifier: NSWorkspace.shared.frontmostApplication?.processIdentifier
+            )
+        }
     }
 
     func rememberExternalFocus() {
@@ -804,11 +815,9 @@ final class FocusSnapshotService {
             // Preserved targets are retained for diagnostics and recovery only;
             // they are never valid insertion destinations for a new session.
             intentTracker.invalidate()
-            activeIntent = nil
             return current
         case .missing:
             intentTracker.invalidate()
-            activeIntent = nil
             DictateLog.delivery.debug("focus target=missing source=\(source.rawValue, privacy: .public)")
             return current
         }
@@ -832,7 +841,6 @@ final class FocusSnapshotService {
         }
 
         preservedExternalFocus = nil
-        activeIntent = nil
         intentTracker.invalidate()
         DictateLog.delivery.debug("focus target=missing after completion settling")
         return latest
@@ -840,20 +848,16 @@ final class FocusSnapshotService {
 
     private func adopt(_ snapshot: FocusSnapshot) {
         preservedExternalFocus = snapshot
-        activeIntent = snapshot.focusFingerprint.map { intentTracker.begin($0) }
+        if let fingerprint = snapshot.focusFingerprint {
+            _ = intentTracker.begin(fingerprint)
+        }
         observeAccessibility(for: snapshot)
     }
 
     func insert(_ text: String, into focus: FocusSnapshot?) async -> DeliveryResult {
         let snapshot = focus ?? FocusSnapshot.capture()
-        // Opaque custom editors need the most recent pointer hit to recreate
-        // their guarded window target. Concrete AX editors ignore this value.
-        let current = FocusSnapshot.capture(hitTestLocation: currentHitTestLocation)
-        guard let activeIntent,
-              let currentFingerprint = current.focusFingerprint,
-              intentTracker.allows(activeIntent, current: currentFingerprint),
-              current.focusFingerprint == snapshot.focusFingerprint else {
-            DictateLog.delivery.debug("insert skipped: focus intent changed before delivery")
+        guard snapshot.isUsableExternalTarget else {
+            DictateLog.delivery.debug("insert skipped: completion snapshot has no usable target")
             return .noTarget
         }
         // The snapshot's own AX-based check cannot see clicks on controls
@@ -864,7 +868,17 @@ final class FocusSnapshotService {
             DictateLog.delivery.debug("insert skipped: target abandoned by click away")
             return .noTarget
         }
-        return await snapshot.insert(text)
+        let snapshotAge = Date().timeIntervalSince(snapshot.capturedAt)
+        let permitsFreshPasteSnapshot = CompletionPastePolicy.mayUseFreshSnapshot(
+            strategy: snapshot.deliveryStrategy,
+            snapshotAge: snapshotAge,
+            applicationStillActive: snapshot.isCurrentApplicationActive,
+            targetWasAbandoned: false
+        )
+        if permitsFreshPasteSnapshot {
+            DictateLog.delivery.debug("delivery using fresh completion snapshot for web/custom editor")
+        }
+        return await snapshot.insert(text, permitsFreshPasteSnapshot: permitsFreshPasteSnapshot)
     }
 
     /// Pure decision, no AppKit state: has an external click abandoned the
@@ -901,6 +915,9 @@ final class FocusSnapshotService {
     private var currentHitTestLocation: CGPoint? {
         guard let click = lastExternalClick,
               click.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              // AX-blind apps provide no current editor to verify. Keep this
+              // deliberately short so active-app paste is authorized only by
+              // a click that clearly belongs to the current dictation action.
               Date().timeIntervalSince(click.date) <= 10 else { return nil }
         // Once Accessibility confirms a real editor after the click, that
         // editor is the newer intent. Continuing to constrain resolution to
