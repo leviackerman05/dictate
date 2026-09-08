@@ -40,7 +40,7 @@ available to copy instead of repeatedly asking for permission.
 ## Download
 
 [Download Dictate for Mac, Windows, or Linux](https://dictate-macos.vercel.app/download).
-The **v1.1.0-beta.1 community beta** introduces macOS 14+ targeting and a portable
+The **v1.1.0-beta.2 community beta** introduces macOS 14+ targeting and a portable
 Windows/Linux app. No developer tools, account, API key, or payment is needed to
 use an installer. Physical-device acceptance testing is still pending; see
 [the validation record](docs/evidence/portability-validation.md).

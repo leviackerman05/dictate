@@ -1,10 +1,14 @@
-# Community beta validation — v1.1.0-beta.1
+# Community beta validation — v1.1.0-beta.2
 
 Recorded 2026-09-08. This is a testable community beta, not a certification of all
 operating systems or editors. No money was spent on APIs, signing, CI runners,
 Apple enrollment, or hosting upgrades. Standard public-repository GitHub runners
 and the existing Vercel Hobby project are used; workflows do not upload Actions
 artifacts or use caches that could consume billable storage.
+
+The first draft candidate passed CI but its extracted Windows executable still
+imported `MSVCP140.dll`. It was withdrawn before the website update. Beta 2
+statically links the native C/C++ runtime and adds a package dependency gate.
 
 ## Checks performed
 

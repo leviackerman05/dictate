@@ -86,6 +86,9 @@ jobs:
         working-directory: Desktop
         env:
           NO_STRIP: true
+      - name: Inspect Windows installer runtime dependencies
+        if: runner.os == 'Windows'
+        run: python Scripts/check-windows-runtime.py
       - name: Upload Windows installer to draft
         if: runner.os == 'Windows'
         shell: pwsh

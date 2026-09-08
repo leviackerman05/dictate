@@ -10,3 +10,8 @@ GGML_AVX512_VNNI = "OFF"
 GGML_FMA = "OFF"
 GGML_F16C = "OFF"
 GGML_SSE42 = "OFF"
+
+# Include the C/C++ runtime in Windows artifacts, including native whisper.cpp.
+# Tauri's VC-runtime shim alone does not remove an MSVCP140.dll dependency.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
