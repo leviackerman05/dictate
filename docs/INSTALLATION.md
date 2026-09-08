@@ -1,7 +1,7 @@
 # Installing Dictate
 
-Use the [download page](https://dictate-macos.vercel.app/download) to choose an
-installer. These community builds are free and use local speech recognition.
+The [download page](https://dictate-macos.vercel.app/download) suggests an
+installer for your operating system; you can always choose another computer. These community builds are free and use local speech recognition.
 No Xcode, Rust, Node, Python, Git, account, or paid API is needed to use them.
 Initial model setup requires an internet connection; dictation then works offline.
 
@@ -12,20 +12,27 @@ beta compiles for macOS 14; older-OS runtime testing remains pending.
 
 1. Open `Dictate.dmg` and drag Dictate to **Applications**.
 2. Open **Dictate** from Applications or Spotlight.
-3. Allow microphone access and click **Set up recommended model**. Grant
+3. Allow microphone access and click **Set up speech model**. Grant
    Accessibility only if you want automatic insertion into other apps.
 
-On supported macOS 26 devices, Apple recognition uses an OS-managed asset.
+On supported macOS 26 devices, Apple recognition is the default and uses an OS-managed asset.
+Beta 4 applies that default once to older saved selections too; future explicit
+choices remain saved. Open **Setup options** to change your model or shortcut.
 Older macOS uses a downloadable local model. Setup shows progress, supports
 cancel/retry, and does not silently download a different model on launch.
 
 The community app is ad-hoc signed, not Developer ID signed or notarized. For
 an **unverified developer / cannot verify** warning from a trusted download,
-first attempt to open it, then use **System Settings → Privacy & Security →
-Open Anyway** and confirm. Recent macOS versions no longer offer the old
-Control-click override. [Apple's guide](https://support.apple.com/en-us/102445).
+first attempt to open it and choose **Done** in the warning. Open **System Settings →
+Privacy & Security** and scroll toward the bottom of the main page to **Security**,
+below “Allow applications from.” Click **Open Anyway** beside the Dictate message,
+authenticate, then confirm **Open**. This is not inside **Files and Folders**.
+If the button is missing, try opening the app again and return to this page.
+The download page includes a screenshot of the exact row to look for.
+[Apple's guide](https://support.apple.com/en-us/102445).
 
-An explicit malware, revoked-signature, or damaged-app warning is different:
+A warning that malware **was detected**, the app **will damage your computer**,
+or the app **is damaged** is different:
 stop and check the release and checksum. Do not disable Gatekeeper or remove
 quarantine. Work administrators may prohibit unnotarized apps; this project
 cannot override that policy for free or otherwise.

@@ -40,7 +40,7 @@ available to copy instead of repeatedly asking for permission.
 ## Download
 
 [Download Dictate for Mac, Windows, or Linux](https://dictate-macos.vercel.app/download).
-The **v1.1.0-beta.2 community beta** introduces macOS 14+ targeting and a portable
+The **v1.1.0-beta.4 community beta** introduces macOS 14+ targeting and a portable
 Windows/Linux app. No developer tools, account, API key, or payment is needed to
 use an installer. Physical-device acceptance testing is still pending; see
 [the validation record](docs/evidence/portability-validation.md).
@@ -53,8 +53,10 @@ use an installer. Physical-device acceptance testing is still pending; see
 
 Mac builds are ad-hoc signed, without paid Apple signing or notarization. For an
 unverified-developer warning, attempt to open the trusted app, then use **System
-Settings → Privacy & Security → Open Anyway**. An explicit malware or damaged-app
-warning needs investigation; do not bypass it. Managed computers may require an
+Settings → Privacy & Security**, scroll down to **Security**, and choose **Open Anyway**.
+This is on the main page, not inside Files and Folders. A warning that malware
+was detected, the app will damage your computer, or the app is damaged needs
+investigation; do not bypass it. Managed computers may require an
 administrator. See [installation and checksums](docs/INSTALLATION.md).
 
 Already cloned or extracted the repository on a compatible Mac?
@@ -68,13 +70,16 @@ installed path. It never invokes Xcode or compiles local source changes.
 
 ## Using Dictate
 
-1. Allow Microphone access and click **Set up recommended model**. On Mac,
-   allow Accessibility if you want automatic insertion into other apps.
-2. Choose a trigger key and either **Hold to talk** or **Click to toggle**.
+1. Allow Microphone access and set up the speech model. On Mac the button is
+   **Set up speech model**; **Enable insertion** opens the optional Accessibility step.
+2. Use the suggested shortcut, or open **Setup options** on Mac to choose a
+   trigger key and either **Hold to talk** or **Click to toggle**.
 3. Put the cursor in a text field, then dictate.
 4. Review previous transcripts in History or teach Dictate names and preferred
    corrections in Dictionary.
 
+On supported macOS 26 Macs, setup defaults to Apple Speech, including a one-time
+reset of older saved selections in beta 4. Later explicit choices are preserved.
 The native Mac app supports Apple's on-device speech model where available,
 NVIDIA Parakeet, and Whisper. Windows/Linux use CPU Whisper with a verified
 in-app download. Larger models are optional.
