@@ -73,7 +73,7 @@ jobs:
         env:
           DICTATE_SMOKE_DIR: ${{ runner.temp }}/dictate-smoke
       - name: Exercise native local recognition without a microphone
-        run: cargo test --locked --manifest-path Desktop/src-tauri/Cargo.toml --test recognition_smoke -- --ignored
+        run: cargo test --release --locked --manifest-path Desktop/src-tauri/Cargo.toml --test recognition_smoke -- --ignored
         env:
           DICTATE_SMOKE_DIR: ${{ runner.temp }}/dictate-smoke
       - name: Build Windows installer

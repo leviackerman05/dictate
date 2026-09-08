@@ -10,6 +10,10 @@ GGML_AVX512_VNNI = "OFF"
 GGML_FMA = "OFF"
 GGML_F16C = "OFF"
 GGML_SSE42 = "OFF"
+# whisper.cpp's older CMake policy otherwise adds /MD after Rust's /MT flag.
+# These variables are ignored for non-MSVC compilers.
+CMAKE_POLICY_DEFAULT_CMP0091 = "NEW"
+CMAKE_MSVC_RUNTIME_LIBRARY = "MultiThreaded"
 
 # Include the C/C++ runtime in Windows artifacts, including native whisper.cpp.
 # Tauri's VC-runtime shim alone does not remove an MSVCP140.dll dependency.

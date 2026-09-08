@@ -1,4 +1,4 @@
-# Community beta validation — v1.1.0-beta.2
+# Community beta validation — v1.1.0-beta.3
 
 Recorded 2026-09-08. This is a testable community beta, not a certification of all
 operating systems or editors. No money was spent on APIs, signing, CI runners,
@@ -7,8 +7,10 @@ and the existing Vercel Hobby project are used; workflows do not upload Actions
 artifacts or use caches that could consume billable storage.
 
 The first draft candidate passed CI but its extracted Windows executable still
-imported `MSVCP140.dll`. It was withdrawn before the website update. Beta 2
-statically links the native C/C++ runtime and adds a package dependency gate.
+imported `MSVCP140.dll`. It was withdrawn before the website update. Beta 2 exposed a Rust/CMake runtime mismatch during linking and remained a
+draft. Beta 3 selects the static runtime consistently in both build systems
+and retains the extracted-package dependency gate. Release recognition smoke
+tests use the release profile, matching the engine shipped in the installers.
 
 ## Checks performed
 
