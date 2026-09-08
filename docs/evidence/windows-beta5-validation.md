@@ -62,6 +62,11 @@ sizes and SHA-256 hashes match the manifest and their checksum sidecars:
 
 The release has only Mac and Windows installers. Website deployment uses the
 existing Vercel project; its team's Hobby plan was verified before deploying.
+Production deployment `dpl_21f87Ku9ZFEG3VatMNF7iSLuodF3` is ready at
+https://dictate-macos.vercel.app. Live home and download pages return HTTP 200;
+the download page serves beta 5 links for both installers and the manifest,
+and includes the new Right Ctrl, Parakeet, and tray-quit instructions. Astro
+check, production build, platform tests, and remote release-link checks passed.
 
 ## Device acceptance still required
 
