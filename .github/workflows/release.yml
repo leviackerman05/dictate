@@ -74,7 +74,8 @@ jobs:
           DICTATE_SMOKE_DIR: ${{ runner.temp }}/dictate-smoke
           CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUNNER: powershell -NoProfile -File ${{ github.workspace }}/Scripts/run-windows-test.ps1
       - name: Build Windows installer
-        run: npm run tauri -- build --bundles nsis
+        # Runtime files were already staged and exercised by the recognition test.
+        run: npm exec -- tauri build --bundles nsis
         working-directory: Desktop
       - name: Inspect Windows installer runtime dependencies
         run: python Scripts/check-windows-runtime.py
