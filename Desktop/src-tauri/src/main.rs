@@ -17,6 +17,7 @@ use std::{
     },
 };
 use tauri::{Emitter, Manager};
+#[cfg(not(windows))]
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use uuid::Uuid;
 

@@ -1,27 +1,20 @@
-Platform update (September 8, 2026): Mac and Windows only. Linux support is
-paused following user testing. Existing Linux assets in this historical release
-are unsupported previews; current source and future releases omit Linux.
+A free, open-source Mac and Windows community beta. No account, API key, paid service, or subscription.
 
-Windows 11 limitation: this beta is unsigned. Smart App Control may block the
-installer or app and has no per-app “Run anyway” exception. Do not disable
-Windows protection just to use this beta. SmartScreen's “More info → Run anyway”
-option, when available, does not override Smart App Control.
-[Windows installation guidance](https://dictate-macos.vercel.app/download#windows).
+New in beta 5:
+- Redesigned Windows interface: Segoe UI typography, compact settings, themed switches, clearer setup and model management.
+- Right Ctrl is the default Windows recording key. Record a custom key/combination or middle/back/forward mouse button in Settings. Hold-to-talk and press-to-toggle modes are available.
+- NVIDIA Parakeet TDT v3 is now available on Windows alongside Whisper Tiny, Base, and Small. All run locally on CPU; no NVIDIA GPU, Python, or CUDA is required. Parakeet downloads about 670 MB; 8 GB RAM recommended. Tiny remains the 78 MB quick setup option.
+- Windows installer includes the speech runtime and its C++ dependencies. No separate C++ installation is needed.
+- Native Mac interface is unchanged. macOS 26 supported devices default to Apple Speech; older supported Macs use local models.
 
-A free, open-source community beta. No account or paid transcription service.
+Install:
+1. Quit an older Dictate instance before installing this beta.
+2. Download the installer for your computer and open it.
+3. On Windows, choose Set up speech model. Hold Right Ctrl in an editable field, speak, and release. Settings lets you change the shortcut and mode. Copy remains available when insertion is unavailable or disabled.
 
-New in beta 4:
-- Supported macOS 26 Macs default to Apple Speech, including a one-time reset of older saved model selections. Later deliberate choices remain saved. Unsupported devices/languages keep a local-model fallback.
-- Wider Mac onboarding shows the core steps without scrolling, with a proper insertion button and separate setup options.
-- Model status distinguishes downloading, checking files, and loading a model already on your Mac.
-- The website suggests a download by operating system and shows illustrated Mac “Open Anyway” instructions.
+Compatibility: Mac Apple silicon, macOS 14+; Windows 10/11 x64. Linux support is paused. Windows Sandbox needs microphone input enabled; allow 8 GB memory when testing Parakeet, or start with Whisper Tiny.
 
-Compatibility:
-- Native Mac app: Apple silicon, macOS 14+. Apple Speech is available on macOS 26 when supported; older systems use downloaded local models. No Xcode is required to run the app.
-- Windows beta: x64 installer, local Whisper recognition, dictionary/history, and guarded text insertion with copy recovery.
-- First launch guides model setup inside the app. Models are downloaded once and inference runs locally.
-- Repository users can run `./Scripts/start.sh` on a supported Mac to install this prebuilt release rather than compiling.
+Mac builds are ad-hoc signed and not Apple-notarized. Follow the illustrated Open Anyway guide at https://dictate-macos.vercel.app/download#mac.
+Windows builds remain unsigned. Smart App Control may block the installer or app and has no per-app Run anyway exception. Do not disable Windows protection just to use this beta. SmartScreen's More info / Run anyway option, when available, does not override Smart App Control. See https://dictate-macos.vercel.app/download#windows.
 
-Mac builds are ad-hoc signed and are not Apple-notarized. For an unverified-developer warning, review the app under System Settings → Privacy & Security. Windows community installers are unsigned and can show a reputation warning. Managed work computers may require IT approval.
-
-Build and automated checks do not replace real microphone/cross-app tests. Older macOS and Windows hardware coverage is recorded in docs/evidence/portability-validation.md. Please test this beta before relying on it for important dictation.
+Automated verification covers build, input-binding policy, actual offline Whisper/Parakeet inference on synthetic speech, installer runtime dependencies, and app startup. Browser UI checks use synthetic IPC; physical microphone, global input, and insertion tests on your Windows machine are still needed. This is a beta, not a claim of complete hardware coverage.

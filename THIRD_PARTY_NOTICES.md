@@ -42,7 +42,7 @@ These model files are not bundled in `Dictate.app` or the DMG. Their model cards
 and license files govern downloaded artifacts and should be reviewed before
 redistribution.
 
-## Portable Windows/Linux app
+## Windows desktop app
 
 The portable source is in `Desktop/`. Exact dependency versions are recorded in
 its npm and Cargo lockfiles. Principal components include:
@@ -53,7 +53,6 @@ its npm and Cargo lockfiles. Principal components include:
   `ggerganov/whisper.cpp` on Hugging Face: MIT; downloaded separately, never
   included in the installer.
 - CPAL, arboard, enigo, x11rb: Apache-2.0 / MIT (see each resolved package).
-- AT-SPI Rust bindings: MIT / Apache-2.0; platform accessibility interfaces.
 - Vite, TypeScript and Lucide icons: MIT, Apache-2.0 and ISC respectively.
 - Reqwest, rustls, serde, chrono, uuid, regex, sha2, tempfile and Tokio retain
   their upstream licenses. Generated app icons derive from this repository's
@@ -62,3 +61,16 @@ its npm and Cargo lockfiles. Principal components include:
 Upstream license files remain authoritative. Model provenance, exact byte sizes
 and checksums are pinned in `Desktop/src-tauri/src/models.rs`. No paid API or
 hosted recognition service is included.
+
+## Windows Parakeet and ONNX Runtime
+
+Windows can download NVIDIA NeMo Parakeet TDT 0.6B v3, converted to ONNX and
+quantized by Ivan Stupakov: https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx
+(revision 8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce). The model is CC BY 4.0:
+https://creativecommons.org/licenses/by/4.0/. The quantized conversion is a
+modification of NVIDIA's original weights; no endorsement is implied. Model
+files download separately and are verified before loading.
+
+The Rust adapter parakeet-rs is MIT / Apache-2.0, with ort and ort-sys under
+MIT / Apache-2.0. Microsoft ONNX Runtime is MIT licensed. Full resolved Rust
+and frontend notices are bundled in Desktop/src-tauri/THIRD_PARTY_LICENSES.txt.

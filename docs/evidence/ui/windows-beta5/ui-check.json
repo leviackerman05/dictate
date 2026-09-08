@@ -1,0 +1,135 @@
+{
+  "scope": "Chromium preview with synthetic IPC on macOS; not native Windows certification",
+  "results": [
+    {
+      "theme": "light",
+      "section": "dashboard",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Dictation",
+      "mainScroll": 0
+    },
+    {
+      "theme": "light",
+      "section": "history",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "History",
+      "mainScroll": 0
+    },
+    {
+      "theme": "light",
+      "section": "dictionary",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Dictionary",
+      "mainScroll": 0
+    },
+    {
+      "theme": "light",
+      "section": "statistics",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Statistics",
+      "mainScroll": 0
+    },
+    {
+      "theme": "light",
+      "section": "models",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Speech models",
+      "mainScroll": 0
+    },
+    {
+      "theme": "light",
+      "section": "settings",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Settings",
+      "mainScroll": 64
+    },
+    {
+      "theme": "dark",
+      "section": "dashboard",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Dictation",
+      "mainScroll": 0
+    },
+    {
+      "theme": "dark",
+      "section": "history",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "History",
+      "mainScroll": 0
+    },
+    {
+      "theme": "dark",
+      "section": "dictionary",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Dictionary",
+      "mainScroll": 0
+    },
+    {
+      "theme": "dark",
+      "section": "statistics",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Statistics",
+      "mainScroll": 0
+    },
+    {
+      "theme": "dark",
+      "section": "models",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Speech models",
+      "mainScroll": 0
+    },
+    {
+      "theme": "dark",
+      "section": "settings",
+      "overflow": false,
+      "bodyOverflow": false,
+      "heading": "Settings",
+      "mainScroll": 64
+    },
+    {
+      "section": "dashboard",
+      "size": "minimum",
+      "overflow": false
+    },
+    {
+      "section": "settings",
+      "size": "minimum",
+      "overflow": false
+    },
+    {
+      "section": "models",
+      "size": "minimum",
+      "overflow": false
+    }
+  ],
+  "errors": [],
+  "preferences": {
+    "model": "tiny",
+    "keepHistory": true,
+    "retention": "forever",
+    "recordingMode": "clickToToggle",
+    "shortcut": "ControlRight",
+    "appearance": "light",
+    "onboardingDone": true,
+    "autoInsert": false
+  },
+  "checks": [
+    "single modifier capture",
+    "chord capture",
+    "mouse preset",
+    "segmented preferences save",
+    "switch save",
+    "Parakeet selection"
+  ]
+}

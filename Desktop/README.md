@@ -1,6 +1,6 @@
 # Dictate portable desktop beta
 
-Windows uses Tauri 2, Rust, CPAL microphone capture, and CPU whisper.cpp
+Windows uses Tauri 2, Rust, CPAL microphone capture, and CPU Whisper and NVIDIA Parakeet
 through whisper-rs. The existing native SwiftUI Mac app remains in `Sources/`.
 Installers need no development tools. Use the [download page](https://dictate-macos.vercel.app/download).
 
@@ -59,3 +59,27 @@ The release workflow assembles installers on a draft GitHub release, then
 publishes checksums and the manifest only after every platform build passes.
 Hardware microphone, editor, and OS-version validation remains separate from
 CI build success; record it in `docs/evidence/portability-validation.md`.
+
+## Windows shortcuts and models (beta 5)
+
+Right Ctrl is the default dedicated recording key. In Settings, click the
+shortcut control and press a key or combination, or a middle/back/forward mouse
+button; then Save changes. Hold to talk and press-to-toggle modes are available.
+Escape cancels recording while the app is focused. The chosen trigger is reserved
+while Dictate runs; left/right mouse clicks and Escape cannot be assigned.
+Existing explicit shortcuts stay saved; the old default migrates once.
+
+Whisper Tiny (78 MB), Base (148 MB), Small (488 MB), and NVIDIA Parakeet TDT v3
+(670 MB) run locally on CPU. An NVIDIA GPU, Python, CUDA, account, or paid API is
+not needed. Parakeet recommends 8 GB RAM; Windows Sandbox may need its memory
+allocation raised to test it. Tiny remains the quick setup choice. Parakeet
+supports 25 languages and uses pinned quantized ONNX components. Dictionary
+corrections apply to both engines; vocabulary prompting applies to Whisper.
+Parakeet processes audio in at most 30-second chunks to bound memory, so a word
+at a chunk boundary may be less accurate; cancellation waits for the current
+inference chunk to finish. No model is included in the installer.
+
+Run `python Scripts/prepare-portable-smoke.py` from the repository root with
+`DICTATE_SMOKE_DIR` set to a test directory, then run the opt-in
+`recognition_smoke` Cargo test with `-- --ignored`. This downloads verified Tiny
+and Parakeet models and checks the real adapters against synthetic speech.

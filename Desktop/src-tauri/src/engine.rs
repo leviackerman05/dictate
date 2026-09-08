@@ -85,6 +85,23 @@ pub fn prepare_runtime() -> Result<(), String> {
                 return Err("The packaged speech runtime is missing. Reinstall Dictate.".into());
             }
         };
+        // Exclude the current directory from dependency resolution. Add the
+        // staged directory for cargo dev; installed DLLs live beside the app.
+        unsafe {
+            use windows::Win32::System::LibraryLoader::{
+                AddDllDirectory, SetDefaultDllDirectories, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+            };
+            SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)
+                .map_err(|e| e.to_string())?;
+            let folder = path.parent().ok_or("Missing runtime folder.")?.as_os_str();
+            use std::os::windows::ffi::OsStrExt;
+            let wide = folder.encode_wide().chain(Some(0)).collect::<Vec<_>>();
+            // Keep this directory registered for the lifetime of the process.
+            let cookie = AddDllDirectory(windows::core::PCWSTR(wide.as_ptr()));
+            if cookie.is_null() {
+                return Err("Could not register the speech runtime folder.".into());
+            }
+        }
         ort::init_from(path)
             .map_err(|e| format!("The speech runtime could not load: {e}. Reinstall Dictate."))?
             .commit();

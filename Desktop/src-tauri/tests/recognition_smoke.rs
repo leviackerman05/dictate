@@ -8,7 +8,7 @@ mod models;
 mod engine;
 
 #[test]
-#[ignore = "requires DICTATE_SMOKE_DIR with a verified tiny model and synthetic.f32"]
+#[ignore = "requires DICTATE_SMOKE_DIR with verified Tiny and Parakeet models and synthetic.f32"]
 fn recognizes_synthetic_audio_offline() {
     use std::sync::{atomic::AtomicBool, Arc};
     let dir = std::path::PathBuf::from(std::env::var("DICTATE_SMOKE_DIR").unwrap());
@@ -26,11 +26,11 @@ fn recognizes_synthetic_audio_offline() {
             .to_lowercase();
         assert!(
             text.contains("local dictation"),
-            "Synthetic speech was not recognized as expected"
+            "{id}: synthetic speech was not recognized as expected"
         );
         assert!(
             text.contains("computer"),
-            "Synthetic speech was not recognized as expected"
+            "{id}: synthetic speech was not recognized as expected"
         );
     }
 }
