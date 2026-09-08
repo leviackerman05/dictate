@@ -1,0 +1,35 @@
+[package]
+name = "dictate-desktop"
+version = "1.1.0-beta.1"
+edition = "2021"
+license = "MIT"
+description = "Private local dictation for Windows and Linux"
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+[dependencies]
+dictate-core = { path = "../core" }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+cpal = "0.15.3"
+whisper-rs = "0.16.0"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+futures-util = "0.3"
+sha2 = "0.10"
+tempfile = "3"
+arboard = "3"
+enigo = "0.6.1"
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility", "Win32_System_Com", "Win32_System_DataExchange"] }
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13", features = ["xtest"] }
+atspi = { version = "0.30", default-features = false, features = ["connection", "proxies", "tokio", "zbus"] }
+
+[dependencies.tokio]
+version = "1"
+features = ["time", "sync"]

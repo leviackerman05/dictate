@@ -24,6 +24,8 @@ final class DictationController: ObservableObject {
     @Published private(set) var feedbackMessage = ""
     @Published private(set) var deliveryNotice: DeliveryNotice?
     @Published private(set) var pendingCopyText: String?
+    @Published private(set) var setupRequired = true
+    @Published private(set) var setupError: String?
     @Published private(set) var readiness: DictationReadiness = .settingUp
 
     var onCompleted: ((HistoryItem) -> Void)?
@@ -60,13 +62,13 @@ final class DictationController: ObservableObject {
 
     init(
         capture: any AudioCapturing = AudioCaptureService(),
-        recognition: any SpeechRecognizing = SpeechRecognitionService(),
+        recognition: (any SpeechRecognizing)? = nil,
         parakeet: any SpeechRecognizing = ParakeetRecognitionService(),
         delivery: any FocusDelivering = FocusSnapshotService(),
         permissions: PermissionService = PermissionService()
     ) {
         self.capture = capture
-        self.appleRecognition = recognition
+        self.appleRecognition = recognition ?? RecognitionCapabilities.makeAppleService()
         self.injectedParakeet = parakeet
         self.delivery = delivery
         self.permissions = permissions
@@ -89,12 +91,13 @@ final class DictationController: ObservableObject {
 
     // MARK: - Model management
 
-    func selectProvider(_ provider: TranscriptionProvider) {
+    func selectProvider(_ provider: TranscriptionProvider, allowDownload: Bool = false) {
+        if self.provider != provider { activeRecognition.cancel() }
         self.provider = provider
-        warmUpSelectedModel()
+        warmUpSelectedModel(allowDownload: allowDownload)
     }
 
-    func warmUpSelectedModel() {
+    func warmUpSelectedModel(allowDownload: Bool = true) {
         warmupTask?.cancel()
         readyConfirmationTask?.cancel()
         readyConfirmationTask = nil
@@ -103,13 +106,15 @@ final class DictationController: ObservableObject {
         let selectedProvider = provider
         let recognition = recognitionService(for: selectedProvider)
         readiness = .settingUp
+        setupError = nil
         if state == .idle { feedbackMessage = "" }
         DictateLog.lifecycle.debug("model warm-up started provider=\(String(describing: selectedProvider), privacy: .public)")
 
         warmupTask = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await recognition.prepare()
+                if allowDownload { try await recognition.prepare() }
+                else { try await recognition.prepareForOfflineBenchmark() }
                 guard !Task.isCancelled,
                       self.warmupID == id,
                       self.provider == selectedProvider else { return }
@@ -124,6 +129,8 @@ final class DictationController: ObservableObject {
                 guard self.warmupID == id,
                       self.provider == selectedProvider else { return }
                 self.readiness = .unavailable
+                self.setupRequired = true
+                if allowDownload { self.setupError = error.localizedDescription }
                 self.warmupTask = nil
                 self.feedbackMessage = String(localized: "recording.modelSetupFailed")
                 DictateLog.lifecycle.error("model warm-up failed provider=\(String(describing: selectedProvider), privacy: .public) error=\(String(describing: error), privacy: .public)")
@@ -132,10 +139,14 @@ final class DictationController: ObservableObject {
     }
 
     func modelStatus(for provider: TranscriptionProvider) -> RecognitionModelStatus {
-        provider == .apple ? .ready : recognitionService(for: provider).modelStatus
+        recognitionService(for: provider).modelStatus
     }
 
     func prepareModel(for provider: TranscriptionProvider) {
+        if self.provider == provider {
+            warmUpSelectedModel(allowDownload: true)
+            return
+        }
         let id = UUID()
         if self.provider == provider {
             warmupTask?.cancel()
@@ -167,6 +178,16 @@ final class DictationController: ObservableObject {
                 }
             }
         }
+    }
+
+    func cancelModelSetup() {
+        warmupID = UUID()
+        warmupTask?.cancel()
+        warmupTask = nil
+        activeRecognition.cancel()
+        readiness = .unavailable
+        setupRequired = true
+        setupError = nil
     }
 
     func removeModel(for provider: TranscriptionProvider) {
@@ -281,7 +302,7 @@ final class DictationController: ObservableObject {
             case .ready:
                 break
             }
-            if readiness == .unavailable { warmUpSelectedModel() }
+            if readiness == .unavailable { warmUpSelectedModel(allowDownload: false) }
             return
         }
 
@@ -529,6 +550,8 @@ final class DictationController: ObservableObject {
     private func beginReadyConfirmation(for provider: TranscriptionProvider, id: UUID) {
         guard self.provider == provider, warmupID == id else { return }
         readyConfirmationTask?.cancel()
+        setupRequired = false
+        setupError = nil
         readiness = .modelLoaded
         feedbackMessage = ""
 

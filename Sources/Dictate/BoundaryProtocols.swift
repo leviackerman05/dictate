@@ -12,6 +12,7 @@ protocol SpeechRecognizing: AnyObject {
     var modelIsAvailable: Bool { get }
     var modelStatus: RecognitionModelStatus { get }
     func prepare() async throws
+    func prepareForOfflineBenchmark() async throws
     func transcribe(
         stream: AsyncStream<AudioChunk>,
         contextualVocabulary: [String],
@@ -23,6 +24,7 @@ protocol SpeechRecognizing: AnyObject {
 
 enum RecognitionModelStatus: Equatable, Sendable {
     case notInstalled
+    case downloaded
     case downloading(progress: Double?)
     case validating
     case loading
@@ -39,5 +41,6 @@ protocol FocusDelivering: AnyObject {
 }
 
 extension AudioCaptureService: AudioCapturing {}
+@available(macOS 26, *)
 extension SpeechRecognitionService: SpeechRecognizing {}
 extension FocusSnapshotService: FocusDelivering {}

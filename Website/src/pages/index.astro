@@ -4,7 +4,7 @@ import BrandLogo from "../components/BrandLogo.astro";
 import GitHubMark from "../components/GitHubMark.astro";
 import SignalDemo from "../components/SignalDemo.astro";
 
-const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg";
+const downloadURL = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/download`;
 ---
 
 <BaseLayout>
@@ -23,14 +23,14 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
     <div class="first-screen">
       <section class="hero" id="top">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="index-dot"></span> Local-first dictation for macOS</p>
+          <p class="eyebrow"><span class="index-dot"></span> Local-first dictation</p>
           <h1>Speak. Release.<br /><em>Keep writing.</em></h1>
           <p class="lede">Dictate listens for the thought you already have, then returns the finished words to the field you were using. Small on screen. Clear in intent.</p>
           <div class="hero-actions">
-            <a class="button button-primary" href={latestDMGURL} aria-label="Download the latest Dictate DMG for Mac">Download for Mac</a>
+            <a class="button button-primary" href={downloadURL}>Get Dictate</a>
             <a class="button button-secondary" href="https://github.com/leviackerman05/dictate" target="_blank" rel="noreferrer"><GitHubMark size={16} /> Star on GitHub</a>
           </div>
-          <p class="release-note" id="release"><span class="status-dot moss-dot"></span> macOS 26+ · Apple silicon · community build</p>
+          <p class="release-note" id="release"><span class="status-dot moss-dot"></span> Mac · Windows · Linux · free community beta</p>
         </div>
         <div class="hero-demo">
           <SignalDemo />
@@ -42,7 +42,7 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
         <ol class="flow-grid">
           <li class="flow-step"><span class="card-number blue">01</span><div><h3>Hold</h3><p>Press your shortcut or tap once.</p></div></li>
           <li class="flow-step"><span class="card-number amber">02</span><div><h3>Speak</h3><p>Your voice is transcribed locally.</p></div></li>
-          <li class="flow-step"><span class="card-number moss">03</span><div><h3>Release</h3><p>The words return to your field.</p></div></li>
+          <li class="flow-step"><span class="card-number moss">03</span><div><h3>Release</h3><p>Insert your words or copy them.</p></div></li>
         </ol>
       </section>
     </div>
@@ -65,11 +65,11 @@ const latestDMGURL = "https://github.com/leviackerman05/dictate/releases/latest/
     <section class="section closing-section">
       <p class="eyebrow"><span class="index-dot"></span> A calmer writing instrument</p>
       <h2>Say the thing.<br /><em>Keep your place.</em></h2>
-      <p class="closing-copy">The website demo is synthetic. The app is the real product: a local macOS tool for short spoken fragments, a living dictionary, and reliable insertion.</p>
-      <a class="button button-primary" href={latestDMGURL} aria-label="Download the latest Dictate DMG for Mac">Download for Mac</a>
+      <p class="closing-copy">The website demo is synthetic. The app is the real product: local dictation for short spoken fragments and a living dictionary. The native Mac app is joined by a Windows and Linux beta.</p>
+      <a class="button button-primary" href={downloadURL}>Get Dictate</a>
     </section>
 
-    <footer class="site-footer"><span>Dictate</span><span>Built for macOS 26+</span><a href="https://github.com/leviackerman05/dictate" target="_blank" rel="noreferrer"><GitHubMark size={14} /> Star on GitHub</a></footer>
+    <footer class="site-footer"><span>Dictate</span><span>Local. Private. Open source.</span><a href="https://github.com/leviackerman05/dictate" target="_blank" rel="noreferrer"><GitHubMark size={14} /> Star on GitHub</a></footer>
   </main>
 </BaseLayout>
 

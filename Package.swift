@@ -7,8 +7,8 @@ import PackageDescription
 let package = Package(
     name: "Dictate",
     defaultLocalization: "en",
-    // FluidAudio 0.15.5 requires macOS 14; the app itself requires macOS 26.
-    platforms: [.macOS("26.0")],
+    // FluidAudio 0.15.5 requires macOS 14; the app supports macOS 14; Apple Speech is guarded at macOS 26.
+    platforms: [.macOS("14.0")],
     products: [
         .library(name: "DictateCore", targets: ["DictateCore"]),
         .executable(name: "Dictate", targets: ["Dictate"])
@@ -23,7 +23,7 @@ let package = Package(
         .target(
             name: "DictateCore",
             path: "Sources/DictateCore",
-            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx26.0"])]
+            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx14.0"])]
         ),
         .executableTarget(
             name: "Dictate",
@@ -35,13 +35,13 @@ let package = Package(
             path: "Sources/Dictate",
             exclude: ["Resources/Info.plist"],
             resources: [.process("Resources")],
-            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx26.0"])]
+            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx14.0"])]
         ),
         .testTarget(
             name: "DictateTests",
             dependencies: ["DictateCore"],
             path: "Tests/DictateTests",
-            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx26.0"])]
+            swiftSettings: [.unsafeFlags(["-swift-version", "6", "-strict-concurrency=complete", "-target", "arm64-apple-macosx14.0"])]
         )
     ]
 )

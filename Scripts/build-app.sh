@@ -38,6 +38,7 @@ if [ -n "$RESOURCE_BUNDLE" ]; then cp -R "$RESOURCE_BUNDLE" "$APP_DIR/Contents/R
 cp Sources/Dictate/Resources/AppIcon.svg "$APP_DIR/Contents/Resources/AppIcon.svg"
 cp Sources/Dictate/Resources/MenuBarGlyph.svg "$APP_DIR/Contents/Resources/MenuBarGlyph.svg"
 cp Sources/Dictate/Resources/Info.plist "$APP_DIR/Contents/Info.plist"
+cp Release/version.txt "$APP_DIR/Contents/Resources/release-version.txt"
 
 # macOS uses an ICNS asset for the Dock and Finder icon. Keep the authored
 # SVG as the source of truth and compile the full retina icon family during

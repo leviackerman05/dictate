@@ -1,33 +1,117 @@
-name: Release DMG
-
+name: Community desktop release
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing GitHub release tag to build and update
+        description: Versioned tag matching Release/version.txt
         required: true
         type: string
-
 permissions:
   contents: write
-
+concurrency:
+  group: community-release
+  cancel-in-progress: false
 jobs:
-  package:
-    runs-on: macos-26
-    env:
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  draft:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
-      - name: Check out the released tag
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
-
-      - name: Build and verify release package
-        run: ./Scripts/release-preflight.sh
-
-      - name: Attach DMG to GitHub release
+          ref: ${{ inputs.tag }}
+      - id: version
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$TAG" = "$(cat Release/version.txt)"
+          printf 'tag=%s\n' "$TAG" >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG" --json isDraft --jq '.isDraft' > /tmp/is-draft; then
+            test "$(cat /tmp/is-draft)" = true
+          else
+            gh release create "$TAG" --verify-tag --draft --prerelease --title "Dictate $TAG — community beta" --notes-file Release/notes.md
+          fi
+  mac:
+    needs: draft
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.draft.outputs.tag }}
+      - run: swift test
+      - run: ./Scripts/release-preflight.sh
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.draft.outputs.tag }}
+        run: gh release upload "$TAG" dist/Dictate.dmg --clobber
+  portable:
+    needs: draft
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.draft.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev libasound2-dev librsvg2-dev patchelf
+      - run: npm ci
+        working-directory: Desktop
+      - run: cargo test --locked --manifest-path Desktop/core/Cargo.toml
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        run: npm run tauri -- build --bundles nsis
+        working-directory: Desktop
+      - name: Build Linux installers
+        if: runner.os == 'Linux'
+        run: npm run tauri -- build --bundles deb,appimage
+        working-directory: Desktop
+        env:
+          NO_STRIP: true
+      - name: Upload Windows installer to draft
+        if: runner.os == 'Windows'
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$RELEASE_TAG" dist/Dictate.dmg dist/Dictate.dmg.sha256 --clobber
+          TAG: ${{ needs.draft.outputs.tag }}
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $installer = Get-ChildItem Desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if ($installer.Count -ne 1) { throw 'Expected one Windows installer' }
+          Copy-Item $installer.FullName dist/Dictate-Windows-x64-setup.exe
+          gh release upload $env:TAG dist/Dictate-Windows-x64-setup.exe --clobber
+      - name: Upload Linux installers to draft
+        if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.draft.outputs.tag }}
+        run: |
+          mkdir -p dist
+          cp Desktop/src-tauri/target/release/bundle/deb/*.deb dist/Dictate-Linux-x64.deb
+          cp Desktop/src-tauri/target/release/bundle/appimage/*.AppImage dist/Dictate-Linux-x64.AppImage
+          gh release upload "$TAG" dist/Dictate-Linux-x64.deb dist/Dictate-Linux-x64.AppImage --clobber
+  publish:
+    needs: [draft, mac, portable]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.draft.outputs.tag }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.draft.outputs.tag }}
+        run: |
+          gh release download "$TAG" --dir dist
+          python3 Scripts/write-release-manifest.py
+          gh release upload "$TAG" dist/manifest.json dist/*.sha256 --clobber
+          gh release edit "$TAG" --draft=false --prerelease

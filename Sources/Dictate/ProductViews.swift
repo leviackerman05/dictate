@@ -706,7 +706,7 @@ struct AIModelsView: View {
 
     private var currentModelStrip: some View {
         let provider = model.transcriptionProvider
-        let status = provider == .apple ? .ready : dictation.modelStatus(for: provider)
+        let status = dictation.modelStatus(for: provider)
         return HStack(spacing: 13) {
             Image(systemName: "waveform")
                 .font(.system(size: 16, weight: .semibold))
@@ -825,7 +825,7 @@ struct AIModelsView: View {
     @ViewBuilder
     private func heroAction(provider: TranscriptionProvider, status: RecognitionModelStatus, isSelected: Bool) -> some View {
         switch status {
-        case .notInstalled, .failed:
+        case .notInstalled, .downloaded, .failed:
             Button {
                 dictation.prepareModel(for: provider)
             } label: {
@@ -883,7 +883,9 @@ struct AIModelsView: View {
                 Text(String(localized: "models.builtIn"))
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(DesignSystem.ColorToken.secondaryText)
-                ModelCatalogCard(model: model, provider: .apple, allowsRemoval: false)
+                if RecognitionCapabilities.supportsApple {
+                    ModelCatalogCard(model: model, provider: .apple, allowsRemoval: false)
+                }
             }
         }
         .padding(22)
@@ -1281,7 +1283,7 @@ private struct ModelCatalogCard: View {
     }
 
     private var resolvedStatus: RecognitionModelStatus {
-        provider == .apple ? .ready : model.dictation.modelStatus(for: provider)
+        model.dictation.modelStatus(for: provider)
     }
 
     private var iconName: String {
@@ -1305,7 +1307,7 @@ private struct ModelCatalogCard: View {
     private func actions(status: RecognitionModelStatus, isSelected: Bool) -> some View {
         HStack(spacing: 8) {
             switch status {
-            case .notInstalled, .failed:
+            case .notInstalled, .downloaded, .failed:
                 Button {
                     model.dictation.prepareModel(for: provider)
                 } label: {
@@ -1525,7 +1527,7 @@ struct ModelSelectorMenu: View {
     var body: some View {
         DictateDropdown(
             selection: $selection,
-            items: TranscriptionProvider.allCases,
+            items: TranscriptionProvider.supportedOnDevice,
             title: { $0.title },
             detail: { provider in
                 provider == .apple ? String(localized: "models.builtIn") : provider.sizeDescription
@@ -1569,7 +1571,7 @@ private struct ModelStatusBadge: View {
         case .ready: return DesignSystem.ColorToken.success
         case .failed: return DesignSystem.ColorToken.failure
         case .downloading, .validating, .loading: return DesignSystem.ColorToken.warning
-        case .notInstalled: return DesignSystem.ColorToken.secondaryText
+        case .notInstalled, .downloaded: return DesignSystem.ColorToken.secondaryText
         }
     }
 }
@@ -1596,7 +1598,8 @@ private struct DownloadProgressRing: View {
 
 private func modelStatusLabel(_ status: RecognitionModelStatus) -> String {
     switch status {
-    case .notInstalled: return String(localized: "common.notInstalled")
+    case .downloaded: return "Downloaded"
+        case .notInstalled: return String(localized: "common.notInstalled")
     case .downloading: return String(localized: "common.downloading")
     case .validating: return String(localized: "common.validating")
     case .loading: return String(localized: "common.loading")

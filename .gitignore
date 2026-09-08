@@ -19,3 +19,12 @@ Website/node_modules/
 Website/.astro/
 Website/dist/
 Website/.vercel/
+Desktop/node_modules/
+Desktop/dist/
+Desktop/target/
+Desktop/core/target/
+Desktop/src-tauri/target/
+Desktop/src-tauri/gen/
+.impeccable/
+
+!Desktop/src-tauri/icons/icon.icns

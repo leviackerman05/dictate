@@ -134,7 +134,7 @@ final class AppModel: ObservableObject {
     @Published var transcriptionProvider: TranscriptionProvider {
         didSet {
             UserDefaults.standard.set(transcriptionProvider.rawValue, forKey: Keys.transcriptionProvider)
-            dictation.selectProvider(transcriptionProvider)
+            dictation.selectProvider(transcriptionProvider, allowDownload: false)
         }
     }
 
@@ -178,15 +178,25 @@ final class AppModel: ObservableObject {
         recordingMode = RecordingMode(rawValue: UserDefaults.standard.string(forKey: Keys.recordingMode) ?? "") ?? .holdToTalk
         appearance = appearanceStore.value
         showReadyIndicator = UserDefaults.standard.object(forKey: Keys.showReadyIndicator) as? Bool ?? true
-        let storedProvider = TranscriptionProvider(rawValue: UserDefaults.standard.string(forKey: Keys.transcriptionProvider) ?? "") ?? .apple
         // Apple remains the default for a fresh install. Preserve an explicit
         // Parakeet choice while its service checks the local cache; otherwise
         // a cached model would be unnecessarily replaced by Apple on launch.
-        transcriptionProvider = storedProvider
+        let supported = TranscriptionProvider.supportedOnDevice
+        let controller = dictation
+        let installed = Set(supported.filter { [.downloaded, .ready].contains(controller.modelStatus(for: $0)) }.map(\.rawValue))
+        let selectedID = ModelSelectionPolicy.select(saved: UserDefaults.standard.string(forKey: Keys.transcriptionProvider), supported: supported.map(\.rawValue), installed: installed, recommended: TranscriptionProvider.recommendedOnDevice.rawValue)
+        transcriptionProvider = selectedID.flatMap(TranscriptionProvider.init(rawValue:)) ?? .whisperTiny
 
         dictation.onCompleted = { [weak self] item in self?.completed(item) }
         if startBackgroundWork {
-            dictation.selectProvider(transcriptionProvider)
+            dictation.selectProvider(transcriptionProvider, allowDownload: false)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let appleLocaleAvailable = await RecognitionCapabilities.supportsAppleLocale()
+                if self.transcriptionProvider == .apple, !appleLocaleAvailable {
+                    self.transcriptionProvider = .whisperTiny
+                }
+            }
         }
         applyAppearance()
         permissions.refresh()

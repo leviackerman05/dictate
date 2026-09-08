@@ -29,7 +29,7 @@ struct MainWindowView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            if !permissions.snapshot.microphone || !model.onboardingDismissed {
+            if !model.onboardingDismissed {
                 Color.black.opacity(0.28)
                     .ignoresSafeArea()
                 OnboardingView(model: model)

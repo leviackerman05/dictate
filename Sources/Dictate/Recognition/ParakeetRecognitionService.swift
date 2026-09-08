@@ -7,6 +7,7 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
     @Published private(set) var modelStatus: RecognitionModelStatus = .notInstalled
     var modelStatusPublisher: Published<RecognitionModelStatus>.Publisher { $modelStatus }
 
+    private var isLoaded = false
     private let models: ParakeetModels
 
     init(modelVersion: AsrModelVersion = .v3) {
@@ -31,14 +32,14 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let installed = await self.models.isInstalled()
-            self.modelStatus = installed ? .ready : .notInstalled
+            self.modelStatus = self.isLoaded ? .ready : (installed ? .downloaded : .notInstalled)
         }
     }
 
     private func refreshInstalledStatus() async {
         guard modelStatus == .notInstalled else { return }
         if await models.isInstalled() {
-            modelStatus = .ready
+            modelStatus = .downloaded
         }
     }
 
@@ -60,6 +61,7 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
                     }
                 }
             }
+            isLoaded = true
             modelStatus = .ready
         } catch is CancellationError {
             modelStatus = .notInstalled
@@ -108,6 +110,7 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
     }
 
     func cancel() {
+        Task { await models.cancelLoad() }
         // FluidAudio does not currently expose an inference cancellation API.
         // The owning session task is cancelled and the result is discarded;
         // explicit cancellation checks before and after inference keep it from
@@ -117,6 +120,7 @@ final class ParakeetRecognitionService: ObservableObject, SpeechRecognizing {
     func removeDownloadedModel() {
         Task { @MainActor in
             await models.remove()
+            isLoaded = false
             modelStatus = .notInstalled
         }
     }
@@ -170,6 +174,7 @@ private actor ParakeetModels {
             )
             let manager = AsrManager(config: .default)
             try await manager.loadModels(models)
+            try Task.checkCancellation()
             return manager
         }
         loadTask = task
@@ -187,6 +192,8 @@ private actor ParakeetModels {
     func isInstalled() async -> Bool {
         (try? await AsrModels.isModelValid(version: version, encoderPrecision: .int8)) == true
     }
+
+    func cancelLoad() { loadTask?.cancel() }
 
     func remove() {
         loadTask?.cancel()

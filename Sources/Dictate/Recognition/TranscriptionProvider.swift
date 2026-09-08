@@ -64,7 +64,7 @@ enum TranscriptionProvider: String, CaseIterable, Codable, Identifiable, Sendabl
     /// Approximate on-disk footprint of the downloaded model.
     var sizeDescription: String {
         switch self {
-        case .apple: return "Built-in"
+        case .apple: return "OS-managed asset"
         case .parakeet: return "~460 MB"
         case .parakeetV2: return "~800 MB"
         case .parakeet110m: return "~250 MB"
@@ -153,5 +153,15 @@ enum TranscriptionProvider: String, CaseIterable, Codable, Identifiable, Sendabl
         case .whisperMedium: return "openai_whisper-medium"
         case .whisperLargeV3Turbo: return "openai_whisper-large-v3_turbo"
         }
+    }
+}
+
+@MainActor
+extension TranscriptionProvider {
+    static var supportedOnDevice: [TranscriptionProvider] {
+        allCases.filter { $0 != .apple || RecognitionCapabilities.supportsApple }
+    }
+    static var recommendedOnDevice: TranscriptionProvider {
+        RecognitionCapabilities.supportsApple ? .apple : .whisperTiny
     }
 }

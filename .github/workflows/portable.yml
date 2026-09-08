@@ -1,0 +1,34 @@
+name: Portable desktop checks
+on:
+  push:
+    paths: ['Desktop/**', '.github/workflows/portable.yml']
+  pull_request:
+    paths: ['Desktop/**', '.github/workflows/portable.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    # Standard runners are free for this public repository. No paid larger runners,
+    # cache storage, artifact upload, or external build service is used.
+    if: github.event.repository.private == false
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev libasound2-dev librsvg2-dev patchelf
+      - run: npm ci
+        working-directory: Desktop
+      - run: npm run build
+        working-directory: Desktop
+      - run: cargo test --locked --manifest-path Desktop/core/Cargo.toml
+      - run: cargo check --locked --manifest-path Desktop/src-tauri/Cargo.toml

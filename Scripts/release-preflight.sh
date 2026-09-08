@@ -32,15 +32,15 @@ test -x "$BINARY" || fail "missing executable $BINARY"
 ARCHS="$(lipo -archs "$BINARY")"
 test "$ARCHS" = "arm64" || fail "expected an arm64-only executable, found: $ARCHS"
 BINARY_MIN_OS="$(xcrun vtool -show-build "$BINARY" | awk '/minos/{print $2; exit}')"
-test "$BINARY_MIN_OS" = "26.0" || fail "executable minimum OS must be 26.0, found: $BINARY_MIN_OS"
-test "$(value "$PLIST" LSMinimumSystemVersion)" = "26.0" || fail "LSMinimumSystemVersion must be 26.0"
+test "$BINARY_MIN_OS" = "14.0" || fail "executable minimum OS must be 14.0, found: $BINARY_MIN_OS"
+test "$(value "$PLIST" LSMinimumSystemVersion)" = "14.0" || fail "LSMinimumSystemVersion must be 14.0"
 test "$(value "$PLIST" CFBundleIdentifier)" = "$EXPECTED_BUNDLE_ID" || fail "unexpected bundle identifier"
 test -n "$(value "$PLIST" CFBundleShortVersionString)" || fail "missing marketing version"
 test -n "$(value "$PLIST" CFBundleVersion)" || fail "missing build version"
 test -n "$(value "$PLIST" NSMicrophoneUsageDescription)" || fail "missing microphone usage description"
 test -n "$(value "$PLIST" NSSpeechRecognitionUsageDescription)" || fail "missing speech recognition usage description"
 
-for resource in AppIcon.icns AppIcon.svg MenuBarGlyph.svg en.lproj/Localizable.strings; do
+for resource in release-version.txt AppIcon.icns AppIcon.svg MenuBarGlyph.svg en.lproj/Localizable.strings; do
   test -e "$APP_PATH/Contents/Resources/$resource" || fail "missing resource $resource"
 done
 find "$APP_PATH/Contents/Resources" -maxdepth 1 -type d -name '*.bundle' -print -quit | grep -q . \

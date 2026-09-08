@@ -10,6 +10,7 @@ enum RecognitionError: Error, Sendable {
     case cancelled
 }
 
+@available(macOS 26, *)
 @MainActor
 final class SpeechRecognitionService {
     private static let minimumAcceptedConfidence = 0.32
@@ -264,6 +265,7 @@ final class SpeechRecognitionService {
     }
 }
 
+@available(macOS 26, *)
 private final class AudioBufferConverter: @unchecked Sendable {
     private let outputFormat: AVAudioFormat
 

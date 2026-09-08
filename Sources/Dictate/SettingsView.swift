@@ -184,7 +184,7 @@ struct SettingsView: View {
                 }
                 .zIndex(10)
                 if model.transcriptionProvider == .apple {
-                    ModelStatusRow(title: model.transcriptionProvider.title, status: .ready, progress: nil)
+                    ModelStatusRow(title: model.transcriptionProvider.title, status: dictation.modelStatus(for: .apple), progress: nil)
                 }
             }
 
@@ -219,7 +219,7 @@ struct SettingsView: View {
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 switch status {
-                case .notInstalled, .failed:
+                case .notInstalled, .downloaded, .failed:
                     Button(status == .failed ? String(localized: "settings.parakeetRetry") : String(localized: "settings.parakeetDownload")) {
                         dictation.prepareModel(for: provider)
                     }
@@ -300,7 +300,7 @@ struct SettingsView: View {
     }
 
     private var localProviders: [TranscriptionProvider] {
-        TranscriptionProvider.allCases.filter { $0 != .apple }
+        TranscriptionProvider.supportedOnDevice.filter { $0 != .apple }
     }
 
     private func downloadProgress(for provider: TranscriptionProvider) -> Double? {
@@ -637,6 +637,7 @@ private struct ModelStatusRow: View {
 
     private var statusLabel: String {
         switch status {
+        case .downloaded: return "Downloaded"
         case .notInstalled: return String(localized: "common.notInstalled")
         case .downloading: return String(localized: "common.downloading")
         case .validating: return String(localized: "common.validating")
@@ -651,7 +652,7 @@ private struct ModelStatusRow: View {
         case .ready: return DesignSystem.ColorToken.success
         case .failed: return DesignSystem.ColorToken.failure
         case .downloading, .validating, .loading: return DesignSystem.ColorToken.warning
-        case .notInstalled: return DesignSystem.ColorToken.secondaryText
+        case .notInstalled, .downloaded: return DesignSystem.ColorToken.secondaryText
         }
     }
 

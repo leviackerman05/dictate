@@ -33,7 +33,7 @@ final class WhisperRecognitionService: ObservableObject, SpeechRecognizing {
         default:
             break
         }
-        modelStatus = Self.isModelDownloaded(variant) ? .ready : .notInstalled
+        modelStatus = engine != nil ? .ready : (Self.isModelDownloaded(variant) ? .downloaded : .notInstalled)
     }
 
     func prepare() async throws {

@@ -247,7 +247,7 @@ private enum BenchmarkRunner {
     private static func offlineRecognitionService(for provider: TranscriptionProvider) async throws -> any SpeechRecognizing {
         switch provider {
         case .apple:
-            let service = SpeechRecognitionService()
+            let service = RecognitionCapabilities.makeAppleService()
             try await service.prepareForOfflineBenchmark()
             return service
         case .parakeet, .parakeetV2, .parakeet110m:
