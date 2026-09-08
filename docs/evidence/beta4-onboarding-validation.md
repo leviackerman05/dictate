@@ -26,4 +26,8 @@ Recorded September 8, 2026. Zero paid APIs, signing, hosting upgrades, or paid C
 
 This was an existing Mac installation with microphone and Accessibility already enabled and Apple speech files available. It does not prove fresh permission prompts, a first Apple asset download, real microphone accuracy, or cross-app insertion on another device. The owner reports opening the earlier beta on a macOS 26 work Mac; Windows/Linux physical-device results remain pending. Older macOS, Intel Macs (no installer), and ARM Windows/Linux remain as documented in the beta 3 record.
 
-Release publication and live download checks are recorded below once the immutable beta 4 build completes.
+## Published release
+
+[Beta 4](https://github.com/leviackerman05/dictate/releases/tag/v1.1.0-beta.4) is published from immutable tag `v1.1.0-beta.4`, commit `5886c24`. [Release run 34244906682](https://github.com/leviackerman05/dictate/actions/runs/34244906682) passed every job: Mac tests/package preflight, Windows and Linux core/recognition tests, installer builds, Windows packaged-runtime inspection, and publication.
+
+All four public installers were downloaded and matched the manifest's byte counts and SHA-256 values as well as their sidecar checksums. All installer and manifest URLs passed the website's remote link check. Website deployment is recorded after the live checks complete.

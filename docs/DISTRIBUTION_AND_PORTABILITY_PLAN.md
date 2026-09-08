@@ -2,6 +2,8 @@
 
 Prepared: 2026-09-08. Implementation status: community beta implemented and published; automated release validation passed. Device acceptance remains open.
 
+The beta 4 follow-up adds Apple-first Mac onboarding, a wider non-scrolling setup, automatic website OS suggestions, and illustrated Mac approval guidance. See [beta 4 validation](evidence/beta4-onboarding-validation.md).
+
 The original phased plan below records the intended longer-term rollout. Current code delivers a native Mac build targeting macOS 14+, a verified repository launcher, explicit model onboarding, and Windows/Linux portable beta installers. Wayland remains Record + Copy; Intel Mac and additional Linux desktop integrations remain future work. Physical-device acceptance, including the owner's two macOS 26 machines, is not claimed by automated checks. See [the validation record](evidence/portability-validation.md) for actual results and the short test procedure.
 
 Implementation constraint (owner, 2026-09-08): spend no money. Use local recognition and free/open-source dependencies. Do not buy Apple membership, signing certificates, paid APIs, hosting, or CI capacity. Paid distribution options below are background information only and are excluded from the authorized implementation. Publish community builds with accurate first-launch instructions; use only existing free deployment capacity and public-repository standard CI runners.
