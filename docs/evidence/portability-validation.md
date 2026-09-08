@@ -12,6 +12,9 @@ draft. Beta 3 selects the static runtime consistently in both build systems
 and retains the extracted-package dependency gate. Release recognition smoke
 tests use the release profile, matching the engine shipped in the installers.
 
+Published [community beta](https://github.com/leviackerman05/dictate/releases/tag/v1.1.0-beta.3) from immutable tag `v1.1.0-beta.3` (`1cc2474`).
+[Release run 34232054290](https://github.com/leviackerman05/dictate/actions/runs/34232054290) passed all Mac, Windows, Linux and publication jobs.
+
 ## Checks performed
 
 | Check | Evidence / result |
@@ -19,13 +22,16 @@ tests use the release profile, matching the engine shipped in the installers.
 | Native Mac build | Swift 6.3.3 / SDK 26.5, host macOS 26.5.2 arm64; `swift build` passes with minimum deployment target 14.0 |
 | Swift product rules | 61 existing XCTest tests and one shared portable dictionary fixture test pass |
 | Native release package | `Scripts/release-preflight.sh` passes: DMG contents, bundle resources, version, arm64 architecture, Mach-O and Info.plist minimum OS 14.0, strict ad-hoc signature integrity |
+| Published artifact integrity | All four downloaded installers match both manifest SHA-256/byte counts and checksum sidecars. Downloaded Mac bundle has build 11003, minimum OS 14.0, strict signature integrity and no Xcode/developer library paths |
+| Windows runtime packaging | Actual published NSIS payload inspected independently and in CI: x64 executable and license notices present; no external MSVCP/VCRUNTIME/CONCRT DLL imports. Windows system/UCRT libraries remain OS dependencies |
+| Linux package metadata | Published DEB contains the amd64 ELF executable, beta.3 version, notices, and audio/WebKitGTK/tray runtime dependencies |
 | Gatekeeper | Rejects the community bundle, as expected without Apple notarization; this is disclosed, not treated as a trusted-signing pass |
-| Repository launcher | Shell syntax and `--check` pass on this Apple-silicon Mac; script does not invoke Git, Xcode, Swift, or a compiler; release download/install test pending publication |
+| Repository launcher | Shell syntax and `--check` pass on this Apple-silicon Mac; script does not invoke Git, Xcode, Swift, or a compiler; published manifest/version/hash and downloaded DMG signature checks pass; full clean-machine install/launch remains a device acceptance test |
 | Rust product rules | Eight tests pass: shared Mac dictionary fixture, Unicode/boundary/separator/nonrecursive correction, atomic JSON roundtrip, shortcut press/release transitions, resampling duration/silence and alias suppression |
-| Portable native build | `cargo check` and local Tauri developer bundle pass; first Windows and Ubuntu CI native checks pass in run 34225914590; final release builds pending |
-| Real recognition | Verified public Whisper Tiny model loaded locally; opt-in integration test recognized synthetic speech offline, without microphone use; logging hooks suppress upstream token logs |
+| Portable native build | `cargo check` and local Tauri developer bundle pass; final Windows and Ubuntu release-profile native checks, recognition smoke tests and installer builds pass in run 34232054290 |
+| Real recognition | Verified public Whisper Tiny model loaded locally; opt-in integration test recognized synthetic speech offline, without microphone use; logging hooks suppress upstream token logs. Final Linux and Windows release-profile integration tests pass (18.05 s and 84.52 s total test time respectively on shared CI runners; these are not microphone latency benchmarks) |
 | Portable interface | TypeScript/Vite build passes; browser mock-IPC test covers setup, navigation, dictionary add, draft preservation, failed settings save, theme, search caret, recording controls and recovery. Synthetic data only |
-| Website | Astro build/check pass (zero diagnostics); platform source-link/version checks; desktop 1440 px and mobile 390 px screenshot review in light/dark |
+| Website | Astro build/check pass (zero diagnostics); all five public download/manifest URLs pass HEAD checks; desktop 1440 px and mobile 390 px screenshot review in light/dark |
 | UI review | Independent scoped review preserved incumbent design. All listed form-draft, keyboard-focus and onboarding-navigation corrections confirmed resolved; scoped UI verdict: ship |
 
 Screenshots under `ui/portability/` are browser-rendered UI evidence. Portable

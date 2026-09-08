@@ -1,6 +1,6 @@
 # Dictate distribution and portability plan
 
-Prepared: 2026-09-08. Implementation status: community beta implemented; release validation in progress.
+Prepared: 2026-09-08. Implementation status: community beta implemented and published; automated release validation passed. Device acceptance remains open.
 
 The original phased plan below records the intended longer-term rollout. Current code delivers a native Mac build targeting macOS 14+, a verified repository launcher, explicit model onboarding, and Windows/Linux portable beta installers. Wayland remains Record + Copy; Intel Mac and additional Linux desktop integrations remain future work. Physical-device acceptance, including the owner's two macOS 26 machines, is not claimed by automated checks. See [the validation record](evidence/portability-validation.md) for actual results and the short test procedure.
 
@@ -8,7 +8,11 @@ Implementation constraint (owner, 2026-09-08): spend no money. Use local recogni
 
 Make the existing Mac download usable first, add a one-command repository launcher and older-macOS model onboarding, then deliver Windows and Linux in stages. Ordinary users should install a packaged application and prepare a model inside it. They should never need Git, Xcode, Swift, Rust, Node.js, Python, or a compiler. Cloning remains an optional route for people who already have Git.
 
-## What the repository tells us
+## Original repository assessment (before implementation)
+
+This section and the phased estimates below preserve the original planning
+baseline. For current behavior and installation steps, use the
+[installation guide](INSTALLATION.md) and [validation record](evidence/portability-validation.md).
 
 - `Scripts/build-app.sh` creates `build/Dictate.app` and ad-hoc signs it. It does not use a Developer ID certificate or notarize the result.
 - `Scripts/create-dmg.sh` packages the app with a shortcut to `/Applications`. Installing there is expected. The repository's `build/` directory is only for source builds.
@@ -68,7 +72,7 @@ Proposed command after cloning or extracting a repository ZIP:
 ./Scripts/start.sh
 ```
 
-This command is a planned deliverable; it does not exist yet. It installs and opens a prebuilt release. It does not compile local source changes. Keep `make app` as the clearly separate developer build path.
+This command is now implemented. It installs and opens a prebuilt release. It does not compile local source changes. Keep `make app` as the clearly separate developer build path.
 
 The launcher will:
 
