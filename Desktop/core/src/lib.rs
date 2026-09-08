@@ -1,3 +1,4 @@
+pub mod shortcut;
 use chrono::{DateTime, Utc};
 use regex::RegexBuilder;
 use serde::{Deserialize, Serialize};
@@ -222,6 +223,9 @@ pub enum Action {
     Stop,
 }
 impl ShortcutGesture {
+    pub fn is_pressed(&self) -> bool {
+        self.pressed
+    }
     pub fn event(&mut self, down: bool, toggle: bool, phase: Phase) -> Action {
         if !down {
             self.pressed = false;

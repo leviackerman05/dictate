@@ -126,5 +126,8 @@ pub fn insert(text: &str, _clipboard: &Clipboard) -> Result<(), String> {
 
 #[cfg(not(windows))]
 pub fn insert(_text: &str, _clipboard: &Clipboard) -> Result<(), String> {
-    Err("Use the native Dictate app for Mac insertion. Your preview transcript is ready to copy.".into())
+    Err(
+        "Use the native Dictate app for Mac insertion. Your preview transcript is ready to copy."
+            .into(),
+    )
 }

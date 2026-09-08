@@ -1,10 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod audio;
 mod delivery;
+mod engine;
 mod models;
+mod shortcuts;
 
 use chrono::Utc;
 use dictate_core::*;
+use engine::SpeechEngine;
 use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
@@ -16,7 +19,6 @@ use std::{
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use uuid::Uuid;
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -29,6 +31,8 @@ struct Preferences {
     appearance: String,
     onboarding_done: bool,
     auto_insert: bool,
+    #[serde(default)]
+    shortcut_version: u8,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -37,10 +41,11 @@ impl Default for Preferences {
             keep_history: true,
             retention: "forever".into(),
             recording_mode: "holdToTalk".into(),
-            shortcut: "CommandOrControl+Shift+Space".into(),
+            shortcut: if cfg!(windows) { "ControlRight" } else { "F8" }.into(),
             appearance: "system".into(),
             onboarding_done: false,
             auto_insert: true,
+            shortcut_version: 1,
         }
     }
 }
@@ -69,7 +74,7 @@ struct Runtime {
     dir: PathBuf,
     audio: audio::Audio,
     clipboard: delivery::Clipboard,
-    engine: Mutex<Option<(String, WhisperContext)>>,
+    engine: Mutex<Option<(String, SpeechEngine)>>,
     phase: Mutex<Phase>,
     gesture: Mutex<ShortcutGesture>,
     cancel: Arc<AtomicBool>,
@@ -114,12 +119,7 @@ fn get_state(state: tauri::State<Runtime>) -> ViewState {
     });
     let installed = models::MODELS
         .iter()
-        .filter(|m| {
-            models::path(&state.dir, m.id)
-                .ok()
-                .and_then(|p| std::fs::metadata(p).ok())
-                .is_some_and(|f| f.len() == m.bytes)
-        })
+        .filter(|m| models::is_installed(&state.dir, m.id))
         .map(|m| m.id.to_string())
         .collect();
     ViewState {
@@ -167,6 +167,8 @@ async fn setup_model(app: tauri::AppHandle, id: String, download: bool) -> Resul
             "model-progress",
             serde_json::json!({"id":id,"stage":"loading","progress":1}),
         );
+        // Release the previous graph before loading a larger model.
+        *state.engine.lock().unwrap() = None;
         let load_id = id.clone();
         let engine = tauri::async_runtime::spawn_blocking(move || models::load(&dir, &load_id))
             .await
@@ -209,7 +211,12 @@ fn remove_model(app: tauri::AppHandle, id: String) -> Result<(), String> {
         *engine = None;
     }
     if path.exists() {
-        std::fs::remove_file(path).map_err(|e| e.to_string())?;
+        if id == "parakeet" {
+            std::fs::remove_dir_all(path)
+        } else {
+            std::fs::remove_file(path)
+        }
+        .map_err(|e| e.to_string())?;
     }
     changed(&app);
     Ok(())
@@ -322,22 +329,6 @@ async fn finish_recording(app: tauri::AppHandle) -> Result<(), String> {
         let samples = resample(&recording.samples, recording.rate);
         let entries = state.data.lock().unwrap().dictionary.clone();
         let original = {
-            let engine = state.engine.lock().unwrap();
-            let context = &engine.as_ref().ok_or("Load the model before recording.")?.1;
-            let mut inference = context.create_state().map_err(|e| e.to_string())?;
-            let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-            params.set_n_threads(
-                std::thread::available_parallelism()
-                    .map(|v| v.get().min(8) as i32)
-                    .unwrap_or(2),
-            );
-            params.set_language(None);
-            params.set_translate(false);
-            params.set_no_context(true);
-            params.set_print_progress(false);
-            params.set_print_realtime(false);
-            params.set_print_timestamps(false);
-            params.set_print_special(false);
             let vocabulary = entries
                 .iter()
                 .filter(|e| e.is_enabled && e.kind == "vocabulary")
@@ -345,19 +336,12 @@ async fn finish_recording(app: tauri::AppHandle) -> Result<(), String> {
                 .map(|e| e.source_phrase.clone())
                 .collect::<Vec<_>>()
                 .join(", ");
-            if !vocabulary.is_empty() {
-                params.set_initial_prompt(&vocabulary);
-            }
-            let cancel = state.cancel.clone();
-            params.set_abort_callback_safe(move || cancel.load(Ordering::SeqCst));
-            inference
-                .full(params, &samples)
-                .map_err(|e| e.to_string())?;
-            let mut parts = vec![];
-            for segment in inference.as_iter() {
-                parts.push(segment.to_str().map_err(|e| e.to_string())?.to_string());
-            }
-            normalize(&parts.join(" "))
+            let mut engine = state.engine.lock().unwrap();
+            engine
+                .as_mut()
+                .ok_or("Load the model before recording.")?
+                .1
+                .transcribe(&samples, &vocabulary, state.cancel.clone())?
         };
         if state.cancel.load(Ordering::SeqCst)
             || state.generation.load(Ordering::SeqCst) != id
@@ -546,14 +530,22 @@ fn save_preferences(app: tauri::AppHandle, preferences: Preferences) -> Result<(
     if preferences.model != data.preferences.model {
         return Err("Use model setup to change recognition models.".into());
     }
+    if cfg!(windows) {
+        dictate_core::shortcut::Binding::parse(&preferences.shortcut)?;
+    }
     if old != preferences.shortcut {
-        let key = preferences
-            .shortcut
-            .parse::<tauri_plugin_global_shortcut::Shortcut>()
-            .map_err(|e| e.to_string())?;
-        app.global_shortcut()
-            .register(key)
-            .map_err(|e| e.to_string())?;
+        #[cfg(windows)]
+        shortcuts::configure(&preferences.shortcut)?;
+        #[cfg(not(windows))]
+        {
+            let key = preferences
+                .shortcut
+                .parse::<tauri_plugin_global_shortcut::Shortcut>()
+                .map_err(|e| e.to_string())?;
+            app.global_shortcut()
+                .register(key)
+                .map_err(|e| e.to_string())?;
+        }
     }
     let mut next = data.clone();
     next.preferences = preferences;
@@ -561,6 +553,9 @@ fn save_preferences(app: tauri::AppHandle, preferences: Preferences) -> Result<(
     retain_history(&mut next.history, &retention, Utc::now());
     if let Err(error) = state.persist(&next) {
         if old != next.preferences.shortcut {
+            #[cfg(windows)]
+            let _ = shortcuts::configure(&old);
+            #[cfg(not(windows))]
             let _ = app
                 .global_shortcut()
                 .unregister(next.preferences.shortcut.as_str());
@@ -568,6 +563,7 @@ fn save_preferences(app: tauri::AppHandle, preferences: Preferences) -> Result<(
         return Err(error);
     }
     if old != next.preferences.shortcut {
+        #[cfg(not(windows))]
         let _ = app.global_shortcut().unregister(old.as_str());
         *state.shortcut_error.lock().unwrap() = None;
     }
@@ -666,25 +662,71 @@ fn import_dictionary(app: tauri::AppHandle, path: PathBuf) -> Result<(), String>
     save_dictionary(app, entries)
 }
 
+fn handle_shortcut(app: &tauri::AppHandle, pressed: bool) {
+    let state = app.state::<Runtime>();
+    let phase = *state.phase.lock().unwrap();
+    let toggle = state.data.lock().unwrap().preferences.recording_mode == "clickToToggle";
+    let action = state.gesture.lock().unwrap().event(pressed, toggle, phase);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let result = match action {
+            Action::Start => {
+                let result = start_recording(app.clone()).await;
+                if result.is_ok()
+                    && !toggle
+                    && !app.state::<Runtime>().gesture.lock().unwrap().is_pressed()
+                {
+                    finish_recording(app.clone()).await
+                } else {
+                    result
+                }
+            }
+            Action::Stop => finish_recording(app.clone()).await,
+            Action::None => Ok(()),
+        };
+        if let Err(e) = result {
+            app.state::<Runtime>().notice(e);
+            changed(&app);
+        }
+    });
+}
+#[tauri::command]
+fn pause_shortcut(app: tauri::AppHandle, paused: bool) -> Result<(), String> {
+    let state = app.state::<Runtime>();
+    if paused && *state.phase.lock().unwrap() != Phase::Idle {
+        return Err("Finish recording before assigning a shortcut.".into());
+    }
+    shortcuts::pause(paused);
+    *state.gesture.lock().unwrap() = ShortcutGesture::default();
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
  .plugin(tauri_plugin_single_instance::init(|app,_,_|{if let Some(w)=app.get_webview_window("main"){let _=w.show();let _=w.set_focus();}}))
  .plugin(tauri_plugin_dialog::init())
  .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app,_,event|{
-  let state=app.state::<Runtime>();let phase=*state.phase.lock().unwrap();let toggle=state.data.lock().unwrap().preferences.recording_mode=="clickToToggle";
-  let action=state.gesture.lock().unwrap().event(event.state==ShortcutState::Pressed,toggle,phase);let app=app.clone();
-  tauri::async_runtime::spawn(async move{let result=match action{Action::Start=>start_recording(app.clone()).await,Action::Stop=>finish_recording(app.clone()).await,Action::None=>Ok(())};if let Err(e)=result{app.state::<Runtime>().notice(e);changed(&app);}});
+  #[cfg(not(windows))]
+  handle_shortcut(app,event.state==ShortcutState::Pressed);
+  #[cfg(windows)]
+  let _=(app,event);
  }).build())
- .invoke_handler(tauri::generate_handler![get_state,setup_model,cancel_setup,remove_model,start_recording,finish_recording,cancel_recording,copy_text,discard_recovery,retry_delivery,save_preferences,save_dictionary,update_history,export_data,import_dictionary])
+ .invoke_handler(tauri::generate_handler![get_state,pause_shortcut,setup_model,cancel_setup,remove_model,start_recording,finish_recording,cancel_recording,copy_text,discard_recovery,retry_delivery,save_preferences,save_dictionary,update_history,export_data,import_dictionary])
  .setup(|app|{
   let dir=app.path().app_data_dir()?;std::fs::create_dir_all(&dir)?;let file=dir.join("data.json");
   // A corrupt archive is a visible startup error, never silently overwritten.
   let mut data=if file.exists(){serde_json::from_slice::<Data>(&std::fs::read(&file)?)?}else{Data::default()};
   if data.schema_version!=1{return Err("Unsupported data schema. Keep your archive and use a compatible version.".into());}
+  if cfg!(windows) && data.preferences.shortcut_version==0 {
+   if data.preferences.shortcut=="CommandOrControl+Shift+Space" {
+   data.preferences.shortcut="ControlRight".into();}
+   data.preferences.shortcut_version=1;
+   atomic_save(&file,&data)?;
+  }
   validate_dictionary(&data.dictionary)?;let retention=data.preferences.retention.clone();retain_history(&mut data.history,&retention,Utc::now());
   let model=data.preferences.model.clone();let shortcut=data.preferences.shortcut.clone();
   app.manage(Runtime{data:Mutex::new(data),dir,audio:audio::Audio::new(app.handle().clone()),clipboard:delivery::Clipboard::new(),engine:Mutex::new(None),phase:Mutex::new(Phase::Idle),gesture:Mutex::new(ShortcutGesture::default()),cancel:Arc::new(AtomicBool::new(false)),setup_cancel:Arc::new(AtomicBool::new(false)),setting_up:AtomicBool::new(false),generation:AtomicU64::new(0),notice:Mutex::new(None),shortcut_error:Mutex::new(None)});
-  if let Err(e)=app.global_shortcut().register(shortcut.as_str()){*app.state::<Runtime>().shortcut_error.lock().unwrap()=Some(format!("Global shortcut unavailable: {e}. Use the Record button or choose another shortcut."));}
+  if let Err(e)=shortcuts::start(app.handle().clone(),shortcut.as_str()){*app.state::<Runtime>().shortcut_error.lock().unwrap()=Some(format!("Global shortcut unavailable: {e}. Use the Record button or choose another shortcut."));}
   let overlay=tauri::WebviewWindowBuilder::new(app,"overlay",tauri::WebviewUrl::App("index.html?overlay=1".into())).title("Dictate recording").inner_size(280.,64.).decorations(false).always_on_top(true).skip_taskbar(true).focused(false).focusable(false).visible(false).resizable(false).build()?;
   if let Ok(Some(monitor))=overlay.primary_monitor(){let scale=monitor.scale_factor();let size=monitor.size();let origin=monitor.position();let _=overlay.set_position(tauri::LogicalPosition::new(origin.x as f64/scale+(size.width as f64/scale-280.)/2.,origin.y as f64/scale+size.height as f64/scale-120.));}
   let show=tauri::menu::MenuItem::with_id(app,"show","Open Dictate",true,None::<&str>)?;
@@ -692,10 +734,10 @@ fn main() {
   let menu=tauri::menu::Menu::with_items(app,&[&show,&quit])?;
   let mut tray=tauri::tray::TrayIconBuilder::new().menu(&menu).tooltip("Dictate").on_menu_event(|app,event|{match event.id.as_ref(){"show"=>{if let Some(w)=app.get_webview_window("main"){let _=w.show();let _=w.set_focus();}},"quit"=>app.exit(0),_=>{}}});
   if let Some(icon)=app.default_window_icon(){tray=tray.icon(icon.clone());}let _=tray.build(app)?;
-  let handle=app.handle().clone();let path=models::path(&handle.state::<Runtime>().dir,&model)?;
-  if path.exists(){tauri::async_runtime::spawn(async move{let _=setup_model(handle,model,false).await;});}
+  let handle=app.handle().clone();
+  if models::is_installed(&handle.state::<Runtime>().dir,&model){tauri::async_runtime::spawn(async move{let _=setup_model(handle,model,false).await;});}
   Ok(())
  })
- .on_window_event(|window,event|{if window.label()=="main"{if let tauri::WindowEvent::CloseRequested{api,..}=event{api.prevent_close();let _=window.hide();}}})
+ .on_window_event(|window,event|{if window.label()=="main"{if matches!(event,tauri::WindowEvent::Focused(false)){shortcuts::pause(false);}if let tauri::WindowEvent::CloseRequested{api,..}=event{api.prevent_close();let _=window.hide();}}})
  .run(tauri::generate_context!()).expect("Dictate could not start. Your local data has been preserved.");
 }

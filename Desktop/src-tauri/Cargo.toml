@@ -18,6 +18,7 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 cpal = "0.15.3"
 whisper-rs = "0.16.0"
+parakeet-rs = { version = "=0.3.7", default-features = false, features = ["cpu", "ort-defaults", "api-27"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
 futures-util = "0.3"
 sha2 = "0.10"
@@ -25,7 +26,7 @@ tempfile = "3"
 arboard = "3"
 [target.'cfg(windows)'.dependencies]
 enigo = "0.6.1"
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility", "Win32_System_Com", "Win32_System_DataExchange"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility", "Win32_System_Com", "Win32_System_DataExchange", "Win32_System_LibraryLoader", "Win32_UI_Input_KeyboardAndMouse"] }
 [dependencies.tokio]
 version = "1"
 features = ["time", "sync"]
