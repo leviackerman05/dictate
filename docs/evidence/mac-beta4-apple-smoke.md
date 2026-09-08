@@ -21,3 +21,7 @@ Insertion-independent transcription output:
 ```text
 This is a local dictation test. Keep my words on this computer.
 ```
+
+## CI-built release artifact
+
+The DMG produced by release run `34244906682` was downloaded, mounted read-only, and its strict ad-hoc signature and build 11004 verified. The executable inside that DMG completed the same Apple test in **0.2992 seconds**, RTF **0.0789**, normalized WER **0** on the same host. This validates the distributed binary as well as the local build. No microphone or model download was involved.
