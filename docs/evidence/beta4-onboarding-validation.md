@@ -1,5 +1,7 @@
 # Beta 4 onboarding and download flow
 
+**Subsequent user testing (September 8):** Linux support is paused and has been removed from current source and downloads. A Windows 11 user supplied a Smart App Control dialog blocking the beta installer because the publisher could not be verified. Installation on that device failed before app startup; microphone/recognition/editor acceptance there remains untested. Automated build success below does not resolve this distribution blocker. See [current installation limitations](../INSTALLATION.md#windows-beta).
+
 Recorded September 8, 2026. Zero paid APIs, signing, hosting upgrades, or paid CI runners were used. Release builds use standard runners in the public repository; hosting remains the existing Vercel Hobby project.
 
 ## Changes

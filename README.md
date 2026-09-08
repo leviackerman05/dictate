@@ -80,7 +80,7 @@ installed path. It never invokes Xcode or compiles local source changes.
 On supported macOS 26 Macs, setup defaults to Apple Speech, including a one-time
 reset of older saved selections in beta 4. Later explicit choices are preserved.
 The native Mac app supports Apple's on-device speech model where available,
-NVIDIA Parakeet, and Whisper. Windows use CPU Whisper with a verified
+NVIDIA Parakeet, and Whisper. Windows uses CPU Whisper with a verified
 in-app download. Larger models are optional.
 Apple may install an OS-managed speech asset, while Parakeet and Whisper models
 are downloaded from their documented Hugging Face repositories. Raw microphone

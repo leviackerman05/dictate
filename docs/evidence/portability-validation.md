@@ -1,5 +1,7 @@
 # Community beta validation — v1.1.0-beta.3
 
+**Subsequent user testing (September 8):** Linux support is paused and has been removed from current source and downloads. A Windows 11 user supplied a Smart App Control dialog blocking the beta installer because the publisher could not be verified. Installation on that device failed before app startup; microphone/recognition/editor acceptance there remains untested. Automated build success below does not resolve this distribution blocker. See [current installation limitations](../INSTALLATION.md#windows-beta).
+
 For the subsequent Apple-first onboarding and website update, see [beta 4 validation](beta4-onboarding-validation.md). The record below describes beta 3 at the time it was tested.
 
 Recorded 2026-09-08. This is a testable community beta, not a certification of all
