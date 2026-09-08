@@ -549,6 +549,7 @@ fn save_preferences(app: tauri::AppHandle, preferences: Preferences) -> Result<(
     }
     let mut next = data.clone();
     next.preferences = preferences;
+    next.preferences.shortcut_version = 1;
     let retention = next.preferences.retention.clone();
     retain_history(&mut next.history, &retention, Utc::now());
     if let Err(error) = state.persist(&next) {

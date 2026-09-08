@@ -140,6 +140,7 @@ pub fn load(dir: &Path, id: &str) -> Result<SpeechEngine, String> {
         verify(&component_path(dir, m, component), component)?;
     }
     if id == "parakeet" {
+        crate::engine::prepare_runtime()?;
         return parakeet_rs::ParakeetTDT::from_pretrained(&file, None)
             .map(|engine| SpeechEngine::Parakeet(Box::new(engine)))
             .map_err(|e| {

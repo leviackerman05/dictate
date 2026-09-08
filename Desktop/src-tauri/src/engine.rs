@@ -64,3 +64,30 @@ impl SpeechEngine {
         Ok(dictate_core::normalize(&parts.join(" ")))
     }
 }
+
+/// Resolve only the packaged runtime, never a DLL from the working directory.
+pub fn prepare_runtime() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let executable = std::env::current_exe().map_err(|e| e.to_string())?;
+        let folder = executable.parent().ok_or("Cannot locate the app folder.")?;
+        let packaged = folder.join("onnxruntime.dll");
+        let path = if packaged.is_file() {
+            packaged
+        } else {
+            // cargo test/dev uses staged resources before an installer exists.
+            #[cfg(debug_assertions)]
+            {
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/onnxruntime.dll")
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                return Err("The packaged speech runtime is missing. Reinstall Dictate.".into());
+            }
+        };
+        ort::init_from(path)
+            .map_err(|e| format!("The speech runtime could not load: {e}. Reinstall Dictate."))?
+            .commit();
+    }
+    Ok(())
+}

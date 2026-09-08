@@ -28,3 +28,5 @@ Desktop/src-tauri/gen/
 .impeccable/
 
 !Desktop/src-tauri/icons/icon.icns
+
+Desktop/src-tauri/runtime/

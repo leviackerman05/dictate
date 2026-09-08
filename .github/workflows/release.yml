@@ -62,6 +62,8 @@ jobs:
       - run: npm ci
         working-directory: Desktop
       - run: cargo test --locked --manifest-path Desktop/core/Cargo.toml
+      - name: Stage app-local speech runtime
+        run: ./Scripts/prepare-windows-runtime.ps1
       - name: Prepare verified model and synthetic speech
         run: python Scripts/prepare-portable-smoke.py
         env:
@@ -70,6 +72,7 @@ jobs:
         run: cargo test --release --locked --manifest-path Desktop/src-tauri/Cargo.toml --test recognition_smoke -- --ignored
         env:
           DICTATE_SMOKE_DIR: ${{ runner.temp }}/dictate-smoke
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUNNER: powershell -NoProfile -File Scripts/run-windows-test.ps1
       - name: Build Windows installer
         run: npm run tauri -- build --bundles nsis
         working-directory: Desktop
