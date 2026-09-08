@@ -50,6 +50,10 @@ use an installer. Physical-device acceptance testing is still pending; see
 | Mac | DMG; drag to Applications | Apple silicon, macOS 14+; Apple speech requires compatible macOS 26 |
 | Windows beta | User installer | Windows 10/11, x64; free WebView2 runtime installed if missing |
 
+Linux support is paused. Older Linux release assets are unsupported previews.
+The unsigned Windows beta may be blocked by Smart App Control; see the
+[installation guide](docs/INSTALLATION.md#windows-beta).
+
 Mac builds are ad-hoc signed, without paid Apple signing or notarization. For an
 unverified-developer warning, attempt to open the trusted app, then use **System
 Settings → Privacy & Security**, scroll down to **Security**, and choose **Open Anyway**.
@@ -94,10 +98,6 @@ audio is only used for the active recording session and is not written to disk.
 
 Building the native Mac app requires full Xcode, Swift 6.2 or newer, and the
 macOS 26 SDK. This is a developer requirement, separate from using the app.
-Linux support is paused. Older Linux release assets are unsupported previews.
-The unsigned Windows beta may be blocked by Smart App Control; see the
-[installation guide](docs/INSTALLATION.md#windows-beta).
-
 For Windows development, see [Desktop/README.md](Desktop/README.md).
 
 ```sh
