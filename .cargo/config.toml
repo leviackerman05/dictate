@@ -1,0 +1,12 @@
+# Build portable CPU binaries, independent of the CI runner's instruction set.
+# whisper-rs-sys forwards GGML_* environment variables to CMake.
+[env]
+GGML_NATIVE = "OFF"
+GGML_AVX = "OFF"
+GGML_AVX2 = "OFF"
+GGML_AVX512 = "OFF"
+GGML_AVX512_VBMI = "OFF"
+GGML_AVX512_VNNI = "OFF"
+GGML_FMA = "OFF"
+GGML_F16C = "OFF"
+GGML_SSE42 = "OFF"

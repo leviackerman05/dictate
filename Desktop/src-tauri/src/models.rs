@@ -73,6 +73,9 @@ pub fn verify(path: &Path, m: &Model) -> Result<(), String> {
     Ok(())
 }
 pub fn load(dir: &Path, id: &str) -> Result<WhisperContext, String> {
+    // Upstream debug logs can include decoded tokens. No log backend is enabled;
+    // these hooks suppress whisper.cpp and GGML output even in developer builds.
+    whisper_rs::install_logging_hooks();
     let m = model(id)?;
     let file = path(dir, id)?;
     verify(&file, m)?;

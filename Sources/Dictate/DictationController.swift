@@ -98,6 +98,7 @@ final class DictationController: ObservableObject {
     }
 
     func warmUpSelectedModel(allowDownload: Bool = true) {
+        guard state == .idle || lastFailure != nil else { return }
         warmupTask?.cancel()
         readyConfirmationTask?.cancel()
         readyConfirmationTask = nil
@@ -191,6 +192,7 @@ final class DictationController: ObservableObject {
     }
 
     func removeModel(for provider: TranscriptionProvider) {
+        guard state == .idle || lastFailure != nil else { return }
         if self.provider == provider {
             warmupTask?.cancel()
             warmupTask = nil

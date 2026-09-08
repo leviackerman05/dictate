@@ -1,6 +1,65 @@
 {
- "$schema":"https://schema.tauri.app/config/2", "productName":"Dictate", "version":"1.1.0-beta.1", "identifier":"app.dictate.portable",
- "build":{"beforeDevCommand":"npm run dev", "devUrl":"http://localhost:1420", "beforeBuildCommand":"npm run build", "frontendDist":"../dist"},
- "app":{"windows":[{"label":"main","title":"Dictate","width":1120,"height":780,"minWidth":760,"minHeight":600}],"security":{"csp":"default-src 'self'; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; base-uri 'self'"}},
- "bundle":{"active":true,"targets":"all","category":"Productivity","shortDescription":"Local, private dictation","copyright":"Copyright © 2026 Aditi Dubey","icon":["icons/32x32.png","icons/128x128.png","icons/icon.ico","icons/icon.icns"],"windows":{"nsis":{"installMode":"currentUser"},"webviewInstallMode":{"type":"downloadBootstrapper"}},"linux":{"deb":{"depends":["libasound2","libwebkit2gtk-4.1-0","libayatana-appindicator3-1"]},"appimage":{"bundleMediaFramework":true}}}
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Dictate",
+  "version": "1.1.0-beta.1",
+  "identifier": "app.dictate.portable",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Dictate",
+        "width": 1120,
+        "height": 780,
+        "minWidth": 760,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; base-uri 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "Local, private dictation",
+    "copyright": "Copyright \u00a9 2026 Aditi Dubey",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libasound2",
+          "libwebkit2gtk-4.1-0",
+          "libayatana-appindicator3-1"
+        ]
+      },
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    },
+    "resources": {
+      "THIRD_PARTY_LICENSES.txt": "THIRD_PARTY_LICENSES.txt",
+      "../../LICENSE": "LICENSE",
+      "../../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"
+    }
+  }
 }

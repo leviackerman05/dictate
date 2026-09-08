@@ -11,13 +11,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg"><img alt="Download Dictate" src="https://img.shields.io/badge/Download-Dictate.dmg-3155D9?style=for-the-badge&logo=apple&logoColor=white"></a>
+  <a href="https://dictate-macos.vercel.app/download"><img alt="Download Dictate" src="https://img.shields.io/badge/Download-Dictate.dmg-3155D9?style=for-the-badge&logo=apple&logoColor=white"></a>
   <a href="https://dictate-macos.vercel.app"><img alt="Dictate website" src="https://img.shields.io/badge/Visit-Website-4E7C62?style=for-the-badge&logo=vercel&logoColor=white"></a>
   <a href="https://github.com/leviackerman05/dictate/releases"><img alt="GitHub releases" src="https://img.shields.io/badge/GitHub-Releases-4E7C62?style=for-the-badge&logo=github&logoColor=white"></a>
 </p>
 
 <p align="center">
-  <img alt="macOS 26 or newer" src="https://img.shields.io/badge/macOS-26%2B-3155D9?style=flat-square">
+  <img alt="macOS 14 or newer" src="https://img.shields.io/badge/macOS-14%2B-3155D9?style=flat-square">
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-native-4E7C62?style=flat-square">
   <img alt="Local first" src="https://img.shields.io/badge/transcription-local%20first-3155D9?style=flat-square">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-4E7C62?style=flat-square&logo=swift&logoColor=white">
@@ -27,7 +27,7 @@
   <img src="docs/evidence/ui/dictate-dashboard.png" width="1100" alt="Dictate dashboard in dark mode">
 </p>
 
-Dictate is a small macOS app for getting spoken words into the field you are
+Dictate is a small native macOS app for getting spoken words into the field you are
 already using. Pick a shortcut, hold it while you speak, and release it to
 finish. If Dictate cannot safely return the words to your current field, the
 transcript stays available to copy instead.
@@ -39,27 +39,45 @@ available to copy instead of repeatedly asking for permission.
 
 ## Download
 
-[Check the Releases page](https://github.com/leviackerman05/dictate/releases) for
-a release that contains `Dictate.dmg` and `Dictate.dmg.sha256`. If no DMG is
-attached yet, build from source below.
+[Download Dictate for Mac, Windows, or Linux](https://dictate-macos.vercel.app/download).
+The **v1.1.0-beta.1 community beta** introduces macOS 14+ targeting and a portable
+Windows/Linux app. No developer tools, account, API key, or payment is needed to
+use an installer. Physical-device acceptance testing is still pending; see
+[the validation record](docs/evidence/portability-validation.md).
 
-Dictate currently requires macOS 26 or newer on Apple silicon. Public builds are
-distributed through GitHub Releases. This is currently an open-source community
-build: it is not signed with an Apple Developer ID or notarized by Apple. After
-dragging Dictate to Applications, macOS may ask you to Control-click the app and
-choose **Open** the first time. See the full [installation and checksum
-guide](docs/INSTALLATION.md); it does not recommend disabling macOS security.
+| Platform | Installer | Requirements |
+| --- | --- | --- |
+| Mac | DMG; drag to Applications | Apple silicon, macOS 14+; Apple speech requires compatible macOS 26 |
+| Windows beta | User installer | Windows 10/11, x64; free WebView2 runtime installed if missing |
+| Linux beta | .deb / AppImage | x64, Ubuntu 22.04+ or compatible; Wayland uses Record + Copy |
+
+Mac builds are ad-hoc signed, without paid Apple signing or notarization. For an
+unverified-developer warning, attempt to open the trusted app, then use **System
+Settings → Privacy & Security → Open Anyway**. An explicit malware or damaged-app
+warning needs investigation; do not bypass it. Managed computers may require an
+administrator. See [installation and checksums](docs/INSTALLATION.md).
+
+Already cloned or extracted the repository on a compatible Mac?
+
+```sh
+./Scripts/start.sh
+```
+
+This installs the pinned, checksum-verified prebuilt release and opens its actual
+installed path. It never invokes Xcode or compiles local source changes.
 
 ## Using Dictate
 
-1. Allow Microphone access. Allow Accessibility access if you want automatic
-   insertion into other apps.
+1. Allow Microphone access and click **Set up recommended model**. On Mac,
+   allow Accessibility if you want automatic insertion into other apps.
 2. Choose a trigger key and either **Hold to talk** or **Click to toggle**.
 3. Put the cursor in a text field, then dictate.
 4. Review previous transcripts in History or teach Dictate names and preferred
    corrections in Dictionary.
 
-Dictate supports Apple's on-device speech model, NVIDIA Parakeet, and Whisper.
+The native Mac app supports Apple's on-device speech model where available,
+NVIDIA Parakeet, and Whisper. Windows/Linux use CPU Whisper with a verified
+in-app download. Larger models are optional.
 Apple may install an OS-managed speech asset, while Parakeet and Whisper models
 are downloaded from their documented Hugging Face repositories. Raw microphone
 audio is only used for the active recording session and is not written to disk.
@@ -70,7 +88,9 @@ audio is only used for the active recording session and is not written to disk.
 
 ## Build it locally
 
-You will need Swift 6.2 or newer and the macOS 26 SDK.
+Building the native Mac app requires full Xcode, Swift 6.2 or newer, and the
+macOS 26 SDK. This is a developer requirement, separate from using the app.
+For Windows/Linux development, see [Desktop/README.md](Desktop/README.md).
 
 ```sh
 swift test

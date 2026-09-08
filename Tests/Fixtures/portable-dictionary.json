@@ -1,0 +1,76 @@
+{
+  "dictionary": {
+    "schemaVersion": 1,
+    "exportedAt": "2026-09-08T00:00:00Z",
+    "entries": [
+      {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "kind": "correction",
+        "sourcePhrase": "cloud code",
+        "targetPhrase": "Claude Code",
+        "notes": null,
+        "isEnabled": true,
+        "createdAt": "2026-09-08T00:00:00Z",
+        "updatedAt": "2026-09-08T00:00:00Z"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000002",
+        "kind": "correction",
+        "sourcePhrase": "Claude Code",
+        "targetPhrase": "not recursive",
+        "notes": null,
+        "isEnabled": true,
+        "createdAt": "2026-09-08T00:00:00Z",
+        "updatedAt": "2026-09-08T00:00:00Z"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000003",
+        "kind": "correction",
+        "sourcePhrase": "café",
+        "targetPhrase": "coffee",
+        "notes": null,
+        "isEnabled": true,
+        "createdAt": "2026-09-08T00:00:00Z",
+        "updatedAt": "2026-09-08T00:00:00Z"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000004",
+        "kind": "correction",
+        "sourcePhrase": "new york",
+        "targetPhrase": "New York City",
+        "notes": null,
+        "isEnabled": true,
+        "createdAt": "2026-09-08T00:00:00Z",
+        "updatedAt": "2026-09-08T00:00:00Z"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000005",
+        "kind": "correction",
+        "sourcePhrase": "new",
+        "targetPhrase": "fresh",
+        "notes": null,
+        "isEnabled": true,
+        "createdAt": "2026-09-08T00:00:00Z",
+        "updatedAt": "2026-09-08T00:00:00Z"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "input": "cloud-code and café!",
+      "expected": "Claude Code and coffee!"
+    },
+    {
+      "input": "cloudcode, cloudcodec, new york.",
+      "expected": "Claude Code, cloudcodec, New York City."
+    },
+    {
+      "input": "🌼 café new_york",
+      "expected": "🌼 coffee new_york"
+    },
+    {
+      "input": "CLOUD CODE",
+      "expected": "Claude Code"
+    }
+  ]
+}

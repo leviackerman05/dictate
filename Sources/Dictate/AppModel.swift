@@ -133,6 +133,10 @@ final class AppModel: ObservableObject {
     }
     @Published var transcriptionProvider: TranscriptionProvider {
         didSet {
+            guard dictation.state == .idle || dictation.lastFailure != nil else {
+                transcriptionProvider = oldValue
+                return
+            }
             UserDefaults.standard.set(transcriptionProvider.rawValue, forKey: Keys.transcriptionProvider)
             dictation.selectProvider(transcriptionProvider, allowDownload: false)
         }

@@ -1,6 +1,8 @@
 # Dictate distribution and portability plan
 
-Prepared: 2026-09-08. Status: proposal, not an implementation or release verification.
+Prepared: 2026-09-08. Implementation status: community beta implemented; release validation in progress.
+
+The original phased plan below records the intended longer-term rollout. Current code delivers a native Mac build targeting macOS 14+, a verified repository launcher, explicit model onboarding, and Windows/Linux portable beta installers. Wayland remains Record + Copy; Intel Mac and additional Linux desktop integrations remain future work. Physical-device acceptance, including the owner's two macOS 26 machines, is not claimed by automated checks. See [the validation record](evidence/portability-validation.md) for actual results and the short test procedure.
 
 Implementation constraint (owner, 2026-09-08): spend no money. Use local recognition and free/open-source dependencies. Do not buy Apple membership, signing certificates, paid APIs, hosting, or CI capacity. Paid distribution options below are background information only and are excluded from the authorized implementation. Publish community builds with accurate first-launch instructions; use only existing free deployment capacity and public-repository standard CI runners.
 

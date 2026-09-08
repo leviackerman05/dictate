@@ -1,9 +1,9 @@
 name: Portable desktop checks
 on:
   push:
-    paths: ['Desktop/**', '.github/workflows/portable.yml']
+    paths: ['Desktop/**', '.cargo/**', 'Tests/Fixtures/**', '.github/workflows/portable.yml']
   pull_request:
-    paths: ['Desktop/**', '.github/workflows/portable.yml']
+    paths: ['Desktop/**', '.cargo/**', 'Tests/Fixtures/**', '.github/workflows/portable.yml']
 permissions:
   contents: read
 jobs:

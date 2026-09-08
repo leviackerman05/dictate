@@ -13,13 +13,16 @@ pub struct DictionaryEntry {
     pub target_phrase: Option<String>,
     pub notes: Option<String>,
     pub is_enabled: bool,
+    #[serde(serialize_with = "serialize_date")]
     pub created_at: DateTime<Utc>,
+    #[serde(serialize_with = "serialize_date")]
     pub updated_at: DateTime<Utc>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DictionaryDocument {
     pub schema_version: u32,
+    #[serde(serialize_with = "serialize_date")]
     pub exported_at: DateTime<Utc>,
     pub entries: Vec<DictionaryEntry>,
 }
@@ -33,6 +36,7 @@ pub struct CorrectionAudit {
 #[serde(rename_all = "camelCase")]
 pub struct HistoryItem {
     pub id: Uuid,
+    #[serde(serialize_with = "serialize_date")]
     pub timestamp: DateTime<Utc>,
     pub original_transcript: String,
     pub corrected_text: String,
@@ -46,6 +50,15 @@ pub struct HistoryItem {
 pub struct HistoryDocument {
     pub schema_version: u32,
     pub items: Vec<HistoryItem>,
+}
+
+// Swift JSONDecoder's .iso8601 accepts whole-second timestamps. Preserve that
+// wire format while allowing Rust to read fractional timestamps from the UI.
+fn serialize_date<S: serde::Serializer>(
+    value: &DateTime<Utc>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&value.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
 }
 
 pub fn normalize(s: &str) -> String {
@@ -65,6 +78,9 @@ pub fn validate_dictionary(entries: &[DictionaryEntry]) -> Result<(), String> {
         }
         if e.source_phrase.trim().is_empty() || e.source_phrase.len() > 2048 {
             return Err("Use a phrase between 1 and 2048 bytes.".into());
+        }
+        if e.target_phrase.as_ref().is_some_and(|v| v.len() > 2048) {
+            return Err("Written phrases must be at most 2048 bytes.".into());
         }
         match e.kind.as_str() {
             "correction" if e.target_phrase.as_deref().unwrap_or("").trim().is_empty() => {
@@ -238,8 +254,8 @@ pub fn retain_history(items: &mut Vec<HistoryItem>, retention: &str, now: DateTi
     items.retain(|i| i.is_pinned || i.timestamp >= cutoff);
 }
 
-/// Linear interpolation is used for the portable CPU input path. The audio
-/// callback first downmixes channels; this function runs off the realtime thread.
+/// A fourth-order low-pass removes above-Nyquist energy before downsampling.
+/// The callback downmixes channels; filtering/interpolation run off its thread.
 pub fn resample(samples: &[f32], rate: u32) -> Vec<f32> {
     if rate == 0 || samples.is_empty() {
         return vec![];
@@ -247,6 +263,32 @@ pub fn resample(samples: &[f32], rate: u32) -> Vec<f32> {
     if rate == 16000 {
         return samples.to_vec();
     }
+    let mut filtered;
+    let samples = if rate > 16000 {
+        filtered = samples.to_vec();
+        let omega = 2. * std::f64::consts::PI * 7200. / rate as f64;
+        for q in [0.5411961, 1.3065630] {
+            let alpha = omega.sin() / (2. * q);
+            let a0 = 1. + alpha;
+            let b0 = (1. - omega.cos()) / (2. * a0);
+            let b1 = 2. * b0;
+            let a1 = -2. * omega.cos() / a0;
+            let a2 = (1. - alpha) / a0;
+            let (mut x1, mut x2, mut y1, mut y2) = (0., 0., 0., 0.);
+            for value in &mut filtered {
+                let x = *value as f64;
+                let y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+                x2 = x1;
+                x1 = x;
+                y2 = y1;
+                y1 = y;
+                *value = y as f32;
+            }
+        }
+        filtered.as_slice()
+    } else {
+        samples
+    };
     let count = (samples.len() as u64 * 16000 / rate as u64) as usize;
     (0..count)
         .map(|i| {
@@ -261,6 +303,42 @@ pub fn resample(samples: &[f32], rate: u32) -> Vec<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shared_mac_dictionary_fixture_and_export_dates() {
+        #[derive(Deserialize)]
+        struct Case {
+            input: String,
+            expected: String,
+        }
+        #[derive(Deserialize)]
+        struct Fixture {
+            dictionary: DictionaryDocument,
+            cases: Vec<Case>,
+        }
+        let f: Fixture = serde_json::from_str(include_str!(
+            "../../../Tests/Fixtures/portable-dictionary.json"
+        ))
+        .unwrap();
+        validate_dictionary(&f.dictionary.entries).unwrap();
+        for case in f.cases {
+            assert_eq!(correct(&case.input, &f.dictionary.entries).0, case.expected);
+        }
+        let json = serde_json::to_value(&f.dictionary).unwrap();
+        assert_eq!(json["exportedAt"], "2026-09-08T00:00:00Z");
+    }
+    #[test]
+    fn downsampling_rejects_aliases_but_preserves_speech_band() {
+        let tone = |hz: f32| {
+            (0..48000)
+                .map(|i| (i as f32 * 2. * std::f32::consts::PI * hz / 48000.).sin())
+                .collect::<Vec<_>>()
+        };
+        let rms = |s: Vec<f32>| {
+            (s[100..].iter().map(|v| v * v).sum::<f32>() / (s.len() - 100) as f32).sqrt()
+        };
+        assert!(rms(resample(&tone(1000.), 48000)) > 0.65);
+        assert!(rms(resample(&tone(12000.), 48000)) < 0.1);
+    }
     fn entry(from: &str, to: &str) -> DictionaryEntry {
         DictionaryEntry {
             id: Uuid::new_v4(),
@@ -332,7 +410,14 @@ mod tests {
         atomic_save(&file, &doc).unwrap();
         let loaded: DictionaryDocument =
             serde_json::from_slice(&std::fs::read(file).unwrap()).unwrap();
-        assert_eq!(doc.entries, loaded.entries);
+        assert_eq!(
+            serde_json::to_value(&doc.entries).unwrap(),
+            serde_json::to_value(&loaded.entries).unwrap()
+        );
+        assert_eq!(
+            loaded.entries[0].created_at.timestamp(),
+            doc.entries[0].created_at.timestamp()
+        );
         assert!(validate_dictionary(&[entry("", "x")]).is_err());
     }
 }

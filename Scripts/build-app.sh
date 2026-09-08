@@ -39,6 +39,17 @@ cp Sources/Dictate/Resources/AppIcon.svg "$APP_DIR/Contents/Resources/AppIcon.sv
 cp Sources/Dictate/Resources/MenuBarGlyph.svg "$APP_DIR/Contents/Resources/MenuBarGlyph.svg"
 cp Sources/Dictate/Resources/Info.plist "$APP_DIR/Contents/Info.plist"
 cp Release/version.txt "$APP_DIR/Contents/Resources/release-version.txt"
+cp LICENSE THIRD_PARTY_NOTICES.md "$APP_DIR/Contents/Resources/"
+mkdir -p "$APP_DIR/Contents/Resources/ThirdPartyLicenses"
+for dependency in .build/checkouts/*; do
+  [ -d "$dependency" ] || continue
+  name=$(basename "$dependency")
+  mkdir -p "$APP_DIR/Contents/Resources/ThirdPartyLicenses/$name"
+  for notice in "$dependency"/LICENSE* "$dependency"/NOTICE* "$dependency"/COPYING*; do
+    [ -f "$notice" ] || continue
+    cp "$notice" "$APP_DIR/Contents/Resources/ThirdPartyLicenses/$name/"
+  done
+done
 
 # macOS uses an ICNS asset for the Dock and Finder icon. Keep the authored
 # SVG as the source of truth and compile the full retina icon family during

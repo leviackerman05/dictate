@@ -143,13 +143,17 @@ fn get_state(state: tauri::State<Runtime>) -> ViewState {
 async fn setup_model(app: tauri::AppHandle, id: String, download: bool) -> Result<(), String> {
     let state = app.state::<Runtime>();
     models::model(&id)?;
-    if *state.phase.lock().unwrap() != Phase::Idle {
-        return Err("Finish recording before changing models.".into());
+    {
+        let phase = state.phase.lock().unwrap();
+        if *phase != Phase::Idle {
+            return Err("Finish recording before changing models.".into());
+        }
+        if state.setting_up.load(Ordering::SeqCst) {
+            return Err("Model setup is already running.".into());
+        }
+        state.setup_cancel.store(false, Ordering::SeqCst);
+        state.setting_up.store(true, Ordering::SeqCst);
     }
-    if state.setting_up.swap(true, Ordering::SeqCst) {
-        return Err("Model setup is already running.".into());
-    }
-    state.setup_cancel.store(false, Ordering::SeqCst);
     *state.notice.lock().unwrap() = None;
     changed(&app);
     let dir = state.dir.clone();
@@ -258,13 +262,21 @@ async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
         changed(&app);
         return Err(error);
     }
-    if state.generation.load(Ordering::SeqCst) != id {
-        state.audio.cancel();
-        return Ok(());
-    }
-    *state.phase.lock().unwrap() = Phase::Listening;
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.show();
+    {
+        let mut phase = state.phase.lock().unwrap();
+        if state.generation.load(Ordering::SeqCst) != id || state.cancel.load(Ordering::SeqCst) {
+            state.audio.cancel();
+            if state.generation.load(Ordering::SeqCst) == id {
+                *phase = Phase::Idle;
+            }
+            drop(phase);
+            changed(&app);
+            return Ok(());
+        }
+        *phase = Phase::Listening;
+        if let Some(overlay) = app.get_webview_window("overlay") {
+            let _ = overlay.show();
+        }
     }
     changed(&app);
     let handle = app.clone();
@@ -379,7 +391,7 @@ async fn finish_recording(app: tauri::AppHandle) -> Result<(), String> {
         let outcome = match delivery {
             Ok(()) => {
                 data.recovery = None;
-                "insertedViaPaste"
+                "insertedViaAccessibility"
             }
             Err(error) => {
                 state.notice(error);
@@ -431,7 +443,7 @@ fn cancel_recording(app: tauri::AppHandle) -> Result<(), String> {
         return Err("Delivery is finishing. Check the focused field.".into());
     }
     state.cancel.store(true, Ordering::SeqCst);
-    if *phase != Phase::Finalizing {
+    if !matches!(*phase, Phase::Preparing | Phase::Finalizing) {
         state.generation.fetch_add(1, Ordering::SeqCst);
         state.audio.cancel();
         *phase = Phase::Idle;
@@ -446,6 +458,9 @@ fn cancel_recording(app: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 fn copy_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
     let state = app.state::<Runtime>();
+    if *state.phase.lock().unwrap() == Phase::Delivering {
+        return Err("Wait for delivery to finish before copying.".into());
+    }
     state.clipboard.copy(&text)?;
     let mut data = state.data.lock().unwrap();
     if data.recovery.as_ref() == Some(&text) {
@@ -460,6 +475,9 @@ fn copy_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
 #[tauri::command]
 fn discard_recovery(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<Runtime>();
+    if *state.phase.lock().unwrap() == Phase::Delivering {
+        return Err("Wait for delivery to finish before dismissing.".into());
+    }
     let mut data = state.data.lock().unwrap();
     data.recovery = None;
     state.persist(&data)?;
@@ -470,6 +488,17 @@ fn discard_recovery(app: tauri::AppHandle) -> Result<(), String> {
 }
 #[tauri::command]
 async fn retry_delivery(app: tauri::AppHandle) -> Result<(), String> {
+    {
+        let state = app.state::<Runtime>();
+        let mut phase = state.phase.lock().unwrap();
+        if *phase != Phase::Idle || state.setting_up.load(Ordering::SeqCst) {
+            return Err("Finish the current operation first.".into());
+        }
+        if state.data.lock().unwrap().recovery.is_none() {
+            return Err("No pending transcript.".into());
+        }
+        *phase = Phase::Delivering;
+    }
     app.state::<Runtime>()
         .notice("Focus your destination now. Retrying in 3 seconds…");
     changed(&app);
@@ -493,7 +522,9 @@ async fn retry_delivery(app: tauri::AppHandle) -> Result<(), String> {
         Ok(())
     })
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.to_string())
+    .and_then(|result| result);
+    *app.state::<Runtime>().phase.lock().unwrap() = Phase::Idle;
     if let Err(ref e) = result {
         app.state::<Runtime>().notice(e);
     }
