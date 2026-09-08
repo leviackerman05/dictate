@@ -118,7 +118,8 @@ an unnotarized community build; passing packaging checks is not Apple approval.
 
 ### Windows beta 5 shortcuts and models
 
-Quit the old app before installing the new beta. Right Ctrl is the default:
+Choose **Quit Dictate** from the old app’s system tray menu before installing
+the new beta. Closing its window only hides it. Right Ctrl is the default:
 hold it to speak, then release to finish. Settings → Recording shortcut records
 a key, combination, or middle/back/forward mouse button. Save changes applies it.
 Use Press to toggle if holding is inconvenient. The key is reserved while Dictate

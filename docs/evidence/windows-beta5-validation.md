@@ -31,13 +31,37 @@ ONNX in Microsoft's pinned CPU runtime DLL and bundles its app-local C++ DLLs
 from the existing MSVC build tools. Rust and Whisper retain static runtime
 linking. Users do not need a C++ redistributable installer, Python, CUDA, an
 NVIDIA GPU, or developer tools. ONNX loads from an absolute packaged path;
-its dependencies exclude the current working directory from DLL search.
+its dependencies exclude the current working directory from DLL search. ONNX
+telemetry is explicitly disabled before the first session initializes. The
+first final-build attempt was cancelled while still a draft to include that
+privacy correction; the unpublished beta 5 tag was retargeted before rebuilding.
 
 Parakeet v3 uses the quantized ONNX conversion at revision
 8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce, totaling 670,479,942 bytes. The original
 NVIDIA weights and conversion are attributed under CC BY 4.0. Tiny remains the
 78 MB quick setup choice. Parakeet recommends 8 GB RAM and checks cancellation
 between at most 30-second chunks; word boundaries between chunks can lose context.
+
+## Published build verification
+
+[Release workflow 34265018792](https://github.com/leviackerman05/dictate/actions/runs/34265018792)
+completed successfully for source commit `cdd63442417658ac8dbe41773d2ab2b4d9e67a63`.
+All 11 portable core tests passed, both real speech adapters recognized the
+synthetic fixture in release mode, and the extracted Windows app passed the
+runtime dependency and eight-second startup checks. The Mac build also passed.
+An earlier draft attempt failed in redundant PowerShell runtime staging; the
+final workflow uses the already staged and tested runtime when packaging.
+
+The public beta 5 assets were downloaded again after publication. Both installer
+sizes and SHA-256 hashes match the manifest and their checksum sidecars:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Dictate-Windows-x64-setup.exe | 9,003,327 | `9fafb21c2f6796348476508774b1adb2ce74d32db7ca8ff50697518947a8e28b` |
+| Dictate.dmg | 5,904,344 | `8191a15df87d35a392736fa3fe2e8b3b56ae303fd7d90fda627f4d9ded114feb` |
+
+The release has only Mac and Windows installers. Website deployment uses the
+existing Vercel project; its team's Hobby plan was verified before deploying.
 
 ## Device acceptance still required
 
