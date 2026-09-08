@@ -22,10 +22,6 @@ impl Clipboard {
 pub fn capability() -> &'static str {
     if cfg!(windows) {
         "Automatic insertion uses the current editable field. Elevated or inaccessible apps keep text ready to copy."
-    } else if cfg!(target_os = "linux") && std::env::var_os("WAYLAND_DISPLAY").is_some() {
-        "Wayland: use Record here, then copy your transcript. System-wide shortcut and insertion support vary by desktop."
-    } else if cfg!(target_os = "linux") {
-        "X11: automatic insertion requires an accessible focused editor. Otherwise, copy your completed transcript."
     } else {
         "Portable preview: copy completed text. Use the native Dictate app for Mac insertion."
     }
@@ -128,12 +124,7 @@ pub fn insert(text: &str, _clipboard: &Clipboard) -> Result<(), String> {
     }
 }
 
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(not(windows))]
 pub fn insert(_text: &str, _clipboard: &Clipboard) -> Result<(), String> {
-    Err(if std::env::var_os("WAYLAND_DISPLAY").is_some(){"Your desktop does not expose verified insertion. Your transcript is ready to copy."}else{"Automatic insertion is not yet verified for this desktop. Your transcript is ready to copy."}.into())
-}
-
-#[cfg(target_os = "linux")]
-pub fn insert(text: &str, clipboard: &Clipboard) -> Result<(), String> {
-    super::linux_delivery::insert(text, clipboard)
+    Err("Use the native Dictate app for Mac insertion. Your preview transcript is ready to copy.".into())
 }

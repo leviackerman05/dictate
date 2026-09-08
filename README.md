@@ -39,9 +39,9 @@ available to copy instead of repeatedly asking for permission.
 
 ## Download
 
-[Download Dictate for Mac, Windows, or Linux](https://dictate-macos.vercel.app/download).
+[Download Dictate for Mac or Windows](https://dictate-macos.vercel.app/download).
 The **v1.1.0-beta.4 community beta** introduces macOS 14+ targeting and a portable
-Windows/Linux app. No developer tools, account, API key, or payment is needed to
+Windows app. No developer tools, account, API key, or payment is needed to
 use an installer. Physical-device acceptance testing is still pending; see
 [the validation record](docs/evidence/portability-validation.md).
 
@@ -49,7 +49,6 @@ use an installer. Physical-device acceptance testing is still pending; see
 | --- | --- | --- |
 | Mac | DMG; drag to Applications | Apple silicon, macOS 14+; Apple speech requires compatible macOS 26 |
 | Windows beta | User installer | Windows 10/11, x64; free WebView2 runtime installed if missing |
-| Linux beta | .deb / AppImage | x64, Ubuntu 22.04+ or compatible; Wayland uses Record + Copy |
 
 Mac builds are ad-hoc signed, without paid Apple signing or notarization. For an
 unverified-developer warning, attempt to open the trusted app, then use **System
@@ -81,7 +80,7 @@ installed path. It never invokes Xcode or compiles local source changes.
 On supported macOS 26 Macs, setup defaults to Apple Speech, including a one-time
 reset of older saved selections in beta 4. Later explicit choices are preserved.
 The native Mac app supports Apple's on-device speech model where available,
-NVIDIA Parakeet, and Whisper. Windows/Linux use CPU Whisper with a verified
+NVIDIA Parakeet, and Whisper. Windows use CPU Whisper with a verified
 in-app download. Larger models are optional.
 Apple may install an OS-managed speech asset, while Parakeet and Whisper models
 are downloaded from their documented Hugging Face repositories. Raw microphone
@@ -95,7 +94,11 @@ audio is only used for the active recording session and is not written to disk.
 
 Building the native Mac app requires full Xcode, Swift 6.2 or newer, and the
 macOS 26 SDK. This is a developer requirement, separate from using the app.
-For Windows/Linux development, see [Desktop/README.md](Desktop/README.md).
+Linux support is paused. Older Linux release assets are unsupported previews.
+The unsigned Windows beta may be blocked by Smart App Control; see the
+[installation guide](docs/INSTALLATION.md#windows-beta).
+
+For Windows development, see [Desktop/README.md](Desktop/README.md).
 
 ```sh
 swift test

@@ -59,7 +59,7 @@ claims: [`docs/release-readiness-audit.md`](docs/release-readiness-audit.md).
 Third-party code and downloadable model notices are listed in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-## Windows and Linux beta
+## Windows beta
 
 The portable app processes audio in memory with CPU whisper.cpp. Raw audio is
 not written to files. Initial model downloads go to the public
@@ -69,9 +69,8 @@ SHA-256 hashes. No audio, transcript, or dictionary is sent with these requests.
 `data.json` in the platform application-data directory for `app.dictate.portable`
 contains preferences, dictionary, optional history, and pending recovery text.
 Downloaded models are in its `models/` subdirectory. Windows normally uses
-`%APPDATA%`; Linux uses `$XDG_DATA_HOME` or `~/.local/share`.
+`%APPDATA%`.
 
-Windows automatic insertion uses UI Automation plus Unicode input; Linux X11
-uses AT-SPI EditableText. These paths preserve the existing clipboard. Explicit
-Copy replaces its contents at the user's request. Wayland currently uses Copy.
+Windows automatic insertion uses UI Automation plus Unicode input, preserving
+the existing clipboard. Explicit Copy replaces its contents at the user's request.
 The app does not install a global input-monitoring service or upload key events.

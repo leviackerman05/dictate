@@ -1,8 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod audio;
 mod delivery;
-#[cfg(target_os = "linux")]
-mod linux_delivery;
 mod models;
 
 use chrono::Utc;
@@ -686,9 +684,7 @@ fn main() {
   validate_dictionary(&data.dictionary)?;let retention=data.preferences.retention.clone();retain_history(&mut data.history,&retention,Utc::now());
   let model=data.preferences.model.clone();let shortcut=data.preferences.shortcut.clone();
   app.manage(Runtime{data:Mutex::new(data),dir,audio:audio::Audio::new(app.handle().clone()),clipboard:delivery::Clipboard::new(),engine:Mutex::new(None),phase:Mutex::new(Phase::Idle),gesture:Mutex::new(ShortcutGesture::default()),cancel:Arc::new(AtomicBool::new(false)),setup_cancel:Arc::new(AtomicBool::new(false)),setting_up:AtomicBool::new(false),generation:AtomicU64::new(0),notice:Mutex::new(None),shortcut_error:Mutex::new(None)});
-  if !(cfg!(target_os="linux")&&std::env::var_os("WAYLAND_DISPLAY").is_some()) {
-   if let Err(e)=app.global_shortcut().register(shortcut.as_str()){*app.state::<Runtime>().shortcut_error.lock().unwrap()=Some(format!("Global shortcut unavailable: {e}. Use the Record button or choose another shortcut."));}
-  }else{*app.state::<Runtime>().shortcut_error.lock().unwrap()=Some("Wayland global shortcut is not enabled in this beta. Use the Record button.".into());}
+  if let Err(e)=app.global_shortcut().register(shortcut.as_str()){*app.state::<Runtime>().shortcut_error.lock().unwrap()=Some(format!("Global shortcut unavailable: {e}. Use the Record button or choose another shortcut."));}
   let overlay=tauri::WebviewWindowBuilder::new(app,"overlay",tauri::WebviewUrl::App("index.html?overlay=1".into())).title("Dictate recording").inner_size(280.,64.).decorations(false).always_on_top(true).skip_taskbar(true).focused(false).focusable(false).visible(false).resizable(false).build()?;
   if let Ok(Some(monitor))=overlay.primary_monitor(){let scale=monitor.scale_factor();let size=monitor.size();let origin=monitor.position();let _=overlay.set_position(tauri::LogicalPosition::new(origin.x as f64/scale+(size.width as f64/scale-280.)/2.,origin.y as f64/scale+size.height as f64/scale-120.));}
   let show=tauri::menu::MenuItem::with_id(app,"show","Open Dictate",true,None::<&str>)?;

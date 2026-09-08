@@ -9,8 +9,6 @@ version = (root / 'Release/version.txt').read_text().strip()
 artifacts = {
     'macArm64': ('Dictate.dmg', 'macOS 14+', 'Apple silicon', 'community'),
     'windowsX64': ('Dictate-Windows-x64-setup.exe', 'Windows 10/11', 'x64', 'beta'),
-    'linuxX64': ('Dictate-Linux-x64.deb', 'Ubuntu 22.04+', 'x64', 'beta'),
-    'linuxAppImage': ('Dictate-Linux-x64.AppImage', 'Linux with WebKitGTK 4.1 support', 'x64', 'beta'),
 }
 manifest = {'schemaVersion': 1, 'version': version}
 for key, (name, system, architecture, channel) in artifacts.items():

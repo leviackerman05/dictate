@@ -10,7 +10,7 @@ case "${1:-}" in
   ''|--check) ;;
   *) fail 'Unknown option. Use --help.' ;;
 esac
-[ "$(uname -s)" = Darwin ] || fail 'For Windows and Linux, download the installer from https://dictate-macos.vercel.app/download.'
+[ "$(uname -s)" = Darwin ] || fail 'This launcher is for Mac. Windows downloads: https://dictate-macos.vercel.app/download. Linux support is paused.'
 OS_MAJOR=$(sw_vers -productVersion | cut -d . -f 1)
 [ "$OS_MAJOR" -ge 14 ] || fail 'This Mac build requires macOS 14 or newer. No changes were made.'
 [ "$(sysctl -n hw.optional.arm64 2>/dev/null || true)" = 1 ] || fail 'This native Mac release requires Apple silicon. Intel support is not yet published.'

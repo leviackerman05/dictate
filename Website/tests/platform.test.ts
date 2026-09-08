@@ -5,7 +5,7 @@ import { detectPlatform, isPlatform } from '../src/lib/platform.ts';
 test('desktop hints select a compatible OS family, not an architecture', () => {
   assert.equal(detectPlatform({ platform: 'MacIntel', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' }), 'mac');
   assert.equal(detectPlatform({ platform: 'Win32' }), 'windows');
-  assert.equal(detectPlatform({ platform: 'Linux x86_64' }), 'linux');
+  assert.equal(detectPlatform({ platform: 'Linux x86_64' }), null);
   assert.equal(detectPlatform({ userAgentData: { platform: 'Windows' } }), 'windows');
 });
 test('mobile, iPad desktop mode, ChromeOS and unknown browsers need an explicit choice', () => {
@@ -18,6 +18,6 @@ test('mobile, iPad desktop mode, ChromeOS and unknown browsers need an explicit 
   ]) assert.equal(detectPlatform(browser), null);
 });
 test('only supported manual overrides are accepted', () => {
-  for (const name of ['mac', 'windows', 'linux']) assert.equal(isPlatform(name), true);
-  for (const name of [null, '', 'android', '__proto__', 'MAC']) assert.equal(isPlatform(name), false);
+  for (const name of ['mac', 'windows']) assert.equal(isPlatform(name), true);
+  for (const name of [null, '', 'linux', 'android', '__proto__', 'MAC']) assert.equal(isPlatform(name), false);
 });

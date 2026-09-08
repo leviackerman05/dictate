@@ -4,7 +4,11 @@ Prepared: 2026-09-08. Implementation status: community beta implemented and publ
 
 The beta 4 follow-up adds Apple-first Mac onboarding, a wider non-scrolling setup, automatic website OS suggestions, and illustrated Mac approval guidance. See [beta 4 validation](evidence/beta4-onboarding-validation.md).
 
-The original phased plan below records the intended longer-term rollout. Current code delivers a native Mac build targeting macOS 14+, a verified repository launcher, explicit model onboarding, and Windows/Linux portable beta installers. Wayland remains Record + Copy; Intel Mac and additional Linux desktop integrations remain future work. Physical-device acceptance, including the owner's two macOS 26 machines, is not claimed by automated checks. See [the validation record](evidence/portability-validation.md) for actual results and the short test procedure.
+Current scope (September 8, 2026): **Mac and Windows only**, at the owner's request after Linux testing. Linux packaging, desktop integrations, and download guidance are withdrawn. Linux phases below are historical proposals, not active work. The native Mac UI stays in SwiftUI; Windows uses the existing Tauri interface. No paid signing, APIs, services, or hosting are authorized.
+
+Windows acceptance now has a reported blocker: Smart App Control rejects the unsigned beta and has no per-app exception. A trusted signing route needs to be obtained before claiming compatibility with that protection enabled. Free open-source signing programs require external approval; disabling protection is not our onboarding solution.
+
+The original phased plan below records the longer-term proposal. Current code delivers a native Mac build targeting macOS 14+, a verified repository launcher, explicit model onboarding, and a Windows beta installer. Physical-device acceptance is not implied by automated checks. See [the validation record](evidence/portability-validation.md) for actual results. Historical Linux results remain evidence of the withdrawn preview.
 
 Implementation constraint (owner, 2026-09-08): spend no money. Use local recognition and free/open-source dependencies. Do not buy Apple membership, signing certificates, paid APIs, hosting, or CI capacity. Paid distribution options below are background information only and are excluded from the authorized implementation. Publish community builds with accurate first-launch instructions; use only existing free deployment capacity and public-repository standard CI runners.
 

@@ -69,34 +69,32 @@ WebView2 runtime when missing. It is unsigned: Windows may display an
 unknown-publisher/SmartScreen warning. Proceed only for a trusted download and
 according to your organization's policy; do not bypass malware detections.
 
+**Smart App Control (Windows 11):** If the message says “Smart App Control
+blocked an app that may be unsafe,” there is no **Run anyway** button or
+per-app exception. This unsigned beta may not run while that protection is
+active. We do not recommend disabling Windows protection to install Dictate.
+A managed work computer may also have administrator-enforced restrictions.
+
+**SmartScreen:** A “Windows protected your PC” reputation warning is different.
+It may offer **More info → Run anyway** if policy permits. Only use that option
+for a download you trust; it does not override Smart App Control.
+[Microsoft’s Smart App Control FAQ](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions).
+
 Automatic insertion uses Windows accessibility to validate the current editor,
 then sends Unicode text without changing your clipboard. Elevated, password,
 and inaccessible fields keep the transcript ready to copy. If confirmation is
 uncertain, inspect the destination before retrying to avoid duplicate text.
 
-## Linux beta
+## Linux support is paused
 
-1. Open `Dictate-Linux-x64.deb` with your distribution's software installer, or
-   mark the AppImage executable in file properties and open it.
-2. Set up the recommended local model.
-3. Click Record, speak, finish, then copy the completed words.
-
-The .deb targets Ubuntu 22.04+ and compatible systems; the package manager
-installs WebKitGTK 4.1, ALSA, and AppIndicator libraries. If FUSE is unavailable,
-run `./Dictate-Linux-x64.AppImage --appimage-extract-and-run`.
-
-X11 supports global shortcuts and attempts AT-SPI insertion into an accessible
-focused editor with no selected text. Wayland uses **Record + Copy** in this
-beta; global shortcut and insertion portals are not implemented. Tray support
-varies by desktop; launching Dictate again brings its existing window forward.
-
-Windows/Linux are an initial beta, not a claim of parity with every Mac editor.
-Read the [validation record](evidence/portability-validation.md) before testing.
+Current builds and development support are limited to Mac and Windows. Older
+Linux release assets are unsupported previews; Linux build and installation
+instructions have been withdrawn.
 
 ## Verify a download (optional)
 
 Download the artifact and its matching `.sha256` from the same release. On Mac
-or Linux run `shasum -a 256 -c Dictate.dmg.sha256` (substitute the Linux filename).
+run `shasum -a 256 -c Dictate.dmg.sha256`.
 On Windows use `Get-FileHash .\Dictate-Windows-x64-setup.exe -Algorithm SHA256`
 and compare it with the release's checksum. `manifest.json` also records all
 file sizes and hashes. A matching checksum confirms integrity, not notarization.

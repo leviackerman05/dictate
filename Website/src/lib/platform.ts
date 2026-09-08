@@ -1,7 +1,7 @@
-export type Platform = 'mac' | 'windows' | 'linux';
-export const platformNames: Record<Platform, string> = { mac: 'Mac', windows: 'Windows', linux: 'Linux' };
+export type Platform = 'mac' | 'windows';
+export const platformNames: Record<Platform, string> = { mac: 'Mac', windows: 'Windows' };
 export function isPlatform(value: unknown): value is Platform {
-  return value === 'mac' || value === 'windows' || value === 'linux';
+  return value === 'mac' || value === 'windows';
 }
 
 // Browser hints only: no account, persistence, or fingerprinting. Architecture
@@ -18,6 +18,5 @@ export function detectPlatform(browser: {
       || (/Mac/i.test(platform) && (browser.maxTouchPoints ?? 0) > 1)) return null;
   if (/Win/i.test(platform) || /Windows NT/i.test(ua)) return 'windows';
   if (/Mac/i.test(platform) || /Macintosh/i.test(ua)) return 'mac';
-  if (/Linux/i.test(`${platform} ${ua}`)) return 'linux';
   return null;
 }

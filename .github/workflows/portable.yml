@@ -1,4 +1,4 @@
-name: Portable desktop checks
+name: Windows desktop checks
 on:
   push:
     paths: ['Desktop/**', '.cargo/**', 'Tests/Fixtures/**', '.github/workflows/portable.yml']
@@ -11,11 +11,7 @@ jobs:
     # Standard runners are free for this public repository. No paid larger runners,
     # cache storage, artifact upload, or external build service is used.
     if: github.event.repository.private == false
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-22.04]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -23,9 +19,6 @@ jobs:
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install Linux build dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev libasound2-dev librsvg2-dev patchelf
       - run: npm ci
         working-directory: Desktop
       - run: npm run build

@@ -6,7 +6,7 @@ interface Props {
 
 const {
   title = "Dictate — speak, release, keep writing",
-  description = "Free, open-source local dictation for Mac, with a Windows and Linux community beta. No account or paid API."
+  description = "Free, open-source local dictation for Mac, with a Windows community beta. No account or paid API."
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin);
@@ -42,7 +42,7 @@ const socialImageURL = new URL(`${basePath}og-card.svg`, Astro.site ?? Astro.url
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       name: "Dictate",
-      operatingSystem: "macOS 14+, Windows 10/11, Linux",
+      operatingSystem: "macOS 14+, Windows 10/11",
       applicationCategory: "UtilitiesApplication",
       description,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" }

@@ -26,7 +26,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis"
+    ],
     "category": "Productivity",
     "shortDescription": "Local, private dictation",
     "copyright": "Copyright \u00a9 2026 Aditi Dubey",
@@ -42,18 +44,6 @@
       },
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
-      }
-    },
-    "linux": {
-      "deb": {
-        "depends": [
-          "libasound2",
-          "libwebkit2gtk-4.1-0",
-          "libayatana-appindicator3-1"
-        ]
-      },
-      "appimage": {
-        "bundleMediaFramework": true
       }
     },
     "resources": {

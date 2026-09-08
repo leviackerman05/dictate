@@ -9,8 +9,8 @@ const guideImage = `${home}guides/mac-open-anyway.png`;
   <main class="download-page">
     <header><a class="wordmark" href={home}><BrandLogo size={30}/><span>Dictate</span></a><a class="back" href={home}>Back to home</a></header>
     <section class="intro"><h1>A few steps.<br/><em>Then just speak.</em></h1><p class="lede">Install Dictate, set up a local model, and start speaking. No account, subscription, or developer tools.</p><p class="release-status">{version} · Community beta</p></section>
-    <p class="platform-hint" data-platform-hint>Choose your computer to see its download and setup steps.</p>
-    <nav class="platform-links" aria-label="Choose your operating system"><a href="#mac" data-platform-choice="mac">Mac</a><a href="#windows" data-platform-choice="windows">Windows</a><a href="#linux" data-platform-choice="linux">Linux</a></nav>
+    <p class="platform-hint" data-platform-hint>Available for Mac and Windows. Choose your computer for setup steps.</p>
+    <nav class="platform-links" aria-label="Choose your operating system"><a href="#mac" data-platform-choice="mac">Mac</a><a href="#windows" data-platform-choice="windows">Windows</a></nav>
     <section class="platform" id="mac" aria-labelledby="mac-title">
       <div class="platform-heading"><div><h2 id="mac-title">Mac</h2><p>Apple silicon · macOS 14 or newer</p></div><a class="download" href={assetURL('Dictate.dmg')}>Download for Mac <span aria-hidden="true">↓</span></a></div>
       <ol><li>Open the download and drag Dictate to <strong>Applications</strong>.</li><li>Open Dictate from Applications or Spotlight.</li><li>Allow the microphone and set up your speech model. Compatible macOS 26 Macs start with Apple Speech; older Macs use a downloadable local model. Enable automatic insertion to put words at your cursor, or copy them yourself.</li></ol>
@@ -30,15 +30,15 @@ const guideImage = `${home}guides/mac-open-anyway.png`;
     </section>
     <section class="platform" id="windows" aria-labelledby="windows-title">
       <div class="platform-heading"><div><h2 id="windows-title">Windows <small>Beta</small></h2><p>Windows 10 / 11 · x64</p></div><a class="download" href={assetURL('Dictate-Windows-x64-setup.exe')}>Download for Windows <span aria-hidden="true">↓</span></a></div>
+      <aside class="mac-guide" aria-labelledby="windows-security-title">
+        <h3 id="windows-security-title">Before downloading on Windows 11</h3>
+        <p>This beta is unsigned. If <strong>Smart App Control</strong> is enabled, it may block the installer or app. There is no per-app “Run anyway” exception. This build cannot currently support that setup; we do not recommend turning off Windows protection to use it.</p>
+        <p>A <strong>SmartScreen</strong> reputation warning is different and may offer “More info → Run anyway” on a personal PC. Only continue if you trust the download. On a managed computer, ask your administrator. <a href="https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions">Microsoft’s Smart App Control guidance ↗</a></p>
+      </aside>
       <ol><li>Open the installer and follow the prompts. It installs for your user account.</li><li>Open Dictate and choose <strong>Set up recommended model</strong> (Whisper Tiny, about 78 MB).</li><li>Start a short recording and allow microphone access if prompted. Use your shortcut in an editable field, or copy the completed text.</li></ol>
       <details><summary>First-launch warnings and compatibility</summary><p>This installer has no paid signing certificate. Windows may show an unknown-publisher or SmartScreen warning. Only proceed with a download you trust; follow your organization's policy. If Microsoft Defender reports malware, do not bypass it.</p><p>The installer can download Microsoft's free WebView2 runtime if it is missing. Model setup also needs internet. Recognition runs locally afterward. Automatic insertion requires an accessible editor at the same or lower privilege level; otherwise, your transcript stays ready to copy.</p><p>This is an initial portable beta. Physical-device microphone and editor testing is still needed; see the release's validation record.</p></details>
     </section>
-    <section class="platform" id="linux" aria-labelledby="linux-title">
-      <div class="platform-heading"><div><h2 id="linux-title">Linux <small>Beta</small></h2><p>x64 · Ubuntu 22.04+ / compatible distributions</p></div><a class="download" href={assetURL('Dictate-Linux-x64.deb')}>Download .deb <span aria-hidden="true">↓</span></a></div>
-      <ol><li>Open the <strong>.deb</strong> in your software installer. For other distributions, try the <a href={assetURL('Dictate-Linux-x64.AppImage')}>AppImage</a> and allow execution in its file properties.</li><li>Open Dictate and set up the recommended local model (about 78 MB).</li><li>Press <strong>Record</strong>, speak, then finish. Copy your words into your destination.</li></ol>
-      <details><summary>X11, Wayland, and system dependencies</summary><p>X11 supports a global shortcut and attempts insertion into an accessible focused editor through AT-SPI. On Wayland, this beta uses the Record button and copy flow; global shortcuts and automatic insertion are not enabled.</p><p>The .deb installs required system libraries through your package manager. If your AppImage cannot mount because FUSE is unavailable, run <code>./Dictate-Linux-x64.AppImage --appimage-extract-and-run</code>. Compatibility depends on your distribution. Linux microphone, tray, and editor behavior still need device testing.</p></details>
-    </section>
-    <section class="help"><h2>Local after setup. Free throughout.</h2><p>The app downloads speech models from public repositories. Your recordings are processed on your computer. No API keys, cloud transcription, or paid services are required.</p><p><a href={releaseURL}>Release notes and all downloads ↗</a><a href={assetURL('manifest.json')}>Checksums and file sizes ↗</a><a href="https://github.com/leviackerman05/dictate/blob/main/docs/evidence/portability-validation.md">What has been tested ↗</a></p></section>
+    <section class="help"><h2>Local after setup. Free throughout.</h2><p>The app downloads speech models from public repositories. Your recordings are processed on your computer. No API keys, cloud transcription, or paid services are required.</p><p><a href={releaseURL}>Release notes ↗</a><a href={assetURL('manifest.json')}>Checksums and file sizes ↗</a><a href="https://github.com/leviackerman05/dictate/blob/main/docs/evidence/portability-validation.md">What has been tested ↗</a></p></section>
     <footer><span>Dictate · Open source under MIT</span><a href="https://github.com/leviackerman05/dictate">View the source ↗</a></footer>
   </main>
 </BaseLayout>
@@ -58,7 +58,7 @@ const guideImage = `${home}guides/mac-open-anyway.png`;
     });
     if (hint) hint.textContent = selected
       ? `${platformNames[selected]} setup. You can switch computers below.`
-      : 'Dictate is a desktop app. Choose the computer you’ll use it on.';
+      : 'Dictate is currently available for Mac and Windows. Choose either for setup steps.';
   }
   selectPlatform();
   window.addEventListener('hashchange', selectPlatform);

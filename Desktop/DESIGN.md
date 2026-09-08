@@ -1,6 +1,6 @@
 ---
 name: Dictate portable desktop
-description: The existing Dictate visual language applied to the Windows and Linux desktop beta.
+description: The existing Dictate visual language applied to the Windows desktop beta.
 colors:
   bg: "#f7f6f2"
   side: "#efeee9"
