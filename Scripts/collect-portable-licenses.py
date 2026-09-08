@@ -21,4 +21,4 @@ for module in ['@tauri-apps/api','@tauri-apps/plugin-dialog','lucide']:
     base=root/'Desktop/node_modules'/module
     for f in sorted(base.glob('LICENSE*')):
         if f.is_file(): sections.append(f'\n--- npm {module} ---\n'+f.read_text(errors='replace'))
-(root/'Desktop/src-tauri/THIRD_PARTY_LICENSES.txt').write_text('\n'.join(sections))
+(root/'Desktop/src-tauri/THIRD_PARTY_LICENSES.txt').write_text('\n'.join(line.rstrip() for line in '\n'.join(sections).splitlines())+'\n')

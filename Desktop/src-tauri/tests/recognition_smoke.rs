@@ -18,7 +18,7 @@ fn recognizes_synthetic_audio_offline() {
     let context = models::load(&dir, "tiny").unwrap();
     let mut state = context.create_state().unwrap();
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-    params.set_language(Some("en"));
+    params.set_language(None);
     params.set_n_threads(4);
     params.set_no_context(true);
     params.set_print_progress(false);

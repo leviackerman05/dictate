@@ -68,6 +68,14 @@ jobs:
       - run: npm ci
         working-directory: Desktop
       - run: cargo test --locked --manifest-path Desktop/core/Cargo.toml
+      - name: Prepare verified model and synthetic speech
+        run: python Scripts/prepare-portable-smoke.py
+        env:
+          DICTATE_SMOKE_DIR: ${{ runner.temp }}/dictate-smoke
+      - name: Exercise native local recognition without a microphone
+        run: cargo test --locked --manifest-path Desktop/src-tauri/Cargo.toml --test recognition_smoke -- --ignored
+        env:
+          DICTATE_SMOKE_DIR: ${{ runner.temp }}/dictate-smoke
       - name: Build Windows installer
         if: runner.os == 'Windows'
         run: npm run tauri -- build --bundles nsis
