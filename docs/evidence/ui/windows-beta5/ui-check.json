@@ -130,6 +130,11 @@
     "mouse preset",
     "segmented preferences save",
     "switch save",
-    "Parakeet selection"
+    "Parakeet selection",
+    "settings draft across shortcut render",
+    "save failure preserves draft and focus",
+    "dictionary draft across refresh",
+    "dictionary save",
+    "record and recovery copy"
   ]
 }

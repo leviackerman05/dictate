@@ -1,4 +1,6 @@
-# Community beta validation — v1.1.0-beta.3
+# Community beta validation — historical v1.1.0-beta.3
+
+For the current Windows redesign and runtime packaging, see [beta 5 validation](windows-beta5-validation.md). The Linux and earlier installer evidence below is historical.
 
 **Subsequent user testing (September 8):** Linux support is paused and has been removed from current source and downloads. A Windows 11 user supplied a Smart App Control dialog blocking the beta installer because the publisher could not be verified. Installation on that device failed before app startup; microphone/recognition/editor acceptance there remains untested. Automated build success below does not resolve this distribution blocker. See [current installation limitations](../INSTALLATION.md#windows-beta).
 
