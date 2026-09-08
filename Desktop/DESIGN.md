@@ -1,150 +1,231 @@
 ---
-name: Dictate portable desktop
-description: The existing Dictate visual language applied to the Windows desktop beta.
+name: Dictate for Windows
+description: Compact local dictation workspace with familiar Windows controls.
 colors:
-  bg: "#f7f6f2"
-  side: "#efeee9"
-  panel: "#ffffff"
-  raised: "#f4f3ef"
-  text: "#20211f"
-  muted: "#64655f"
-  line: "#d8d8d0"
-  action: "#3155d9"
-  accent: "#6454ad"
-  selected: "#e5e0f4"
-  success: "#397353"
-  error: "#b63535"
-  dark-bg: "#1c1d18"
-  dark-side: "#202127"
-  dark-panel: "#292b32"
-  dark-raised: "#30323b"
-  dark-text: "#f1f0e8"
-  dark-muted: "#b6b6ae"
-  dark-line: "#464842"
-  dark-action: "#9aaeff"
-  dark-accent: "#b8a6ff"
-  dark-selected: "#4a436f"
-  dark-success: "#88c69d"
-  dark-error: "#ff9b91"
-  dark-action-text: "#182037"
+  bg: "#f7f8fa"
+  side: "#eef1f5"
+  panel: "#fff"
+  raised: "#f1f4f8"
+  text: "#1d2533"
+  muted: "#596577"
+  line: "#dce2e9"
+  action: "#245bdd"
+  selected: "#e0eafd"
+  success: "#23734b"
+  error: "#b12e35"
+  action-text: "#fff"
+  dark-bg: "#171a20"
+  dark-side: "#1d2129"
+  dark-panel: "#222731"
+  dark-raised: "#2b3240"
+  dark-text: "#edf1f7"
+  dark-muted: "#b1bdce"
+  dark-line: "#3c4656"
+  dark-action: "#99b8ff"
+  dark-selected: "#303e5a"
+  dark-success: "#89d8ac"
+  dark-error: "#ffa0a6"
+  dark-action-text: "#142441"
 typography:
   headline:
-    fontFamily: 'Georgia, "Times New Roman", serif'
-    fontSize: "36px"
-    fontWeight: 700
-    lineHeight: 1.15
-    letterSpacing: "-0.025em"
+    fontFamily: "\"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif"
+    fontSize: "28px"
+    fontWeight: 650
+    lineHeight: "1.2"
+    letterSpacing: "-.025em"
+  workspace-title:
+    fontFamily: "\"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif"
+    fontSize: "22px"
+    fontWeight: 600
+    lineHeight: "1.4"
+    letterSpacing: "-.02em"
   title:
-    fontSize: "17px"
-    fontWeight: 700
-    lineHeight: 1.4
+    fontFamily: "\"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif"
+    fontSize: "15px"
+    fontWeight: 650
+    lineHeight: "1.4"
   body:
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    fontSize: "14px"
-    lineHeight: 1.6
+    fontFamily: "\"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: "1.6"
+  transcript:
+    fontFamily: "\"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif"
+    fontSize: "15px"
+    fontWeight: 400
+    lineHeight: "1.75"
   label:
+    fontFamily: "\"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif"
+    fontSize: "12px"
+  button:
+    fontFamily: "\"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif"
     fontSize: "13px"
     fontWeight: 600
-  transcript:
-    fontFamily: "Georgia, serif"
-    fontSize: "19px"
-    lineHeight: 1.7
+  metric:
+    fontFamily: "\"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif"
+    fontSize: "32px"
+    fontWeight: 600
+    letterSpacing: "-.03em"
 rounded:
-  control: "8px"
-  navigation: "10px"
-  recording: "12px"
-  panel: "16px"
+  tag: "4px"
+  key: "5px"
+  segment: "6px"
+  control: "7px"
+  search: "8px"
+  panel: "12px"
+  workspace: "14px"
+  voice: "18px"
 spacing:
-  icon-gap: "8px"
-  actions: "10px"
-  field-gap: "16px"
-  panel: "24px"
+  step-4: "4px"
+  step-6: "6px"
+  step-7: "7px"
+  step-8: "8px"
+  step-10: "10px"
+  step-12: "12px"
+  step-14: "14px"
+  step-16: "16px"
+  step-18: "18px"
+  step-20: "20px"
+  step-22: "22px"
+  step-24: "24px"
+  step-26: "26px"
+  step-28: "28px"
+  step-32: "32px"
+  step-34: "34px"
+  step-36: "36px"
+  step-48: "48px"
 components:
   button-primary:
     backgroundColor: "{colors.action}"
-    textColor: "{colors.panel}"
+    textColor: "{colors.action-text}"
+    typography: "{typography.button}"
     rounded: "{rounded.control}"
-    padding: "9px 13px"
+    padding: "9px 14px"
   button-primary-dark:
     backgroundColor: "{colors.dark-action}"
     textColor: "{colors.dark-action-text}"
+    typography: "{typography.button}"
+    rounded: "{rounded.control}"
+    padding: "9px 14px"
   button-secondary:
     backgroundColor: "{colors.panel}"
     textColor: "{colors.text}"
+    typography: "{typography.button}"
     rounded: "{rounded.control}"
-    padding: "9px 13px"
+    padding: "9px 14px"
+  button-secondary-hover:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.text}"
   button-quiet:
     backgroundColor: "transparent"
-    textColor: "{colors.text}"
+    textColor: "{colors.muted}"
+    typography: "{typography.button}"
+    rounded: "{rounded.control}"
     padding: "6px 8px"
   input:
-    backgroundColor: "{colors.bg}"
+    backgroundColor: "{colors.panel}"
     textColor: "{colors.text}"
     rounded: "{rounded.control}"
-    padding: "10px 12px"
+    padding: "9px 11px"
   navigation-current:
     backgroundColor: "{colors.selected}"
     textColor: "{colors.text}"
-    rounded: "{rounded.navigation}"
-    padding: "14px 16px"
+    rounded: "{rounded.control}"
+    padding: "11px 13px"
   panel:
     backgroundColor: "{colors.panel}"
+    textColor: "{colors.text}"
     rounded: "{rounded.panel}"
-    padding: "24px"
+    padding: "22px"
+  model-tag:
+    textColor: "{colors.muted}"
+    rounded: "{rounded.tag}"
+    padding: "3px 6px"
+  segmented-control:
+    backgroundColor: "{colors.raised}"
+    rounded: "{rounded.search}"
+    padding: "3px"
+  switch:
+    backgroundColor: "{colors.raised}"
+    rounded: "{rounded.panel}"
+    width: "36px"
+    height: "21px"
+  shortcut-capture:
+    backgroundColor: "{colors.panel}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.control}"
+    padding: "9px 14px"
 ---
 
-# Design System: Dictate portable desktop
+# Design System: Dictate for Windows
 
 ## Overview
 
-**Creative North Star: "A calm place for your words"**
+**Creative North Star: "A Windows control workspace"**
 
-This is a code-led extension of Dictate's incumbent native interface: warm neutral or charcoal surfaces, blue actions, violet navigation selection, and serif page headings. The name above describes the existing direction; it is not a new brand identity. Scope is `Desktop/`; the native Swift app and website retain their own implementations.
+Dictate’s Windows renderer is a compact dictation utility with Segoe typography, slate surfaces, blue actions and familiar grouped controls. One recording action anchors Dictation; task-specific rows and forms give History, Dictionary, Statistics, Speech models and Settings their own useful density. This documents the implemented Desktop renderer, replacing the previous warm/serif specification.
+
+Scope is `Desktop/`. The native SwiftUI Mac app is unaffected, and Linux support is withdrawn. The committed direction comes from `PRODUCT.md` and `.impeccable/surfaces/windows-workspace.md`; implementation values come from `src/style.css` and behavior from `src/main.ts`. Existing application icons and the waveform identity remain; this redesign introduces no shipping raster artwork.
 
 **Key Characteristics:**
 
-- Persistent desktop navigation and quiet, bordered content panels.
-- Legible transcripts, explicit local processing states, and visible recovery actions.
-- System controls with a restrained serif heading and transcript voice.
-
-Source of truth: `src/style.css` and `src/main.ts`. Product statements are limited to the README and implementation; no `PRODUCT.md` exists. Compare `../docs/evidence/ui/dictate-dashboard.png` with `../docs/evidence/ui/portability/portable-*.png`. These portable captures use synthetic mock IPC. The finish review returned **ship within the reviewed browser/source UI scope**, including resolved form-draft, focus, and navigation fixes; this does not establish native runtime, microphone, or editor-insertion validation. App icon outputs are conversions of `../Sources/Dictate/Resources/AppIcon.svg`; no generated raster artwork was introduced.
+- Persistent desktop navigation with honest current-page state.
+- Compact sans typography, fine borders and continuous model rows.
+- Explicit local-processing states, preserved drafts and recoverable words.
 
 ## Colors
 
-Blue `action` identifies primary actions, focus, activity bars, and audio levels. Violet `accent` colors quick-action icons; `selected` marks the current navigation item. Green and red accompany textual readiness, recording, and error states.
+The light theme pairs a cool slate-white field with white panels, a slate navigation rail and blue actions. The dark theme uses charcoal/slate layers with pale blue actions and a dark action label. The frontmatter preserves the exact source values; `dark-*` names document the overrides of the same runtime variables under `data-theme=dark`.
 
-Warm `bg` and `side` separate the workspace from white `panel` surfaces. Charcoal dark equivalents preserve that hierarchy. Muted text and fine `line` borders provide structure. Dark-mode primitives map to the same CSS custom properties via `data-theme=dark`; appearance supports system, light, and dark.
+- **Action blue (`action`):** primary buttons, current navigation icons, focus outlines, carets and audio levels. `action-text` supplies the correct foreground in each theme.
+- **Blue selection (`selected`):** current navigation backgrounds, shortcut capture and selected text; no separate violet accent remains.
+- **Slate neutrals (`bg`, `side`, `panel`, `raised`):** app field, rail, containers and subtle hover/active grouping. `text`, `muted` and `line` separate content, supporting copy and dividers.
+- **State colors (`success`, `error`):** readiness, model use, errors and recording indicators, paired with explicit text. Color alone does not describe the operation.
+
+Appearance offers System, Light and Dark. The renderer reads the saved preference; System follows `prefers-color-scheme` and its change event. Saving applies settings. Sidecar tonal ramps are synthesized preview aids, not extra runtime palette tokens.
 
 ## Typography
 
-Serif headlines provide the app's recognizable voice; system sans handles controls, labels, descriptions, and metrics. Paragraphs stop at (72ch). Transcripts preserve whitespace, allow selection, and wrap long unbroken text. Metadata and totals use tabular numerals. Compact labels are (12px); activity totals are (48px), statistics (36px).
+All interface text, headings, transcripts and keyboard hints use `"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif`. There is no serif display face or distinct monospace family. The root is 14px; ordinary paragraphs are 13px/1.6 with a 72ch maximum, and transcripts are 15px/1.75, preserve line breaks, wrap long words and permit selection.
+
+The page heading is 28px/1.2 at weight 650, falling to 25px at 780px. Standard section titles are 15px/1.4 at weight 650; the central dictation title is 22px at weight 600, setup introduction 24px/1.25, and statistics 32px at weight 600. Controls are 13px/600; supporting metadata commonly uses 11–12px. Numeric statistics, times and model facts use tabular numerals. Most text uses sentence case.
 
 ## Layout
 
-A fixed sidebar (220px) anchors a content area with (34px) padding and maximum width (1500px). Dashboard and setup panels use two columns with (24px) gaps. At (980px) and below, the sidebar becomes (184px), main padding becomes (26px 22px), headings become (32px), setup/dashboard/form grids become one column, and model actions stack. Preserve this desktop layout; it is not a mobile-navigation pattern.
+The flex shell fills 100vh. Body scrolling is disabled; the main content area scrolls independently. The sidebar is 204px with `26px 12px 18px` padding and the main area has `28px 32px 32px` padding. There is no main maximum-width token. The reference content viewport is 1120×750; the supported minimum captured by this review is 760×560.
 
-The activity panel keeps a (1:2) metric/chart split. Main bottom padding (100px) reserves room for the recording bar. Actions wrap, dictionary content can shrink and wrap, and transcript rows separate with fine rules.
+At a maximum width of 1000px, the sidebar becomes 176px and main padding 24px. At 780px, the sidebar becomes 158px, main padding 20px, page heading actions wrap, settings rows may wrap, search result counts hide, and dictionary Type occupies the first full row of a two-column form. Sidebar navigation stays visible.
+
+Setup is a 35%/remaining two-column workspace with a 475px minimum height; it changes to 31% at 1000px. At 780px it becomes one column and hides the introductory panel. At a maximum height of 620px, setup steps tighten, workspace minimum height clears, and the page heading margin reduces. Small settings windows intentionally scroll to the save and local-data controls.
+
+Dictation centers the primary action in a 280px-minimum workspace, followed by a compact session summary and up to three recent dictations. Speech models use continuous separated rows. Settings use bordered groups with aligned controls; the final CSS gives groups `16px 20px` padding and a 14px bottom gap, with 12px vertical row padding. Dictionary uses a `140px 1fr 1fr` form grid, narrowed to `110px 1fr 1fr` at 1000px. Statistics use three columns and a separate seven-day table-like list.
 
 ## Elevation & Depth
 
-Tonal surfaces and borders do most of the work. Ordinary panels have no shadow. Only the fixed recording bar lifts above content with `0 8px 24px #0002`. Its level meter transitions over (0.1s ease-out); reduced-motion preference disables transitions and animation. Additional extension metadata and representative component previews live in `.impeccable/design.json`; synthesized tonal ramps there are preview aids, not new runtime tokens.
+Borders and tonal layers do most of the work. Ordinary panels have no shadow. The selected segmented option uses `0 1px 3px #00000016`; the fixed recording bar uses `0 6px 24px #0003`. The bar sits 18px from the bottom and centers within the content area, offset for each sidebar width. The source does not reserve a separate large bottom gutter for it.
+
+Button backgrounds and switch thumbs transition over .14s ease-out. Pressing an enabled button translates it down 1px. The audio level changes over .1s ease-out. The listening symbol runs a 1.5s ease-in-out loop that reaches .94 scale and 24px corners halfway through. Reduced-motion preference disables animations and transitions globally. No backdrop blur or decorative material effect is used.
 
 ## Shapes
 
-Controls are gently rounded, panels more generous, and navigation sits between them. Panels and fields use a (1px) border. Status dots are circular; keyboard hints use compact (4px) corners. Do not copy the native screenshot's larger radii into portable components without changing the actual shared CSS deliberately.
+Controls and navigation have 7px corners. Search and segmented containers use 8px; panels, settings groups and the recording bar use 12px; setup and dictation workspaces use 14px. Model tags use 4px corners, keyboard hints 5px and selected segments 6px. The 58px voice symbol has 18px corners. Status dots and switch thumbs are circular. Fine 1px borders and dividers establish grouping; continuous list rows retain square shared boundaries.
 
 ## Components
 
-- **Buttons:** Primary for record, model setup, save, and recovery copy; bordered secondary for supporting actions; quiet for row actions. Hover raises neutral surfaces or slightly darkens primary fills. Disabled buttons use half opacity and cannot be activated. Focus outlines are (3px) action blue with (3px) offset.
-- **Navigation:** Six named destinations with icons, a violet current row, and `aria-current=page`. Navigation completes onboarding when needed and moves focus to the destination heading. State refreshes preserve a matching focused control.
-- **Forms:** Dictionary and settings drafts survive state refreshes and navigation. Successful saves reset the relevant draft; failed saves preserve it. Edit/cancel intentionally resets the dictionary draft. Preserve caret/selection where applicable and explicit input labels.
-- **Panels and rows:** Dashboard, model, onboarding, and recovery panels share one border/radius vocabulary. History uses selectable serif text and disclosure of dictionary corrections; search preserves typing focus. Empty states explain the next useful action.
-- **Recording and recovery:** Phase text distinguishes microphone preparation, listening, transcription, and delivery. Feedback uses polite live announcements; model progress uses status semantics. Unresolved recovery disables new recording and exposes Copy, delayed retry, and Dismiss. Show capability-specific guidance supplied by the native adapter.
+- **Buttons:** primary for recording, save and key setup/copy actions; bordered secondary for supporting actions; quiet for low-emphasis row actions. Default minimum height is 36px and quiet is 30px. Disabled controls use .5 opacity. Focus is a 2px action-color outline with 3px offset; search groups use a 2px offset. Danger actions use error-colored text.
+- **Navigation:** six destinations retain icons and text. `aria-current=page` and selection fill appear only when onboarding is complete and the page is actually visible. Setup has no falsely selected destination. Explicit sidebar navigation moves focus to the page heading.
+- **Forms and drafts:** named dictionary/settings fields, radio selections and checkboxes survive render refreshes and navigation in in-memory drafts. Matching controls regain focus; text/search caret selections are restored where supported. Successful saves reset the submitted form draft; errors preserve it. Dictionary edit/cancel resets that draft deliberately. These are session drafts, not promised disk persistence.
+- **Shortcut capture:** the first settings row shows the current draft or a “Press a key or mouse button…” state with a 2px blue border and selected background. Capture pauses the native shortcut, accepts a lone modifier on release, a nonmodifier key/chord on press, or middle/back/forward mouse buttons. Escape and window blur cancel; other actions stop capture. Left/right mouse buttons are excluded. Right Ctrl, F8 and Mouse back presets update the draft. Capture returns focus to its button, and Save changes commits the settings. Browser checks prove this renderer flow only.
+- **Segments and switches:** recording mode and appearance use labeled radio groups with an inset selected surface; checkboxes with switch semantics handle insertion and history. Focus outlines remain visible on the hidden radio's visible segment. The 36×21px switch moves its 13px thumb from 3px to 18px and changes to the action colors when checked.
+- **Models, tags and history:** models share continuous rows with download/installed/in-use state, compact neutral tags and actions. Availability is supplied by the native snapshot; this design spec does not certify model operation. History provides search, export, selectable sans-serif transcripts and correction disclosure; empty states explain the next useful action.
+- **Recording and recovery:** saved hold/toggle mode determines shortcut guidance. With automatic insertion off, Dictation says words stay ready to copy. Phase labels distinguish starting the microphone, listening, local transcription and returning words. Recovery presents the transcript, Copy text, delayed retry and Dismiss; unresolved recovery disables new recording. Dismiss and destructive data actions use confirmations. Feedback is politely announced and setup progress/recording use status semantics.
+- **Overlay and evidence modes:** `?overlay` renders a separate 280×64px status-and-level strip. It is distinct from the main window's fixed recording bar and from shortcut capture mode. The 18 reviewed PNGs in `../docs/evidence/ui/windows-beta5/` show six pages and setup in light/dark plus selected 760×560 states. They use synthetic Tauri IPC in Chromium on macOS, including fallback font rendering. Recording, recovery and populated variants are source-inspected unless a separate capture explicitly demonstrates them. `finish-verdict.md` resolves the three scored finish fixes; it is not whole-release certification or evidence of native Windows/Segoe, physical input, microphone, insertion or inference. Native tests retain their own evidence.
 
 ## Do's and Don'ts
 
-- **Do** preserve the warm/charcoal palette, blue actions, violet sidebar selection, and serif app headings.
-- **Do** retain drafts, keyboard focus, text selection, clear status copy, and recoverable transcript actions when extending screens.
-- **Do** verify representative light/dark and minimum-window states against the evidence captures.
-- **Don't** turn synthetic browser captures into claims of native microphone or OS integration testing.
-- **Don't** replace the existing icon identity or introduce decorative raster assets to extend ordinary app UI.
+- Do preserve Segoe typography, slate surfaces, blue actions and compact grouped controls.
+- Do reflect saved recording mode and insertion preferences in guidance, and preserve drafts, focus and text selection.
+- Do check light, dark and minimum-window states using clearly labeled evidence.
+- Don't reintroduce oversized serif headings, warm/violet styling or Mac-specific shortcut labels into this Windows renderer.
+- Don't describe synthetic browser evidence as native Windows, Segoe, microphone, physical-input, inference or installer validation.
+- Don't change the existing Dictate icon identity or add decorative shipping raster assets for this interface.
