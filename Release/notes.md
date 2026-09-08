@@ -1,5 +1,12 @@
 A free, open-source community beta. No account or paid transcription service.
 
+New in beta 4:
+- Supported macOS 26 Macs default to Apple Speech, including a one-time reset of older saved model selections. Later deliberate choices remain saved. Unsupported devices/languages keep a local-model fallback.
+- Wider Mac onboarding shows the core steps without scrolling, with a proper insertion button and separate setup options.
+- Model status distinguishes downloading, checking files, and loading a model already on your Mac.
+- The website suggests a download by operating system and shows illustrated Mac “Open Anyway” instructions.
+
+Compatibility:
 - Native Mac app: Apple silicon, macOS 14+. Apple Speech is available on macOS 26 when supported; older systems use downloaded local models. No Xcode is required to run the app.
 - Windows beta: x64 installer, local Whisper recognition, dictionary/history, and guarded text insertion with copy recovery.
 - Linux beta: x64 DEB/AppImage, local Whisper recognition and copy recovery. See the compatibility guide for desktop-specific shortcut/insertion limitations.

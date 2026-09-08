@@ -121,6 +121,12 @@ private struct DictateDropdownRow: View {
 
 struct DictateSidebar: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var dictation: DictationController
+
+    init(model: AppModel) {
+        self.model = model
+        _dictation = ObservedObject(wrappedValue: model.dictation)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -180,10 +186,10 @@ struct DictateSidebar: View {
     }
 
     private var sidebarStatusTitle: String {
-        guard model.dictation.state == .idle else {
-            return AccessibilitySupport.status(for: model.dictation.state)
+        guard dictation.state == .idle else {
+            return AccessibilitySupport.status(for: dictation.state)
         }
-        switch model.dictation.readiness {
+        switch dictation.readiness {
         case .settingUp: return String(localized: "navigation.settingUp")
         case .modelLoaded:
             return String.localizedStringWithFormat(
@@ -196,8 +202,8 @@ struct DictateSidebar: View {
     }
 
     private var sidebarStatusColor: Color {
-        if model.dictation.state != .idle { return DesignSystem.ColorToken.listening }
-        switch model.dictation.readiness {
+        if dictation.state != .idle { return DesignSystem.ColorToken.listening }
+        switch dictation.readiness {
         case .settingUp: return DesignSystem.ColorToken.action
         case .modelLoaded: return DesignSystem.ColorToken.success
         case .ready: return DesignSystem.ColorToken.success

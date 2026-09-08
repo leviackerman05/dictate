@@ -28,6 +28,8 @@ struct MainWindowView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .disabled(!model.onboardingDismissed)
+            .accessibilityHidden(!model.onboardingDismissed)
 
             if !model.onboardingDismissed {
                 Color.black.opacity(0.28)
@@ -42,7 +44,7 @@ struct MainWindowView: View {
         .foregroundStyle(DesignSystem.ColorToken.primaryText)
         .background(DesignSystem.ColorToken.background)
         .preferredColorScheme(model.appearance.colorScheme)
-        .frame(minWidth: DesignSystem.Layout.mainMinWidth, idealWidth: DesignSystem.Layout.mainIdealWidth, minHeight: DesignSystem.Layout.mainMinHeight, idealHeight: DesignSystem.Layout.mainIdealHeight)
+        .frame(minWidth: DesignSystem.Layout.mainMinWidth, idealWidth: DesignSystem.Layout.mainIdealWidth, minHeight: model.onboardingDismissed ? DesignSystem.Layout.mainMinHeight : DesignSystem.Layout.onboardingHeight + 32, idealHeight: DesignSystem.Layout.mainIdealHeight)
         .onAppear { permissions.refresh() }
     }
 }

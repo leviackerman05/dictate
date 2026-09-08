@@ -1,5 +1,7 @@
 # Community beta validation — v1.1.0-beta.3
 
+For the subsequent Apple-first onboarding and website update, see [beta 4 validation](beta4-onboarding-validation.md). The record below describes beta 3 at the time it was tested.
+
 Recorded 2026-09-08. This is a testable community beta, not a certification of all
 operating systems or editors. No money was spent on APIs, signing, CI runners,
 Apple enrollment, or hosting upgrades. Standard public-repository GitHub runners

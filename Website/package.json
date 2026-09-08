@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "check": "astro check",
-    "check:links": "node scripts/check-links.mjs"
+    "check:links": "node scripts/check-links.mjs",
+    "test": "node --experimental-strip-types --test tests/platform.test.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

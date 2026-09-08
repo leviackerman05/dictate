@@ -64,8 +64,8 @@ enum DesignSystem {
         static let dictionaryColumnMinWidth = 340.0
         static let dictionaryColumnIdealWidth = 380.0
         static let dictionaryColumnMaxWidth = 430.0
-        static let onboardingWidth = 560.0
-        static let onboardingHeight = 620.0
+        static let onboardingWidth = 740.0
+        static let onboardingHeight = 600.0
         static let settingsWidth = 1040.0
         static let settingsHeight = 620.0
         static let shortcutRecorderHeight = 32.0

@@ -154,6 +154,7 @@ final class AppModel: ObservableObject {
         static let shortcut = "shortcut"
         static let customShortcut = "customShortcut"
         static let onboardingDismissed = "onboardingDismissed"
+        static let modelDefaultsVersion = "modelDefaultsVersion"
         static let microphoneEnabled = "microphoneEnabled"
         static let recordingMode = "recordingMode"
         static let appearance = "appearance"
@@ -182,14 +183,25 @@ final class AppModel: ObservableObject {
         recordingMode = RecordingMode(rawValue: UserDefaults.standard.string(forKey: Keys.recordingMode) ?? "") ?? .holdToTalk
         appearance = appearanceStore.value
         showReadyIndicator = UserDefaults.standard.object(forKey: Keys.showReadyIndicator) as? Bool ?? true
-        // Apple remains the default for a fresh install. Preserve an explicit
-        // Parakeet choice while its service checks the local cache; otherwise
-        // a cached model would be unnecessarily replaced by Apple on launch.
+        // Apply the Apple-first default once on supported Macs, including
+        // upgrades from builds that retained a Parakeet selection. After this
+        // migration, deliberate model choices remain intact across launches.
+        let applyAppleDefault = RecognitionCapabilities.supportsApple
+            && UserDefaults.standard.integer(forKey: Keys.modelDefaultsVersion) < 1
         let supported = TranscriptionProvider.supportedOnDevice
         let controller = dictation
         let installed = Set(supported.filter { [.downloaded, .ready].contains(controller.modelStatus(for: $0)) }.map(\.rawValue))
-        let selectedID = ModelSelectionPolicy.select(saved: UserDefaults.standard.string(forKey: Keys.transcriptionProvider), supported: supported.map(\.rawValue), installed: installed, recommended: TranscriptionProvider.recommendedOnDevice.rawValue)
+        let selectedID = ModelSelectionPolicy.select(saved: UserDefaults.standard.string(forKey: Keys.transcriptionProvider), supported: supported.map(\.rawValue), installed: installed, recommended: TranscriptionProvider.recommendedOnDevice.rawValue, preferRecommendation: applyAppleDefault)
         transcriptionProvider = selectedID.flatMap(TranscriptionProvider.init(rawValue:)) ?? .whisperTiny
+
+        if startBackgroundWork {
+            if applyAppleDefault {
+                onboardingDismissed = false
+                UserDefaults.standard.set(false, forKey: Keys.onboardingDismissed)
+                UserDefaults.standard.set(transcriptionProvider.rawValue, forKey: Keys.transcriptionProvider)
+                UserDefaults.standard.set(1, forKey: Keys.modelDefaultsVersion)
+            }
+        }
 
         dictation.onCompleted = { [weak self] item in self?.completed(item) }
         if startBackgroundWork {

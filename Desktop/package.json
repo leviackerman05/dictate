@@ -1,5 +1,5 @@
 {
-  "name": "dictate-desktop", "version": "1.1.0-beta.3", "private": true, "type": "module",
+  "name": "dictate-desktop", "version": "1.1.0-beta.4", "private": true, "type": "module",
   "scripts": {"dev":"vite --host 127.0.0.1", "build":"tsc && vite build", "check":"tsc --noEmit", "tauri":"tauri", "test":"cargo test --manifest-path core/Cargo.toml"},
   "dependencies": {"@tauri-apps/api":"^2.8.0", "@tauri-apps/plugin-dialog":"^2.4.0", "lucide":"^0.468.0"},
   "devDependencies": {"@tauri-apps/cli":"^2.8.0", "typescript":"^5.9.2", "vite":"^6.1.0"}
