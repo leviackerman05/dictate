@@ -26,7 +26,7 @@ Published [community beta](https://github.com/leviackerman05/dictate/releases/ta
 | Windows runtime packaging | Actual published NSIS payload inspected independently and in CI: x64 executable and license notices present; no external MSVCP/VCRUNTIME/CONCRT DLL imports. Windows system/UCRT libraries remain OS dependencies |
 | Linux package metadata | Published DEB contains the amd64 ELF executable, beta.3 version, notices, and audio/WebKitGTK/tray runtime dependencies |
 | Gatekeeper | Rejects the community bundle, as expected without Apple notarization; this is disclosed, not treated as a trusted-signing pass |
-| Repository launcher | Shell syntax and `--check` pass on this Apple-silicon Mac; script does not invoke Git, Xcode, Swift, or a compiler; published manifest/version/hash and downloaded DMG signature checks pass; full clean-machine install/launch remains a device acceptance test |
+| Repository launcher | Shell syntax and `--check` pass on this Apple-silicon Mac; script does not invoke Git, Xcode, Swift, or a compiler; live download, manifest/hash validation, signature verification and app replacement pass on this Mac for both /Applications and ~/Applications; quarantine warning observed; clean-machine launch and user-approved exception remain acceptance tests |
 | Rust product rules | Eight tests pass: shared Mac dictionary fixture, Unicode/boundary/separator/nonrecursive correction, atomic JSON roundtrip, shortcut press/release transitions, resampling duration/silence and alias suppression |
 | Portable native build | `cargo check` and local Tauri developer bundle pass; final Windows and Ubuntu release-profile native checks, recognition smoke tests and installer builds pass in run 34232054290 |
 | Real recognition | Verified public Whisper Tiny model loaded locally; opt-in integration test recognized synthetic speech offline, without microphone use; logging hooks suppress upstream token logs. Final Linux and Windows release-profile integration tests pass (18.05 s and 84.52 s total test time respectively on shared CI runners; these are not microphone latency benchmarks) |
@@ -37,14 +37,40 @@ Published [community beta](https://github.com/leviackerman05/dictate/releases/ta
 Screenshots under `ui/portability/` are browser-rendered UI evidence. Portable
 screens use a mocked native bridge and synthetic text. They do **not** prove
 real microphone capture, OS dialogs, global shortcuts or editor insertion.
-The attempted native preview inspection could not proceed because the host Mac
-was locked; no unlock/security bypass was attempted.
+The initial native preview inspection was blocked while the Mac was locked.
+After the owner returned and authorized restarting Dictate, the portable Mac
+preview rendered its onboarding in the native webview. The exact published
+native Mac beta then launched, preserved the existing data and Parakeet choice,
+and reached the ready state using the cached model. Model-management UI was
+visually inspected. No screenshots containing private history were published.
+This checks an existing macOS 26.5.2 installation, not a clean machine. The
+repository installer subsequently updated the existing app and retained the
+Internet quarantine attribute. macOS displayed its unnotarized-app warning.
+After the system Applications copy was no longer present, rerunning the same
+launcher updated the existing home Applications copy to build 11003. User
+approval of the app-specific exception is still pending; no quarantine removal
+or Gatekeeper bypass was used.
+
+The published Mac executable also recognized the repository synthetic fixture
+using cached Parakeet: 3.7949 seconds of audio, 0.0915 seconds of transcription,
+normalized word error rate 0. See [the local benchmark](mac-beta3-parakeet-smoke.md).
+No microphone, private audio, or model download was involved.
+
+The updated static website was deployed to the existing Vercel Hobby project
+(`dpl_2jEiCfMkavSe47JMtUQJ2wZhASiB`). Live `/` and `/download` both return HTTP
+200; all four installer links and the manifest point to beta.3. Build-time npm
+audit still reports Astro/sharp/esbuild advisories. This deployment serves
+static HTML/CSS/JS, without SSR, server islands, dynamic user-supplied slots or
+attributes, or image uploads. The toolchain advisories were inspected; this
+release does not claim a vulnerability-free dependency tree.
 
 ## What still needs a person's machine
 
-- Owner's personal and work Macs: both reported as macOS 26; chip unspecified.
-  Fresh browser download, Gatekeeper decision, microphone/Accessibility, first
-  model setup, restart offline, and real editor tests remain unperformed.
+- Owner's personal and work Macs: both reported as macOS 26. The current Mac
+  is verified as Apple M2; the other chip is unconfirmed. Existing-data launch,
+  cached Parakeet warmup and synthetic recognition pass here. Fresh browser
+  download, Gatekeeper exception, microphone/Accessibility, first model setup,
+  restart with networking disabled and real editor tests remain unperformed.
 - Older macOS 14/15: compiled deployment compatibility is verified; launch and
   recognition on those OS versions remain untested.
 - Windows 10/11: native compilation and installer construction are automated;
