@@ -104,7 +104,10 @@ pub fn prepare_runtime() -> Result<(), String> {
         }
         ort::init_from(path)
             .map_err(|e| format!("The speech runtime could not load: {e}. Reinstall Dictate."))?
+            .with_telemetry(false)
             .commit();
     }
+    #[cfg(not(windows))]
+    ort::init().with_telemetry(false).commit();
     Ok(())
 }
