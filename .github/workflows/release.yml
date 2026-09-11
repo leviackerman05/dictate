@@ -71,7 +71,7 @@ jobs:
       - name: Test native preferences and microphone meter
         run: cargo test --release --locked --manifest-path Desktop/src-tauri/Cargo.toml --bin dictate-desktop
       - name: Exercise native local recognition without a microphone
-        run: cargo test --release --locked --manifest-path Desktop/src-tauri/Cargo.toml --test recognition_smoke -- --ignored
+        run: cargo test --release --locked --manifest-path Desktop/src-tauri/Cargo.toml --test recognition_smoke -- --ignored --nocapture
         env:
           DICTATE_SMOKE_DIR: ${{ runner.temp }}/dictate-smoke
           CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUNNER: powershell -NoProfile -File ${{ github.workspace }}/Scripts/run-windows-test.ps1

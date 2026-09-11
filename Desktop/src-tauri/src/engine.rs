@@ -41,8 +41,20 @@ impl SpeechEngine {
                 if !vocabulary.is_empty() {
                     params.set_initial_prompt(vocabulary);
                 }
-                params.set_abort_callback_safe(move || cancel.load(Ordering::SeqCst));
-                inference.full(params, samples).map_err(|e| e.to_string())?;
+                // whisper-rs 0.16.0's safe closure adapter passes a double-boxed
+                // trait object to a trampoline expecting the concrete closure.
+                // Use a correctly typed, borrowed AtomicBool instead. `cancel`
+                // owns this stable allocation until synchronous full() returns;
+                // the callback only performs an atomic read and cannot panic.
+                unsafe {
+                    params.set_abort_callback(Some(whisper_cancelled));
+                    params.set_abort_callback_user_data(Arc::as_ptr(&cancel).cast_mut().cast());
+                }
+                let result = inference.full(params, samples);
+                if cancel.load(Ordering::SeqCst) {
+                    return Ok(String::new());
+                }
+                result.map_err(|e| e.to_string())?;
                 for segment in inference.as_iter() {
                     parts.push(segment.to_str().map_err(|e| e.to_string())?.to_string());
                 }
@@ -112,4 +124,30 @@ pub fn prepare_runtime() -> Result<(), String> {
     #[cfg(not(windows))]
     ort::init().with_telemetry(false).commit();
     Ok(())
+}
+
+// SAFETY: user_data must point to an AtomicBool kept alive by the caller
+// throughout whisper_full_with_state. No ownership is transferred to C.
+unsafe extern "C" fn whisper_cancelled(user_data: *mut std::ffi::c_void) -> bool {
+    unsafe { &*user_data.cast::<AtomicBool>() }.load(Ordering::SeqCst)
+}
+
+#[cfg(test)]
+mod cancellation_tests {
+    use super::*;
+
+    #[test]
+    fn native_callback_observes_the_live_cancellation_flag() {
+        let flag = Arc::new(AtomicBool::new(false));
+        let pointer = Arc::as_ptr(&flag).cast_mut().cast();
+        assert!(!unsafe { whisper_cancelled(pointer) });
+        let worker_flag = flag.clone();
+        std::thread::spawn(move || worker_flag.store(true, Ordering::SeqCst))
+            .join()
+            .unwrap();
+        assert!(unsafe { whisper_cancelled(pointer) });
+        flag.store(false, Ordering::SeqCst);
+        assert!(!unsafe { whisper_cancelled(pointer) });
+        assert_eq!(Arc::strong_count(&flag), 1);
+    }
 }

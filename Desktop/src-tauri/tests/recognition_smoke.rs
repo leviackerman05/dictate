@@ -8,7 +8,7 @@ mod models;
 mod engine;
 
 #[test]
-#[ignore = "requires DICTATE_SMOKE_DIR with verified Tiny and Parakeet models and synthetic.f32"]
+#[ignore = "requires DICTATE_SMOKE_DIR with verified models and synthetic.f32"]
 fn recognizes_synthetic_audio_offline() {
     use std::sync::{atomic::AtomicBool, Arc};
     let dir = std::path::PathBuf::from(std::env::var("DICTATE_SMOKE_DIR").unwrap());
@@ -19,11 +19,15 @@ fn recognizes_synthetic_audio_offline() {
         .map(|v| f32::from_le_bytes(v.try_into().unwrap()))
         .collect::<Vec<_>>();
     for id in ["tiny", "parakeet", "medium", "large-v3-turbo"] {
-        let mut engine = models::load(&dir, id).unwrap();
+        eprintln!("Loading and recognizing with {id}");
+        let started = std::time::Instant::now();
+        let mut engine =
+            models::load(&dir, id).unwrap_or_else(|error| panic!("{id}: load failed: {error}"));
         let text = engine
             .transcribe(&samples, "", Arc::new(AtomicBool::new(false)))
-            .unwrap()
+            .unwrap_or_else(|error| panic!("{id}: recognition failed: {error}"))
             .to_lowercase();
+        eprintln!("{id}: completed in {:?}", started.elapsed());
         assert!(
             text.contains("local dictation"),
             "{id}: synthetic speech was not recognized as expected"

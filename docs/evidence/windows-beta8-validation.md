@@ -14,3 +14,7 @@ Model metadata: Whisper files and SHA-256 values were retrieved from the officia
 Existing Windows model choices are preserved. Older data has no selection provenance, so it is unsafe to migrate a saved Tiny choice based solely on its name. Only a missing data archive triggers the new automatic initial Parakeet download; cancellation/failure does not silently retry on every launch.
 
 Store signing is not complete. The MSIX script and listing/checklist require owner-provided Partner Center identity and a verified official Fixed Version WebView2 runtime. Native packaged-app, WACK and Smart App Control acceptance remain pending certification. The GitHub EXE remains unsigned.
+
+## Windows CI follow-up
+
+The first recognition run exposed an incorrect pointer cast in whisper-rs 0.16.0's safe cancellation closure adapter (upstream `whisper_params.rs:639–646`). Dictate now passes a borrowed AtomicBool directly through the native callback API, keeps its Arc alive through synchronous inference, and handles actual cancellation as an empty result. A callback test checks false/true/reset reads across a worker thread. The model smoke test reports the model ID and elapsed time; CI uses release inference to avoid an extra debug native build. The failed run did not publish beta 8.

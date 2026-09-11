@@ -4,6 +4,7 @@ New in beta 8:
 - Mac AI models offers “Use model” for Apple Speech Transcriber, which is built into supported macOS versions. macOS manages any missing language assets. Fresh supported Mac setups default to Apple and preserve saved choices.
 - Mac onboarding offers NVIDIA Parakeet directly: download and switch if it works better for your voice.
 - Fresh Windows installations begin downloading NVIDIA Parakeet TDT 0.6B v3 automatically (670 MB). Cancel setup or choose another model at any time. Existing model selections are preserved because older preferences do not distinguish defaults from deliberate choices.
+- Windows Whisper cancellation uses a corrected native callback, preventing false aborts during recognition.
 - Windows microphone levels use consistent 30 Hz RMS windows and a more sensitive response curve. A 32 × 16 ready indicator stays visible between sessions by default, with a General settings toggle.
 - Windows adds verified Whisper Medium and Large v3 Turbo downloads, tested through the real Windows inference adapter. Larger models can be slower on CPU; 8 GB RAM is recommended. Mac-only CoreML Parakeet variants are not presented as Windows-compatible models.
 - Includes preparation tooling and a submission checklist for the free Microsoft Store/MSIX signing route. Store certification and signing are pending; this GitHub EXE remains unsigned.
