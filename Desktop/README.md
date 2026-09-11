@@ -82,6 +82,6 @@ inference chunk to finish. No model is included in the installer.
 Run `python Scripts/prepare-portable-smoke.py` from the repository root with
 `DICTATE_SMOKE_DIR` set to a test directory, then run the opt-in
 `recognition_smoke` Cargo test with `-- --ignored`. This downloads verified Tiny
-Parakeet, Medium and Large v3 Turbo models and checks the real adapters against synthetic speech.
+Parakeet models and checks the real adapters against synthetic speech.
 
-Whisper Medium (1.53 GB) and Large v3 Turbo (1.62 GB) use pinned whisper.cpp artifacts; 8 GB RAM is recommended and CPU inference may take longer. Store signing preparation is documented in `Release/windows-store/submission.md`.
+Whisper Medium and Large v3 Turbo are deferred: the current baseline CPU build is too slow for practical larger-model validation. The catalog retains Tiny, Base, Small and Parakeet. Store signing preparation is documented in `Release/windows-store/submission.md`.

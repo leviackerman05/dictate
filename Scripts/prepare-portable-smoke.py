@@ -12,7 +12,7 @@ class HTTPSRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 if not model.exists():
     opener=urllib.request.build_opener(HTTPSRedirect())
-    with opener.open('https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin', timeout=120) as response, model.open('wb') as out:
+    with opener.open('https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-tiny.bin', timeout=120) as response, model.open('wb') as out:
         shutil.copyfileobj(response,out)
 if hashlib.sha256(model.read_bytes()).hexdigest()!=expected:
     raise SystemExit('Model checksum failed; remove the test download and retry')
@@ -31,16 +31,3 @@ for name, expected in [
     if digest!=expected: raise SystemExit('Parakeet checksum failed: '+name)
 shutil.copyfile(root/'Tests/Fixtures/synthetic-speech.f32',dest/'synthetic.f32')
 print('Verified Whisper Tiny and Parakeet models and synthetic PCM fixture; no microphone or paid service used.')
-
-# Exercise every newly exposed Whisper artifact through the actual Windows loader.
-for name, expected in [
-    ('ggml-medium.bin', '6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208'),
-    ('ggml-large-v3-turbo.bin', '1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69')]:
-    file = dest/'models'/name
-    if not file.exists():
-        with urllib.request.build_opener(HTTPSRedirect()).open('https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/'+name, timeout=180) as response, file.open('wb') as out:
-            shutil.copyfileobj(response, out)
-    with file.open('rb') as source:
-        if hashlib.file_digest(source, 'sha256').hexdigest() != expected:
-            raise SystemExit('Whisper checksum failed: '+name)
-print('Verified Medium and Large v3 Turbo for the real loader smoke test.')

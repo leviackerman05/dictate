@@ -18,7 +18,7 @@ fn recognizes_synthetic_audio_offline() {
         .chunks_exact(4)
         .map(|v| f32::from_le_bytes(v.try_into().unwrap()))
         .collect::<Vec<_>>();
-    for id in ["tiny", "parakeet", "medium", "large-v3-turbo"] {
+    for id in ["tiny", "parakeet"] {
         eprintln!("Loading and recognizing with {id}");
         let started = std::time::Instant::now();
         let mut engine =

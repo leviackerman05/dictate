@@ -30,7 +30,7 @@ pub struct ModelFile {
 }
 pub const PARAKEET_REVISION: &str = "8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce";
 pub const WHISPER_REVISION: &str = "5359861c739e955e79d9a303bcbc70fb988958b1";
-pub const MODELS: [Model; 6] = [
+pub const MODELS: [Model; 4] = [
     Model {
         id: "tiny",
         name: "Whisper Tiny",
@@ -59,26 +59,6 @@ pub const MODELS: [Model; 6] = [
             file: "ggml-small.bin",
             bytes: 487601967,
             sha256: "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
-        }],
-    },
-    Model {
-        id: "medium",
-        name: "Whisper Medium · 8 GB RAM recommended",
-        bytes: 1533763059,
-        files: &[ModelFile {
-            file: "ggml-medium.bin",
-            bytes: 1533763059,
-            sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
-        }],
-    },
-    Model {
-        id: "large-v3-turbo",
-        name: "Whisper Large v3 Turbo · 8 GB RAM recommended",
-        bytes: 1624555275,
-        files: &[ModelFile {
-            file: "ggml-large-v3-turbo.bin",
-            bytes: 1624555275,
-            sha256: "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69",
         }],
     },
     Model {
