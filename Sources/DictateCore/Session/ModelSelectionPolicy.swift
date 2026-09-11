@@ -6,6 +6,7 @@ public enum ModelSelectionPolicy {
     public static func select(saved: String?, supported: [String], installed: Set<String>, recommended: String, preferRecommendation: Bool = false) -> String? {
         if preferRecommendation, supported.contains(recommended) { return recommended }
         if let saved, supported.contains(saved) { return saved }
+        if saved == nil, supported.contains(recommended) { return recommended }
         if let cached = supported.first(where: installed.contains) { return cached }
         if supported.contains(recommended) { return recommended }
         return supported.first

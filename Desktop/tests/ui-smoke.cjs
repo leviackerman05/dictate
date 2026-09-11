@@ -8,17 +8,18 @@ const fs=require('fs');
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.addInitScript(()=>{
  let callbacks={},next=1;const listeners=[];
+ window.emitLevel=level=>listeners.filter(v=>v.event==='level').forEach(v=>callbacks[v.id]?.({event:v.event,payload:level}));
  window.emitState=()=>listeners.filter(v=>v.event==='state-changed').forEach(v=>callbacks[v.id]?.({event:v.event,payload:null}));
  const now=new Date();
  const stamp=days=>{const value=new Date(now);value.setDate(value.getDate()-days);return value.toISOString()};
- window.mock={data:{preferences:{model:'parakeet',keepHistory:true,retention:'forever',recordingMode:'holdToTalk',shortcut:'ControlRight',appearance:'light',onboardingDone:true,autoInsert:true},history:[
+ window.mock={data:{preferences:{model:'parakeet',keepHistory:true,retention:'forever',recordingMode:'holdToTalk',shortcut:'ControlRight',appearance:'light',onboardingDone:true,autoInsert:true,showReadyIndicator:true},history:[
   {id:'today-1',timestamp:stamp(0),originalTranscript:'Draft the launch note and share it with the team.',correctedText:'Draft the launch note and share it with the team.',duration:7.4,insertionResult:'insertedViaPaste',correctionAudit:[],isPinned:false},
   {id:'today-2',timestamp:stamp(0),originalTranscript:'Remember to test right control in Notepad.',correctedText:'Remember to test Right Ctrl in Notepad.',duration:5.2,insertionResult:'copiedToClipboard',correctionAudit:[{heard:'right control',written:'Right Ctrl'}],isPinned:true},
   {id:'yesterday',timestamp:stamp(1),originalTranscript:'Dictate keeps every recording local.',correctedText:'Dictate keeps every recording local.',duration:4.1,insertionResult:'insertedViaPaste',correctionAudit:[],isPinned:false}
  ],dictionary:[
   {id:'codex',kind:'correction',sourcePhrase:'codecs',targetPhrase:'Codex',notes:null,isEnabled:true,createdAt:stamp(14),updatedAt:stamp(2)},
   {id:'parakeet',kind:'vocabulary',sourcePhrase:'Parakeet',targetPhrase:null,notes:null,isEnabled:true,createdAt:stamp(8),updatedAt:stamp(1)}
- ],recovery:null},phase:'idle',models:[{id:'tiny',name:'Whisper Tiny',bytes:77691713},{id:'base',name:'Whisper Base',bytes:147951465},{id:'small',name:'Whisper Small',bytes:487601967},{id:'parakeet',name:'NVIDIA Parakeet v3',bytes:670479942}],installed:['parakeet'],ready:true,settingUp:false,notice:null,shortcutError:null,capability:'Text is inserted into the current editable field when Windows allows it. Otherwise, copy your words.',platform:'windows',version:'1.1.0-beta.7'};
+ ],recovery:null},phase:'idle',models:[{id:'tiny',name:'Whisper Tiny',bytes:77691713},{id:'base',name:'Whisper Base',bytes:147951465},{id:'small',name:'Whisper Small',bytes:487601967},{id:'parakeet',name:'NVIDIA Parakeet v3',bytes:670479942}],installed:['parakeet'],ready:true,settingUp:false,notice:null,shortcutError:null,capability:'Text is inserted into the current editable field when Windows allows it. Otherwise, copy your words.',platform:'windows',version:'1.1.0-beta.8'};
  window.calls=[];
  window.__TAURI_INTERNALS__={transformCallback:fn=>{let id=next++;callbacks[id]=fn;return id},unregisterCallback:id=>delete callbacks[id],invoke:async(cmd,args)=>{
  window.calls.push({cmd,args});
@@ -37,7 +38,7 @@ const fs=require('fs');
  });
  const preview=process.env.DICTATE_PREVIEW_URL || 'http://127.0.0.1:1420';
  await page.goto(preview);await page.waitForSelector('nav');
- const dir=require('path').resolve(__dirname,'../../docs/evidence/ui/windows-beta7');fs.mkdirSync(dir,{recursive:true});
+ const dir=process.env.DICTATE_UI_OUTPUT || require('path').resolve(__dirname,'../../docs/evidence/ui/windows-beta8');fs.mkdirSync(dir,{recursive:true});
  const results=[];
  for(const theme of ['light','dark']){
 
@@ -61,6 +62,10 @@ const fs=require('fs');
   await page.screenshot({path:`${dir}/settings-permissions-${theme}.png`,fullPage:true});
   await page.locator('[data-action="settings-tab"][data-id="general"]').click();
  }
+ await page.locator('[name="showReadyIndicator"]').uncheck();
+ await page.waitForFunction(()=>window.mock.data.preferences.showReadyIndicator===false);
+ await page.locator('[name="showReadyIndicator"]').check();
+ await page.waitForFunction(()=>window.mock.data.preferences.showReadyIndicator===true);
  await page.locator('[data-action="capture-shortcut"]').click();await page.keyboard.press('ControlRight');await page.waitForTimeout(100);
  if(await page.locator('.shortcut-capture').innerText()!=='Right Ctrl') throw new Error('Right Ctrl capture failed');
  await page.locator('[name="recordingMode"][value="clickToToggle"]').check();
@@ -121,8 +126,14 @@ const fs=require('fs');
  for(const section of ['dashboard','settings','models']){await page.locator(`nav [data-section="${section}"]`).click();await page.screenshot({path:`${dir}/${section}-minimum.png`,fullPage:true});results.push({section,size:'minimum',overflow:await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)});}
  await page.locator('nav [data-section="settings"]').click();await page.locator('[data-action="settings-tab"][data-id="general"]').click();await page.locator('[data-action="show-setup"]').click();await page.screenshot({path:`${dir}/setup-minimum.png`,fullPage:true});
  await page.setViewportSize({width:108,height:52});await page.goto(`${preview}?overlay=1`);await page.waitForSelector('.recording-overlay');
+ const idleBounds=await page.locator('.recording-overlay').boundingBox();
+ if(idleBounds.width!==32 || idleBounds.height!==16)throw Error('Idle indicator dimensions wrong');
+ await page.screenshot({path:`${dir}/overlay-idle.png`});
  await page.evaluate(()=>{window.mock.phase='listening';window.emitState();});await page.waitForTimeout(100);await page.screenshot({path:`${dir}/overlay-listening.png`});
  if(await page.locator('.recording-overlay button').count())throw Error('Recorder pebble must not contain actions');
+ await page.evaluate(()=>window.emitLevel(.04));
+ await page.waitForTimeout(50);
+ if(await page.locator('.pebble-bar').evaluateAll(bars=>Math.max(...bars.map(b=>parseFloat(b.style.height))))<=6)throw Error('Normal speech meter response too weak');
  if(await page.locator('.pebble-bar').count()!==9)throw Error('Recorder pebble level bars missing');
  await page.evaluate(()=>{window.mock.phase='finalizing';window.emitState();});await page.waitForTimeout(50);await page.screenshot({path:`${dir}/overlay-processing.png`});
  fs.writeFileSync(`${dir}/ui-check.json`,JSON.stringify({scope:'Chromium preview with synthetic IPC on macOS; native Windows packaging is verified by GitHub Actions',results,errors,preferences:prefs,checks:['Mac-parity light and dark screens','shared Dictate brand mark','dashboard and statistics hover values','red recording button and filled stop mark','system privacy URL opener','onboarding dismissal','compact action-free recorder pebble','single modifier capture','chord capture','mouse preset','segmented preference autosave','switch autosave','Parakeet selection','automatic save failure recovery','dictionary draft across refresh','dictionary save','record and recovery copy']},null,2));

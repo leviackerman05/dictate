@@ -833,11 +833,12 @@ struct AIModelsView: View {
         switch status {
         case .notInstalled, .downloaded, .failed:
             Button {
+                model.transcriptionProvider = provider
                 dictation.prepareModel(for: provider)
             } label: {
                 HStack(spacing: 7) {
-                    Text(status == .failed ? String(localized: "settings.parakeetRetry") : String(localized: "models.download"))
-                    Image(systemName: status == .failed ? "arrow.clockwise" : "arrow.down")
+                    Text(status == .failed ? String(localized: "settings.parakeetRetry") : String(localized: provider == .apple || status == .downloaded ? "models.useModel" : "models.download"))
+                    Image(systemName: status == .failed ? "arrow.clockwise" : provider == .apple || status == .downloaded ? "arrow.right" : "arrow.down")
                         .font(.system(size: 11, weight: .bold))
                 }
             }
@@ -1287,7 +1288,11 @@ private struct ModelCatalogCard: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 10) {
-                ModelStatusBadge(status: status)
+                if provider == .apple, status == .notInstalled {
+                    Text("Built into macOS").font(.caption).foregroundStyle(DesignSystem.ColorToken.secondaryText)
+                } else {
+                    ModelStatusBadge(status: status)
+                }
                 actions(status: status, isSelected: isSelected)
             }
         }
@@ -1336,13 +1341,14 @@ private struct ModelCatalogCard: View {
             switch status {
             case .notInstalled, .downloaded, .failed:
                 Button {
+                    model.transcriptionProvider = provider
                     model.dictation.prepareModel(for: provider)
                 } label: {
-                    Text(status == .failed ? String(localized: "settings.parakeetRetry") : String(localized: "models.download"))
+                    Text(status == .failed ? String(localized: "settings.parakeetRetry") : String(localized: provider == .apple || status == .downloaded ? "models.useModel" : "models.download"))
                 }
                 .buttonStyle(ModelActionButtonStyle(prominent: true))
             case .downloading, .validating, .loading:
-                Button(String(localized: "models.download")) {}
+                Button(String(localized: "models.preparing")) {}
                     .buttonStyle(ModelActionButtonStyle(prominent: true))
                     .disabled(true)
             case .ready:

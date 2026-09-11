@@ -45,7 +45,7 @@ struct OnboardingView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(DesignSystem.ColorToken.secondaryText)
             }
-            Group {
+            ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(spacing: 12) {
                         Image(systemName: permissions.snapshot.microphone ? "checkmark.circle.fill" : "mic")
@@ -91,7 +91,7 @@ struct OnboardingView: View {
                             Button("Cancel setup") { dictation.cancelModelSetup() }
                                 .buttonStyle(.link)
                         } else if dictation.readiness != .ready {
-                            Button(dictation.setupError == nil ? "Set up speech model" : "Retry model setup") {
+                            Button(dictation.setupError == nil ? (model.transcriptionProvider == .apple ? "Use model" : "Download and use model") : "Retry model setup") {
                                 dictation.prepareModel(for: model.transcriptionProvider)
                             }
                             .buttonStyle(.borderedProminent)
@@ -108,6 +108,22 @@ struct OnboardingView: View {
                                             .frame(maxHeight: 140)
                                     }.padding(24).frame(width: 380)
                                 }
+                        }
+                    }
+                    if model.transcriptionProvider == .apple {
+                        HStack(alignment: .center, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Try NVIDIA Parakeet").font(.headline)
+                                Text("If Apple misses your words, Parakeet may work better for your voice. Download once and keep dictating locally.")
+                                    .font(.caption).foregroundStyle(DesignSystem.ColorToken.secondaryText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Button([.downloaded, .ready].contains(dictation.modelStatus(for: .parakeet)) ? "Use model" : "Download") {
+                                model.transcriptionProvider = .parakeet
+                                dictation.prepareModel(for: .parakeet)
+                            }
+                            .buttonStyle(.bordered).controlSize(.large).disabled(busy)
                         }
                     }
                     Divider()

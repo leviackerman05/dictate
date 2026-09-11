@@ -183,10 +183,10 @@ final class AppModel: ObservableObject {
         recordingMode = RecordingMode(rawValue: UserDefaults.standard.string(forKey: Keys.recordingMode) ?? "") ?? .holdToTalk
         appearance = appearanceStore.value
         showReadyIndicator = UserDefaults.standard.object(forKey: Keys.showReadyIndicator) as? Bool ?? true
-        // Apply the Apple-first default once on supported Macs, including
-        // upgrades from builds that retained a Parakeet selection. After this
-        // migration, deliberate model choices remain intact across launches.
+        // Apple is the fresh-install default on supported Macs. Preserve saved
+        // selections, including choices made before the default migration.
         let applyAppleDefault = RecognitionCapabilities.supportsApple
+            && UserDefaults.standard.string(forKey: Keys.transcriptionProvider) == nil
             && UserDefaults.standard.integer(forKey: Keys.modelDefaultsVersion) < 1
         let supported = TranscriptionProvider.supportedOnDevice
         let controller = dictation

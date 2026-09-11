@@ -43,25 +43,18 @@ impl Audio {
                             let error_fn = move |_e| {
                                 *errors.lock().unwrap()=Some("Microphone disconnected or became unavailable. Reconnect it and retry.".into());
                             };
-                            let mut frames = 0usize;
+                            let mut meter = LevelMeter::new(rate);
                             let mut append = move |values: &[f32]| {
                                 let mut output = pcm.lock().unwrap();
                                 let cap = rate as usize * 60 * 10;
-                                let mut energy = 0.;
                                 for frame in values.chunks(channels) {
                                     let value = frame.iter().sum::<f32>() / channels as f32;
-                                    energy += value * value;
+                                    if let Some(level) = meter.push(value) {
+                                        let _ = handle.emit("level", level);
+                                    }
                                     if output.len() < cap {
                                         output.push(value);
                                     }
-                                }
-                                frames += values.len() / channels;
-                                if frames >= rate as usize / 10 {
-                                    frames = 0;
-                                    let level = (energy / (values.len() / channels).max(1) as f32)
-                                        .sqrt()
-                                        * 8.;
-                                    let _ = handle.emit("level", level.min(1.));
                                 }
                             };
                             let audio=match config.sample_format() {
@@ -114,5 +107,49 @@ impl Audio {
     }
     pub fn cancel(&self) {
         let _ = self.tx.send(Command::Cancel);
+    }
+}
+
+// Accumulate energy and frame count over the same 1/30-second window,
+// independently of the device's callback buffer size. Emits raw RMS.
+struct LevelMeter {
+    energy: f64,
+    frames: usize,
+    window: usize,
+}
+impl LevelMeter {
+    fn new(rate: u32) -> Self {
+        Self {
+            energy: 0.0,
+            frames: 0,
+            window: (rate as usize / 30).max(1),
+        }
+    }
+    fn push(&mut self, sample: f32) -> Option<f32> {
+        let sample = if sample.is_finite() { sample } else { 0.0 };
+        self.energy += (sample as f64).powi(2);
+        self.frames += 1;
+        if self.frames < self.window {
+            return None;
+        }
+        let rms = (self.energy / self.frames as f64).sqrt() as f32;
+        self.energy = 0.0;
+        self.frames = 0;
+        Some(rms.clamp(0.0, 1.0))
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn meter_is_callback_independent_and_thirty_hz() {
+        for rate in [16000, 44100, 48000] {
+            let mut meter = LevelMeter::new(rate);
+            let levels: Vec<_> = (0..rate).filter_map(|_| meter.push(0.125)).collect();
+            assert_eq!(levels.len(), 30);
+            assert!(levels.iter().all(|v| (*v - 0.125).abs() < 0.0001));
+            let silent: Vec<_> = (0..rate).filter_map(|_| meter.push(0.0)).collect();
+            assert_eq!(*silent.last().unwrap(), 0.0);
+        }
     }
 }

@@ -32,13 +32,14 @@ struct Preferences {
     appearance: String,
     onboarding_done: bool,
     auto_insert: bool,
+    show_ready_indicator: bool,
     #[serde(default)]
     shortcut_version: u8,
 }
 impl Default for Preferences {
     fn default() -> Self {
         Self {
-            model: "tiny".into(),
+            model: "parakeet".into(),
             keep_history: true,
             retention: "forever".into(),
             recording_mode: "holdToTalk".into(),
@@ -46,6 +47,7 @@ impl Default for Preferences {
             appearance: "system".into(),
             onboarding_done: false,
             auto_insert: true,
+            show_ready_indicator: true,
             shortcut_version: 1,
         }
     }
@@ -109,6 +111,7 @@ impl Runtime {
     }
 }
 fn changed(app: &tauri::AppHandle) {
+    sync_overlay(app);
     let _ = app.emit("state-changed", ());
 }
 #[tauri::command]
@@ -254,10 +257,6 @@ async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
         state.generation.fetch_add(1, Ordering::SeqCst) + 1
     };
     *state.notice.lock().unwrap() = None;
-    position_overlay(&app);
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.show();
-    }
     changed(&app);
     let handle = app.clone();
     let result =
@@ -269,9 +268,6 @@ async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
         state.audio.cancel();
         *state.phase.lock().unwrap() = Phase::Idle;
         state.notice(&error);
-        if let Some(overlay) = app.get_webview_window("overlay") {
-            let _ = overlay.hide();
-        }
         changed(&app);
         return Err(error);
     }
@@ -416,9 +412,6 @@ async fn finish_recording(app: tauri::AppHandle) -> Result<(), String> {
             state.notice(format!("Recording could not finish: {error}"));
         }
     }
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.hide();
-    }
     changed(&app);
     result
 }
@@ -436,9 +429,6 @@ fn cancel_recording(app: tauri::AppHandle) -> Result<(), String> {
         *phase = Phase::Idle;
     }
     drop(phase);
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.hide();
-    }
     changed(&app);
     Ok(())
 }
@@ -706,6 +696,21 @@ const OVERLAY_HOST_HEIGHT: f64 = 52.0;
 const OVERLAY_VISIBLE_HEIGHT: f64 = 22.0;
 const OVERLAY_BOTTOM_INSET: f64 = 18.0;
 
+fn sync_overlay(app: &tauri::AppHandle) {
+    let Some(overlay) = app.get_webview_window("overlay") else {
+        return;
+    };
+    let state = app.state::<Runtime>();
+    let active = *state.phase.lock().unwrap() != Phase::Idle;
+    let show_ready = state.data.lock().unwrap().preferences.show_ready_indicator;
+    if active || show_ready {
+        position_overlay(app);
+        let _ = overlay.show();
+    } else {
+        let _ = overlay.hide();
+    }
+}
+
 fn position_overlay(app: &tauri::AppHandle) {
     let Some(overlay) = app.get_webview_window("overlay") else {
         return;
@@ -732,7 +737,8 @@ fn position_overlay(app: &tauri::AppHandle) {
     let scale = monitor.scale_factor();
     let host_width = OVERLAY_HOST_WIDTH * scale;
     let host_height = OVERLAY_HOST_HEIGHT * scale;
-    let visible_height = OVERLAY_VISIBLE_HEIGHT * scale;
+    let active = *app.state::<Runtime>().phase.lock().unwrap() != Phase::Idle;
+    let visible_height = (if active { OVERLAY_VISIBLE_HEIGHT } else { 16.0 }) * scale;
     let inset = OVERLAY_BOTTOM_INSET * scale;
     let x = work.position.x as f64 + (work.size.width as f64 - host_width) / 2.0;
     // The visible capsule is centered inside a larger transparent host so its
@@ -757,6 +763,17 @@ fn pause_shortcut(app: tauri::AppHandle, paused: bool) -> Result<(), String> {
 }
 
 fn main() {
+    // Store MSIX bundles an official Fixed Version WebView2 runtime. Resolve it
+    // beside the executable before starting threads; never from the working dir.
+    #[cfg(windows)]
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(folder) = exe.parent() {
+            let runtime = folder.join("webview2");
+            if runtime.join("msedgewebview2.exe").is_file() {
+                std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", runtime);
+            }
+        }
+    }
     tauri::Builder::default()
  .plugin(tauri_plugin_single_instance::init(|app,_,_|{if let Some(w)=app.get_webview_window("main"){let _=w.show();let _=w.set_focus();}}))
  .plugin(tauri_plugin_dialog::init())
@@ -770,6 +787,7 @@ fn main() {
  .invoke_handler(tauri::generate_handler![get_state,pause_shortcut,setup_model,cancel_setup,remove_model,start_recording,finish_recording,cancel_recording,copy_text,discard_recovery,retry_delivery,save_preferences,save_dictionary,update_history,export_data,import_dictionary])
  .setup(|app|{
   let dir=app.path().app_data_dir()?;std::fs::create_dir_all(&dir)?;let file=dir.join("data.json");
+  let fresh_install = !file.exists();
   // A corrupt archive is a visible startup error, never silently overwritten.
   let mut data=if file.exists(){serde_json::from_slice::<Data>(&std::fs::read(&file)?)?}else{Data::default()};
   if data.schema_version!=1{return Err("Unsupported data schema. Keep your archive and use a compatible version.".into());}
@@ -779,6 +797,7 @@ fn main() {
    data.preferences.shortcut_version=1;
    atomic_save(&file,&data)?;
   }
+  if fresh_install { atomic_save(&file,&data)?; }
   validate_dictionary(&data.dictionary)?;let retention=data.preferences.retention.clone();retain_history(&mut data.history,&retention,Utc::now());
   let model=data.preferences.model.clone();let shortcut=data.preferences.shortcut.clone();
   app.manage(Runtime{data:Mutex::new(data),dir,audio:audio::Audio::new(app.handle().clone()),clipboard:delivery::Clipboard::new(),engine:Mutex::new(None),phase:Mutex::new(Phase::Idle),gesture:Mutex::new(ShortcutGesture::default()),cancel:Arc::new(AtomicBool::new(false)),setup_cancel:Arc::new(AtomicBool::new(false)),setting_up:AtomicBool::new(false),generation:AtomicU64::new(0),notice:Mutex::new(None),shortcut_error:Mutex::new(None)});
@@ -788,16 +807,39 @@ fn main() {
   let overlay_builder=overlay_builder.transparent(true);
   let overlay=overlay_builder.build()?;
   let _=overlay.set_ignore_cursor_events(true);
-  position_overlay(app.handle());
+  sync_overlay(app.handle());
   let show=tauri::menu::MenuItem::with_id(app,"show","Open Dictate",true,None::<&str>)?;
   let quit=tauri::menu::MenuItem::with_id(app,"quit","Quit Dictate",true,None::<&str>)?;
   let menu=tauri::menu::Menu::with_items(app,&[&show,&quit])?;
   let mut tray=tauri::tray::TrayIconBuilder::new().menu(&menu).tooltip("Dictate").on_menu_event(|app,event|{match event.id.as_ref(){"show"=>{if let Some(w)=app.get_webview_window("main"){let _=w.show();let _=w.set_focus();}},"quit"=>app.exit(0),_=>{}}});
   if let Some(icon)=app.default_window_icon(){tray=tray.icon(icon.clone());}let _=tray.build(app)?;
   let handle=app.handle().clone();
-  if models::is_installed(&handle.state::<Runtime>().dir,&model){tauri::async_runtime::spawn(async move{let _=setup_model(handle,model,false).await;});}
+  if fresh_install || models::is_installed(&handle.state::<Runtime>().dir,&model){tauri::async_runtime::spawn(async move{let _=setup_model(handle,model,fresh_install).await;});}
   Ok(())
  })
  .on_window_event(|window,event|{if window.label()=="main"{if matches!(event,tauri::WindowEvent::Focused(false)){shortcuts::pause(false);}if let tauri::WindowEvent::CloseRequested{api,..}=event{api.prevent_close();let _=window.hide();}}})
  .run(tauri::generate_context!()).expect("Dictate could not start. Your local data has been preserved.");
+}
+
+#[cfg(test)]
+mod preference_tests {
+    use super::*;
+    #[test]
+    fn fresh_setup_uses_parakeet_and_ready_indicator() {
+        let p = Preferences::default();
+        assert_eq!(p.model, "parakeet");
+        assert!(p.show_ready_indicator);
+    }
+    #[test]
+    fn upgrade_preserves_model_and_explicit_indicator_preference() {
+        for id in ["tiny", "base", "small", "parakeet"] {
+            let old = serde_json::json!({"model": id, "onboardingDone": true});
+            let p: Preferences = serde_json::from_value(old).unwrap();
+            assert_eq!(p.model, id);
+            assert!(p.show_ready_indicator);
+        }
+        let p: Preferences =
+            serde_json::from_value(serde_json::json!({"showReadyIndicator":false})).unwrap();
+        assert!(!p.show_ready_indicator);
+    }
 }

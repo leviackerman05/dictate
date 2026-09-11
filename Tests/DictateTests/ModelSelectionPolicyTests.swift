@@ -16,6 +16,7 @@ final class ModelSelectionPolicyTests: XCTestCase {
         XCTAssertEqual(ModelSelectionPolicy.select(saved: "tiny", supported: ["apple", "tiny"], installed: ["apple"], recommended: "apple"), "tiny")
     }
     func testFreshInstallUsesRecommendationAndEmptyCatalogIsUnavailable() {
+        XCTAssertEqual(ModelSelectionPolicy.select(saved: nil, supported: ["apple", "parakeet"], installed: ["parakeet"], recommended: "apple"), "apple")
         XCTAssertEqual(ModelSelectionPolicy.select(saved: nil, supported: ["tiny", "base"], installed: [], recommended: "tiny"), "tiny")
         XCTAssertNil(ModelSelectionPolicy.select(saved: "apple", supported: [], installed: [], recommended: "tiny"))
     }

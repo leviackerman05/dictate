@@ -12,7 +12,7 @@ beta compiles for macOS 14; older-OS runtime testing remains pending.
 
 1. Open `Dictate.dmg` and drag Dictate to **Applications**.
 2. Open **Dictate** from Applications or Spotlight.
-3. Allow microphone access and click **Set up speech model**. Grant
+3. Allow microphone access and click **Use model** for Apple Speech. Grant
    Accessibility only if you want automatic insertion into other apps.
 
 On supported macOS 26 devices, Apple recognition is the default and uses an OS-managed asset.
@@ -60,7 +60,7 @@ needs Git to clone; downloading its ZIP does not.
 ## Windows beta
 
 1. Run `Dictate-Windows-x64-setup.exe` on Windows 10/11 x64.
-2. Open Dictate and set up Whisper Tiny (about 78 MB).
+2. Open Dictate; NVIDIA Parakeet starts downloading automatically (670 MB). Cancel or choose Whisper Tiny (78 MB) in Setup options if you prefer.
 3. Start recording, allow the microphone if prompted, then finish. Use the
    global shortcut in a destination editor or copy the result from Dictate.
 
@@ -134,3 +134,5 @@ The current beta accepts focused editors that expose custom Windows accessibilit
 and sends Unicode text without replacing clipboard contents. Password fields are
 still rejected, and a failed delivery keeps the transcript ready to copy or retry.
 Signing status is unchanged: the current beta does not bypass Smart App Control.
+
+The Windows model catalog also includes Whisper Medium (1.53 GB) and Large v3 Turbo (1.62 GB). Both use the local CPU; allow 8 GB RAM and longer processing times. The ready indicator is enabled by default and can be hidden in Settings → General. Microsoft Store/MSIX signing is being prepared; the current GitHub installer remains unsigned.

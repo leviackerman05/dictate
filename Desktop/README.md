@@ -34,7 +34,7 @@ retention, resampling, and shortcut transitions. The native adapter owns audio,
 model download/verification, permissions, global shortcuts, delivery, and recovery.
 The renderer contains no remote code or cloud transcription client.
 
-Models download only after a setup action. Tiny/base/small multilingual model
+Fresh installs start the Parakeet download automatically; cancel or choose a model in setup. Later downloads require a setup action. Whisper multilingual model
 files are verified against pinned sizes and SHA-256 digests before loading.
 Audio is held in memory, limited to ten minutes, and released after completion
 or cancellation. Cancellation during inference prevents delivery and history.
@@ -72,7 +72,7 @@ Existing explicit shortcuts stay saved; the old default migrates once.
 Whisper Tiny (78 MB), Base (148 MB), Small (488 MB), and NVIDIA Parakeet TDT v3
 (670 MB) run locally on CPU. An NVIDIA GPU, Python, CUDA, account, or paid API is
 not needed. Parakeet recommends 8 GB RAM; Windows Sandbox may need its memory
-allocation raised to test it. Tiny remains the quick setup choice. Parakeet
+allocation raised to test it. Parakeet is the fresh-install default; Tiny remains an optional small download. Parakeet
 supports 25 languages and uses pinned quantized ONNX components. Dictionary
 corrections apply to both engines; vocabulary prompting applies to Whisper.
 Parakeet processes audio in at most 30-second chunks to bound memory, so a word
@@ -82,4 +82,6 @@ inference chunk to finish. No model is included in the installer.
 Run `python Scripts/prepare-portable-smoke.py` from the repository root with
 `DICTATE_SMOKE_DIR` set to a test directory, then run the opt-in
 `recognition_smoke` Cargo test with `-- --ignored`. This downloads verified Tiny
-and Parakeet models and checks the real adapters against synthetic speech.
+Parakeet, Medium and Large v3 Turbo models and checks the real adapters against synthetic speech.
+
+Whisper Medium (1.53 GB) and Large v3 Turbo (1.62 GB) use pinned whisper.cpp artifacts; 8 GB RAM is recommended and CPU inference may take longer. Store signing preparation is documented in `Release/windows-store/submission.md`.

@@ -29,7 +29,8 @@ pub struct ModelFile {
     pub sha256: &'static str,
 }
 pub const PARAKEET_REVISION: &str = "8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce";
-pub const MODELS: [Model; 4] = [
+pub const WHISPER_REVISION: &str = "5359861c739e955e79d9a303bcbc70fb988958b1";
+pub const MODELS: [Model; 6] = [
     Model {
         id: "tiny",
         name: "Whisper Tiny",
@@ -61,8 +62,28 @@ pub const MODELS: [Model; 4] = [
         }],
     },
     Model {
+        id: "medium",
+        name: "Whisper Medium · 8 GB RAM recommended",
+        bytes: 1533763059,
+        files: &[ModelFile {
+            file: "ggml-medium.bin",
+            bytes: 1533763059,
+            sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+        }],
+    },
+    Model {
+        id: "large-v3-turbo",
+        name: "Whisper Large v3 Turbo · 8 GB RAM recommended",
+        bytes: 1624555275,
+        files: &[ModelFile {
+            file: "ggml-large-v3-turbo.bin",
+            bytes: 1624555275,
+            sha256: "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69",
+        }],
+    },
+    Model {
         id: "parakeet",
-        name: "NVIDIA Parakeet v3",
+        name: "NVIDIA Parakeet TDT 0.6B v3",
         bytes: 670479942,
         files: &[
             ModelFile {
@@ -183,7 +204,7 @@ pub async fn download(
             format!("https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/{PARAKEET_REVISION}/{}",file.file)
         } else {
             format!(
-                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/{WHISPER_REVISION}/{}",
                 file.file
             )
         };

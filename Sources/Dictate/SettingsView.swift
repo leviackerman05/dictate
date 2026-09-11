@@ -220,12 +220,13 @@ struct SettingsView: View {
             HStack(spacing: 8) {
                 switch status {
                 case .notInstalled, .downloaded, .failed:
-                    Button(status == .failed ? String(localized: "settings.parakeetRetry") : String(localized: "settings.parakeetDownload")) {
+                    Button(status == .failed ? String(localized: "settings.parakeetRetry") : String(localized: provider == .apple || status == .downloaded ? "models.useModel" : "settings.parakeetDownload")) {
+                        model.transcriptionProvider = provider
                         dictation.prepareModel(for: provider)
                     }
                     .buttonStyle(SettingsModelActionButtonStyle(prominent: true))
                 case .downloading, .validating, .loading:
-                    Button(String(localized: "settings.parakeetDownload")) {}
+                    Button(String(localized: "models.preparing")) {}
                         .buttonStyle(SettingsModelActionButtonStyle(prominent: true))
                         .disabled(true)
                 case .ready:
