@@ -24,9 +24,9 @@ jobs:
       - run: npm run build
         working-directory: Desktop
       - run: cargo test --locked --manifest-path Desktop/core/Cargo.toml
-      - run: cargo check --locked --manifest-path Desktop/src-tauri/Cargo.toml
       - name: Stage app-local speech runtime
         run: ./Scripts/prepare-windows-runtime.ps1
+      - run: cargo check --locked --manifest-path Desktop/src-tauri/Cargo.toml
       - name: Prepare verified model and synthetic speech
         run: python Scripts/prepare-portable-smoke.py
         env:
