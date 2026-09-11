@@ -26,7 +26,9 @@ impl SpeechEngine {
                 let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
                 params.set_n_threads(
                     std::thread::available_parallelism()
-                        .map(|v| v.get().min(8) as i32)
+                        // Four workers keep Whisper responsive while avoiding
+                        // encoder allocation failures on constrained Windows PCs.
+                        .map(|v| v.get().min(4) as i32)
                         .unwrap_or(2),
                 );
                 params.set_language(None);

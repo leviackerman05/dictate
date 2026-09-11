@@ -67,9 +67,11 @@ let expandedHistory: string | null = null;
 let statsRange: 'week' | 'month' | 'year' = 'week';
 let capturing = false;
 let modifierCandidate = '';
-let shortcutDraft: string | null = null;
 let capturedMouse: number | null = null;
 let showSetupOptions = false;
+let optimisticPreferences: Preferences | null = null;
+let pendingPreferences: Preferences | null = null;
+let savingPreferences = false;
 
 type DraftField = { name: string; value: string; checked: boolean };
 const formDrafts = new Map<string, DraftField[]>();
@@ -130,7 +132,11 @@ let refreshing: Promise<void> | null = null;
 async function refresh() {
   if (refreshing) return refreshing;
   refreshing = (async () => {
-    try { state = await invoke<Snapshot>('get_state'); render(); }
+    try {
+      const snapshot = await invoke<Snapshot>('get_state');
+      if (savingPreferences && optimisticPreferences) snapshot.data.preferences = optimisticPreferences;
+      state = snapshot; render();
+    }
     catch (error) {
       localError = String(error);
       if (!state) root.innerHTML = `<main class="startup"><h1>Dictate could not connect</h1><p>${esc(error)}</p>${button('reload', 'Try again')}</main>`;
@@ -145,6 +151,35 @@ async function call(command: string, args: Record<string, unknown> = {}, resetFo
   try { await invoke(command, args); if (resetForm) resetDrafts.add(resetForm); }
   catch (error) { localError = String(error); }
   finally { busy = false; await refresh(); }
+}
+
+async function savePreference(changes: Partial<Preferences>) {
+  optimisticPreferences = { ...(optimisticPreferences ?? state.data.preferences), ...changes };
+  pendingPreferences = optimisticPreferences;
+  state.data.preferences = optimisticPreferences;
+  localError = '';
+  render();
+  if (savingPreferences) return;
+  savingPreferences = true;
+  let saveFailed = false;
+  while (pendingPreferences) {
+    const preferences = pendingPreferences;
+    pendingPreferences = null;
+    try { await invoke('save_preferences', { preferences }); }
+    catch (error) {
+      localError = String(error);
+      pendingPreferences = null;
+      saveFailed = true;
+      break;
+    }
+  }
+  savingPreferences = false;
+  optimisticPreferences = null;
+  resetDrafts.add('settings-form');
+  await refresh();
+  // A state-change event can have an older refresh in flight while a save fails.
+  // Read once more so the controls always return to the last durable settings.
+  if (saveFailed) await refresh();
 }
 
 function status() {
@@ -298,8 +333,8 @@ function settingsTabs() {
 
 function settingsGeneral() {
   const preferences = state.data.preferences;
-  const shortcut = shortcutDraft ?? preferences.shortcut;
-  return `<form id="settings-form"><section class="settings-card">${cardHeader('palette', 'Appearance', 'Color Index is the Dictate identity. This controls the system appearance only.')}<div class="setting-row"><div><strong>Appearance</strong><small>Follow Windows, or choose a theme.</small></div>${segments('appearance', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], preferences.appearance)}</div></section><section class="settings-card">${cardHeader('keyboard', 'Shortcut', 'Hold the key while speaking; release it to finish.')}<div class="setting-row"><div><strong>Push-to-talk key</strong><small>Choose one key, a combination, or a mouse button.</small></div><input type="hidden" name="shortcut" value="${esc(shortcut)}"><button type="button" data-action="capture-shortcut" class="shortcut-capture ${capturing ? 'capturing' : ''}"><span>${capturing ? 'Press a key or mouse button…' : esc(shortcutLabel(shortcut))}</span>${icon('chevron-down')}</button></div><div class="platform-tip">${icon('mouse')}<div><strong>Make Dictate comfortable to reach</strong><small>Try Right Ctrl, F8, or a middle/side mouse button. Escape cancels capture.</small></div><div class="preset-row">${[['ControlRight', 'Right Ctrl'], ['F8', 'F8'], ['MouseBack', 'Mouse back']].map(([value, label]) => button('shortcut-preset', label, 'link-button', `data-id="${value}"`)).join('')}</div></div><div class="setting-row"><div><strong>Recording behavior</strong><small>${preferences.recordingMode === 'holdToTalk' ? 'Hold the shortcut to speak; release it to finish.' : 'Press once to start; press again to finish.'}</small></div>${segments('recordingMode', [['holdToTalk', 'Hold to talk'], ['clickToToggle', 'Click to toggle']], preferences.recordingMode)}</div></section><section class="settings-card">${cardHeader('sliders-horizontal', 'General', 'Small choices that keep Dictate quiet, focused, and ready.')}<label class="setting-row"><div><strong>Keep history</strong><small>History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div><div class="setting-row"><div><strong>Delete all history</strong><small>Dictionary, models, and preferences remain.</small></div>${button('clear-history', 'Delete', 'danger')}</div></section><section class="settings-card">${cardHeader('info', 'About', 'Dictate updates are distributed with the app build.')}<div class="about-row"><p>Dictate is a private, local writing instrument for short spoken fragments.</p><span>Dictate ${esc(state.version)} · Windows</span></div><div class="setting-row"><div><strong>Review onboarding</strong><small>Walk through microphone and insertion setup again.</small></div>${button('show-setup', 'Review onboarding')}</div></section><button id="save-settings" type="submit" class="primary save-settings">Save changes</button></form>`;
+  const shortcut = preferences.shortcut;
+  return `<form id="settings-form"><section class="settings-card">${cardHeader('palette', 'Appearance', 'Color Index is the Dictate identity. This controls the system appearance only.')}<div class="setting-row"><div><strong>Appearance</strong><small>Follow Windows, or choose a theme. Changes save automatically.</small></div>${segments('appearance', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], preferences.appearance)}</div></section><section class="settings-card">${cardHeader('keyboard', 'Shortcut', 'Hold the key while speaking; release it to finish.')}<div class="setting-row"><div><strong>Push-to-talk key</strong><small>Choose one key, a combination, or a mouse button.</small></div><button type="button" data-action="capture-shortcut" class="shortcut-capture ${capturing ? 'capturing' : ''}"><span>${capturing ? 'Press a key or mouse button…' : esc(shortcutLabel(shortcut))}</span>${icon('chevron-down')}</button></div><div class="platform-tip">${icon('mouse')}<div><strong>Make Dictate comfortable to reach</strong><small>Try Right Ctrl, F8, or a middle/side mouse button. Escape cancels capture.</small></div><div class="preset-row">${[['ControlRight', 'Right Ctrl'], ['F8', 'F8'], ['MouseBack', 'Mouse back']].map(([value, label]) => button('shortcut-preset', label, 'link-button', `data-id="${value}"`)).join('')}</div></div><div class="setting-row"><div><strong>Recording behavior</strong><small>${preferences.recordingMode === 'holdToTalk' ? 'Hold the shortcut to speak; release it to finish.' : 'Press once to start; press again to finish.'}</small></div>${segments('recordingMode', [['holdToTalk', 'Hold to talk'], ['clickToToggle', 'Click to toggle']], preferences.recordingMode)}</div></section><section class="settings-card">${cardHeader('sliders-horizontal', 'General', 'Small choices that keep Dictate quiet, focused, and ready.')}<label class="setting-row"><div><strong>Keep history</strong><small>History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div><div class="setting-row"><div><strong>Delete all history</strong><small>Dictionary, models, and preferences remain.</small></div>${button('clear-history', 'Delete', 'danger')}</div></section><section class="settings-card">${cardHeader('info', 'About', 'Dictate updates are distributed with the app build.')}<div class="about-row"><p>Dictate is a private, local writing instrument for short spoken fragments.</p><span>Dictate ${esc(state.version)} · Windows</span></div><div class="setting-row"><div><strong>Review onboarding</strong><small>Walk through microphone and insertion setup again.</small></div>${button('show-setup', 'Review onboarding')}</div></section></form>`;
 }
 
 function settingsAudio() {
@@ -309,7 +344,7 @@ function settingsAudio() {
 
 function settingsPermissions() {
   const preferences = state.data.preferences;
-  return `<form id="settings-form"><section class="settings-card">${cardHeader('lock-keyhole', 'Insertion & Permissions', 'Dictate returns words to the focused text field. If insertion is unavailable, your transcript stays ready to copy.')}<label class="setting-row"><div><strong>Insert words at your cursor</strong><small>Uses Windows text input in the external field that has keyboard focus.</small></div><input class="switch" name="autoInsert" type="checkbox" role="switch" ${preferences.autoInsert ? 'checked' : ''}></label><div class="setting-row"><div><strong>Microphone</strong><small>Required to hear your voice on this PC.</small></div><span class="permission-status"><span class="dot ready"></span>Windows managed</span></div></section><section class="settings-card">${cardHeader('shield-check', 'Privacy', 'History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.')}<div class="privacy-copy"><strong>Stored on this PC</strong><p>History and dictionary entries use local app data. Preferences and pending recovery text also remain local.</p><a href="https://github.com/leviackerman05/dictate/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Read the privacy policy</a></div><label class="setting-row"><div><strong>Keep history</strong><small>Turn this off when you do not want completed transcripts saved.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div></section><input type="hidden" name="appearance" value="${esc(preferences.appearance)}"><input type="hidden" name="recordingMode" value="${esc(preferences.recordingMode)}"><input type="hidden" name="shortcut" value="${esc(shortcutDraft ?? preferences.shortcut)}"><button id="save-settings" type="submit" class="primary save-settings">Save changes</button></form>`;
+  return `<form id="settings-form"><section class="settings-card">${cardHeader('lock-keyhole', 'Insertion & Permissions', 'Dictate returns words to the focused text field. Changes save automatically.')}<label class="setting-row"><div><strong>Insert words at your cursor</strong><small>Uses Windows text input in the external field that has keyboard focus.</small></div><input class="switch" name="autoInsert" type="checkbox" role="switch" ${preferences.autoInsert ? 'checked' : ''}></label><div class="setting-row"><div><strong>Microphone</strong><small>Required to hear your voice on this PC.</small></div><span class="permission-status"><span class="dot ready"></span>Windows managed</span></div></section><section class="settings-card">${cardHeader('shield-check', 'Privacy', 'History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.')}<div class="privacy-copy"><strong>Stored on this PC</strong><p>History and dictionary entries use local app data. Preferences and pending recovery text also remain local.</p><a href="https://github.com/leviackerman05/dictate/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Read the privacy policy</a></div><label class="setting-row"><div><strong>Keep history</strong><small>Turn this off when you do not want completed transcripts saved.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div></section></form>`;
 }
 
 function settingsView() {
@@ -356,7 +391,7 @@ root.addEventListener('click', async event => {
   if (capturing && buttonElement.dataset.section) await stopCapture();
   if (buttonElement.dataset.section) {
     section = buttonElement.dataset.section as Section; search = ''; editing = null; showSetupOptions = false;
-    if (!state.data.preferences.onboardingDone) await call('save_preferences', { preferences: { ...state.data.preferences, onboardingDone: true } }); else render();
+    if (!state.data.preferences.onboardingDone) await savePreference({ onboardingDone: true }); else render();
     root.querySelector<HTMLHeadingElement>('h1')?.focus({ preventScroll: true }); return;
   }
   const action = buttonElement.dataset.action; const id = buttonElement.dataset.id;
@@ -374,17 +409,17 @@ root.addEventListener('click', async event => {
     case 'setup-options': showSetupOptions = true; render(); break;
     case 'close-setup-options': showSetupOptions = false; render(); break;
     case 'capture-shortcut': if (capturing) await stopCapture(); else { try { await invoke('pause_shortcut', { paused: true }); capturing = true; modifierCandidate = ''; render(); } catch (error) { localError = String(error); render(); } } break;
-    case 'shortcut-preset': shortcutDraft = id!; render(); break;
+    case 'shortcut-preset': await savePreference({ shortcut: id! }); break;
     case 'record': await call('start_recording'); break;
     case 'finish': await call('finish_recording'); break;
     case 'cancel-recording': try { await invoke('cancel_recording'); } catch (error) { localError = String(error); } await refresh(); break;
     case 'setup': await call('setup_model', { id: state.data.preferences.model, download: true }); break;
     case 'select-model': await call('setup_model', { id, download: !state.installed.includes(id!) }); break;
-    case 'browse-models': await call('save_preferences', { preferences: { ...state.data.preferences, onboardingDone: true } }); section = 'models'; showSetupOptions = false; render(); break;
+    case 'browse-models': await savePreference({ onboardingDone: true }); section = 'models'; showSetupOptions = false; render(); break;
     case 'cancel-setup': await invoke('cancel_setup'); break;
     case 'remove-model': if (await confirm('Remove this downloaded model? You can download it again later.', { title: 'Remove model', kind: 'warning' })) await call('remove_model', { id }); break;
-    case 'complete-setup': await call('save_preferences', { preferences: { ...state.data.preferences, onboardingDone: true } }); break;
-    case 'show-setup': await call('save_preferences', { preferences: { ...state.data.preferences, onboardingDone: false } }); break;
+    case 'complete-setup': await savePreference({ onboardingDone: true }); break;
+    case 'show-setup': await savePreference({ onboardingDone: false }); break;
     case 'copy-recovery': await call('copy_text', { text: state.data.recovery }); break;
     case 'discard-recovery': if (await confirm('Discard this recovered transcript?', { title: 'Discard transcript', kind: 'warning' })) await call('discard_recovery'); break;
     case 'retry-delivery': await call('retry_delivery'); break;
@@ -402,22 +437,25 @@ root.addEventListener('click', async event => {
 
 function bindForms() {
   root.querySelectorAll<HTMLInputElement>('input[name="statsRange"]').forEach(input => input.addEventListener('change', () => { statsRange = input.value as typeof statsRange; render(); }));
-  root.querySelectorAll<HTMLInputElement>('input[name="setupMode"]').forEach(input => input.addEventListener('change', () => { void call('save_preferences', { preferences: { ...state.data.preferences, recordingMode: input.value } }); }));
+  root.querySelectorAll<HTMLInputElement>('input[name="setupMode"]').forEach(input => input.addEventListener('change', () => { void savePreference({ recordingMode: input.value }); }));
   root.querySelector<HTMLFormElement>('#dictionary-form')?.addEventListener('submit', async event => {
     event.preventDefault(); const form = new FormData(event.target as HTMLFormElement); const kind = String(form.get('kind')); const prior = state.data.dictionary.find(entry => entry.id === editing);
     const entry: Entry = { id: prior?.id ?? crypto.randomUUID(), kind, sourcePhrase: String(form.get('source')).trim(), targetPhrase: kind === 'correction' ? String(form.get('target')).trim() : null, notes: prior?.notes ?? null, isEnabled: prior?.isEnabled ?? true, createdAt: prior?.createdAt ?? new Date().toISOString(), updatedAt: new Date().toISOString() };
     await call('save_dictionary', { entries: [...state.data.dictionary.filter(item => item.id !== entry.id), entry] }, 'dictionary-form'); if (!localError) { editing = null; resetDrafts.add('dictionary-form'); render(); }
   });
-  root.querySelector<HTMLFormElement>('#settings-form')?.addEventListener('submit', async event => {
-    event.preventDefault(); const form = new FormData(event.target as HTMLFormElement);
-    await call('save_preferences', { preferences: { ...state.data.preferences, recordingMode: form.get('recordingMode') ?? state.data.preferences.recordingMode, shortcut: shortcutDraft ?? form.get('shortcut') ?? state.data.preferences.shortcut, appearance: form.get('appearance') ?? state.data.preferences.appearance, keepHistory: form.has('keepHistory'), retention: form.get('retention') ?? state.data.preferences.retention, autoInsert: settingsTab === 'permissions' ? form.has('autoInsert') : state.data.preferences.autoInsert } }, 'settings-form'); if (!localError) shortcutDraft = null;
+  root.querySelector<HTMLFormElement>('#settings-form')?.addEventListener('change', event => {
+    const input = event.target as HTMLInputElement;
+    if (!input.name || (input.type === 'radio' && !input.checked)) return;
+    const value = input.type === 'checkbox' ? input.checked : input.value;
+    void savePreference({ [input.name]: value } as Partial<Preferences>);
   });
 }
 
 async function stopCapture(value?: string) {
   capturing = false; modifierCandidate = '';
   try { await invoke('pause_shortcut', { paused: false }); } catch (error) { localError = String(error); }
-  if (value) shortcutDraft = value; render(); root.querySelector<HTMLButtonElement>('[data-action="capture-shortcut"]')?.focus();
+  if (value) await savePreference({ shortcut: value }); else render();
+  root.querySelector<HTMLButtonElement>('[data-action="capture-shortcut"]')?.focus();
 }
 function combination(event: KeyboardEvent | MouseEvent, code: string) { return [event.ctrlKey ? 'Ctrl' : '', event.altKey ? 'Alt' : '', event.shiftKey ? 'Shift' : '', event.metaKey ? 'Win' : '', code].filter(Boolean).join('+'); }
 window.addEventListener('keydown', event => { if (!capturing) { if (event.key === 'Escape' && state?.phase !== 'idle') void invoke('cancel_recording').catch(() => {}); return; } event.preventDefault(); event.stopImmediatePropagation(); if (event.repeat) return; if (event.code === 'Escape') { void stopCapture(); return; } if (/^(Control|Alt|Shift|Meta)(Left|Right)$/.test(event.code)) { modifierCandidate = event.code; return; } if (event.code) void stopCapture(combination(event, event.code)); }, true);

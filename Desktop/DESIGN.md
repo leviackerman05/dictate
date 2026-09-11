@@ -124,7 +124,8 @@ share edges and dividers instead of turning every row into a floating card.
 - **Statistics:** Week, Month, and Year ranges update metrics and activity buckets.
 - **AI models:** current model strip, recommended model, performance summary, and
   grouped Parakeet/Whisper catalog. Only engines supported by the platform appear.
-- **Settings:** General, Audio, and Permissions tabs. Appearance offers System,
+- **Settings:** General, Audio, and Permissions tabs. Every change persists
+  immediately, matching Mac; there is no Save button. Appearance offers System,
   Light, and Dark. Windows supports a single key, key combination, or supported mouse
   button; Right Ctrl is the default suggestion.
 - **Insertion:** Windows verifies an external focused element, refuses password fields,

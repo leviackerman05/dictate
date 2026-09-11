@@ -2,7 +2,7 @@ A free, open-source Mac and Windows community beta. No account, API key, paid se
 
 New in beta 6:
 - Windows now follows the native Mac Dictate interface across Dashboard, History, Dictionary, Statistics, AI models, Settings, and onboarding. The shared light/dark palette, navigation, cards, editorial headings, and local-first status language are aligned while Windows controls and model availability remain accurate.
-- Settings now has General, Audio, and Permissions tabs plus System, Light, and Dark appearance choices.
+- Settings now has General, Audio, and Permissions tabs plus System, Light, and Dark appearance choices. Changes save immediately, as they do on Mac, with no separate Save button.
 - The Windows recorder overlay now matches Mac's compact signal pebble: nine listening bars, three processing dots, and no copy or action buttons. Delivery recovery stays in the main app.
 - Windows cursor insertion now accepts focused custom editors used by modern Notepad, browsers, Electron apps, and Office-style apps. It sends Unicode text without replacing clipboard contents, still refuses password fields, and keeps failed transcripts ready to copy or retry.
 - Week, Month, and Year statistics ranges are functional. Dictionary import/export, model management, history actions, custom shortcuts, and onboarding options remain available.

@@ -20,7 +20,7 @@ The successful pass covered:
 
 - all six destinations in light and dark appearance;
 - General, Audio, and Permissions settings;
-- System/Light/Dark preference persistence;
+- immediate System/Light/Dark, history, insertion, recording-mode, and shortcut persistence;
 - onboarding at full and minimum window sizes;
 - single modifier, key combination, and mouse-button shortcut capture;
 - Parakeet and Whisper model selection;
@@ -52,6 +52,11 @@ release workflow on `windows-latest` is the authoritative native Windows check: 
 compiles the Windows target, runs locked shared-core tests, performs real offline
 Whisper and Parakeet inference on synthetic audio, builds the NSIS installer, and
 inspects its runtime dependencies.
+
+The first beta 6 branch run compiled the renderer and shared core, then reported a
+Whisper encoder failure on the constrained runner before the native Tauri check.
+Whisper now caps CPU inference at four workers, and CI compiles the complete Windows
+target before running the longer recognition smoke.
 
 Physical-device acceptance remains required for microphone capture, the global
 shortcut, insertion into Notepad and another editor, installer launch, SmartScreen
