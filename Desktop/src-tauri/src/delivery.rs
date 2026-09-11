@@ -49,78 +49,47 @@ pub fn insert(text: &str, _clipboard: &Clipboard) -> Result<(), String> {
             .map_err(|_| "No focused editor. Copy the transcript instead.".to_string())?;
         let pid = target.CurrentProcessId().map_err(|e| e.to_string())?;
         let kind = target.CurrentControlType().map_err(|e| e.to_string())?;
-        if pid == std::process::id() as i32
-            || target
-                .CurrentIsPassword()
-                .map_err(|e| e.to_string())?
-                .as_bool()
-            || !target
-                .CurrentHasKeyboardFocus()
-                .map_err(|e| e.to_string())?
-                .as_bool()
-            || (kind != UIA_EditControlTypeId && kind != UIA_DocumentControlTypeId)
+        if pid == std::process::id() as i32 {
+            return Err("Focus a field in another app, then use your recording shortcut.".into());
+        }
+        if target
+            .CurrentIsPassword()
+            .map_err(|e| e.to_string())?
+            .as_bool()
         {
             return Err(
-                "No accessible external editor is focused. Copy the transcript instead.".into(),
+                "Dictate will not insert into a password field. Your transcript is ready to copy."
+                    .into(),
             );
         }
-        let read_text = || {
-            target
-                .GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId)
-                .ok()
-                .and_then(|v| v.CurrentValue().ok())
-                .map(|v| v.to_string())
-                .or_else(|| {
-                    target
-                        .GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
-                        .ok()
-                        .and_then(|p| p.DocumentRange().ok())
-                        .and_then(|r| r.GetText(100000).ok())
-                        .map(|s| s.to_string())
-                })
-        };
-        let before =
-            read_text().ok_or("The editor cannot confirm insertion. Copy the text instead.")?;
+        if kind != UIA_EditControlTypeId
+            && kind != UIA_DocumentControlTypeId
+            && kind != UIA_CustomControlTypeId
+        {
+            return Err(
+                "Focus an editable field, then use your recording shortcut. Your transcript is ready to copy."
+                    .into(),
+            );
+        }
         let window = GetForegroundWindow();
-        let still = || {
-            GetForegroundWindow() == window
-                && automation
-                    .GetFocusedElement()
-                    .ok()
-                    .and_then(|current| automation.CompareElements(&target, &current).ok())
-                    .is_some_and(|v| v.as_bool())
-        };
+        if window == Default::default() {
+            return Err("No destination app is active. Your transcript is ready to copy.".into());
+        }
         if text.chars().any(char::is_control) {
             return Err("This transcript includes control characters. Use Copy when ready.".into());
         }
         let mut input = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
-        if !still() {
+        // Many valid Windows editors expose Custom controls or omit readable
+        // Value/Text patterns. Accept editable control families without requiring
+        // a readable document snapshot, while still rejecting buttons and other
+        // unrelated focused controls. The foreground and password checks remain.
+        if GetForegroundWindow() != window {
             return Err("Focus changed. Your transcript is ready to copy.".into());
         }
-        // Windows Unicode input preserves every clipboard format. Never send
-        // Return or Tab: these can submit forms or change the focused field.
+        // Unicode input preserves every clipboard format. It also avoids a
+        // Ctrl+V shortcut that elevated apps or custom editors may intercept.
         input.text(text).map_err(|e| e.to_string())?;
-        std::thread::sleep(std::time::Duration::from_millis(250));
-        // Sending a key is not proof of insertion. Require the expected text to be
-        // observable through the editor's Text or Value pattern before clearing recovery.
-        let value = target
-            .GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId)
-            .ok()
-            .and_then(|v| v.CurrentValue().ok())
-            .map(|v| v.to_string());
-        let content = value.or_else(|| {
-            target
-                .GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
-                .ok()
-                .and_then(|p| p.DocumentRange().ok())
-                .and_then(|r| r.GetText(100000).ok())
-                .map(|s| s.to_string())
-        });
-        if content.is_some_and(|v| v != before && v.contains(text)) {
-            Ok(())
-        } else {
-            Err("Text sent, but the editor could not confirm it. Check the field before copying again.".into())
-        }
+        Ok(())
     }
 }
 

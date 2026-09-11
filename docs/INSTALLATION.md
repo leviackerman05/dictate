@@ -116,7 +116,7 @@ build with `DICTATE_BUNDLE_IDENTIFIER=com.example.dictate make app`.
 signature integrity and DMG contents. It reports actual Gatekeeper rejection for
 an unnotarized community build; passing packaging checks is not Apple approval.
 
-### Windows beta 5 shortcuts and models
+### Windows beta 6 shortcuts, insertion, and models
 
 Choose **Quit Dictate** from the old app’s system tray menu before installing
 the new beta. Closing its window only hides it. Right Ctrl is the default:
@@ -130,4 +130,7 @@ NVIDIA Parakeet TDT v3 (670 MB). They all run locally on CPU. Parakeet recommend
 8 GB RAM, including when allocating memory to Windows Sandbox. Whisper Tiny is
 the smaller quick-start choice. The installer includes the ONNX and C++ runtime
 components; no separate C++ package or developer tools are needed to use it.
-Signing status is unchanged: beta 5 does not bypass Smart App Control.
+Beta 6 accepts focused editors that expose custom Windows accessibility controls
+and sends Unicode text without replacing clipboard contents. Password fields are
+still rejected, and a failed delivery keeps the transcript ready to copy or retry.
+Signing status is unchanged: beta 6 does not bypass Smart App Control.

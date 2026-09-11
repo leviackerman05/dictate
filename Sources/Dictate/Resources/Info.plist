@@ -8,7 +8,7 @@
   <key>CFBundleName</key><string>Dictate</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.1.0</string>
-  <key>CFBundleVersion</key><string>11005</string>
+  <key>CFBundleVersion</key><string>11006</string>
   <key>CFBundleIconFile</key><string>AppIcon.icns</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSMicrophoneUsageDescription</key><string>Dictate needs microphone access to turn your speech into text locally.</string>

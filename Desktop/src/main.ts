@@ -1,156 +1,443 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open, save, confirm } from '@tauri-apps/plugin-dialog';
-import { createIcons, LayoutDashboard, History, BookOpen, ChartNoAxesCombined, Cpu, Settings, Mic, Square, Copy, Trash2, Pin, Download, X, Check, ArrowUpRight, CircleHelp, Keyboard, Mouse, ArrowRight, ShieldCheck, Search } from 'lucide';
+import {
+  createIcons, LayoutDashboard, History, BookOpen, ChartNoAxesCombined, Cpu,
+  Settings, Mic, Square, Copy, Trash2, Pin, Download, Check, ArrowUpRight,
+  Keyboard, ShieldCheck, Search, Clock3, AlignLeft, AudioLines, Sparkles,
+  LockKeyhole, SlidersHorizontal, Info, Palette, ChevronDown,
+  ChevronRight, FileText, Timer, Activity, Plus, RotateCcw,
+  MoreHorizontal, Mouse, CircleCheck,
+} from 'lucide';
 import './style.css';
 
-interface Entry {id:string;kind:string;sourcePhrase:string;targetPhrase:string|null;notes:string|null;isEnabled:boolean;createdAt:string;updatedAt:string}
-interface Transcript {id:string;timestamp:string;originalTranscript:string;correctedText:string;duration:number;insertionResult:string;correctionAudit:{heard:string;written:string}[];isPinned:boolean}
-interface Preferences {model:string;keepHistory:boolean;retention:string;recordingMode:string;shortcut:string;appearance:string;onboardingDone:boolean;autoInsert:boolean}
-interface Snapshot {data:{preferences:Preferences;history:Transcript[];dictionary:Entry[];recovery:string|null};phase:string;models:{id:string;name:string;bytes:number}[];installed:string[];ready:boolean;settingUp:boolean;notice:string|null;shortcutError:string|null;capability:string;platform:string;version:string}
-const root=document.querySelector<HTMLDivElement>('#app')!;
-const overlay=new URLSearchParams(location.search).has('overlay');
-let capturedMouse:number|null=null;let capturing=false;let modifierCandidate='';let shortcutDraft:string|null=null;
-let state:Snapshot;let section='dashboard';let search='';let localError='';let progress='';let busy=false;let editing:string|null=null;
-const names:Record<string,string>={dashboard:'Dictation',history:'History',dictionary:'Dictionary',statistics:'Statistics',models:'Speech models',settings:'Settings'};
-const glyphs:Record<string,string>={dashboard:'layout-dashboard',history:'history',dictionary:'book-open',statistics:'chart-no-axes-combined',models:'cpu',settings:'settings'};
-const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-const icon=(name:string)=>`<i data-lucide="${name}" aria-hidden="true"></i>`;
-const button=(action:string,label:string,cls='',attrs='')=>`<button data-action="${action}" class="${cls}" ${attrs}>${label}</button>`;
-const wordCount=(text:string)=>text.trim().split(/\s+/).filter(Boolean).length;
-const stamp=(s:string)=>new Date(s).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-const duration=(n:number)=>{const seconds=Math.round(n);return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;};
-const allIcons={LayoutDashboard,History,BookOpen,ChartNoAxesCombined,Cpu,Settings,Mic,Square,Copy,Trash2,Pin,Download,X,Check,ArrowUpRight,CircleHelp,Keyboard,Mouse,ArrowRight,ShieldCheck,Search};
-type DraftField={name:string,value:string,checked:boolean};
-const formDrafts=new Map<string,DraftField[]>();
-const resetDrafts=new Set<string>();
-function preserveUI(){
- root.querySelectorAll<HTMLFormElement>('form[id]').forEach(form=>{
-  if(!resetDrafts.has(form.id))formDrafts.set(form.id,Array.from(form.querySelectorAll<HTMLInputElement>('input[name],select[name]')).map(el=>({name:el.name,value:el.value,checked:el.checked})));
- });
- const active=document.activeElement as HTMLInputElement;
- const key=active?.id?`#${CSS.escape(active.id)}`:active?.name?`[name="${CSS.escape(active.name)}"]${active.type==='radio'?`[value="${CSS.escape(active.value)}"]`:''}`:active?.dataset.section?`[data-section="${active.dataset.section}"]`:active?.dataset.action?`[data-action="${active.dataset.action}"]${active.dataset.id?`[data-id="${active.dataset.id}"]`:''}`:null;
- const start=active?.selectionStart,end=active?.selectionEnd;
- return ()=>{
-  root.querySelectorAll<HTMLFormElement>('form[id]').forEach(form=>{
-   if(resetDrafts.has(form.id)){formDrafts.delete(form.id);resetDrafts.delete(form.id);return;}
-   for(const field of formDrafts.get(form.id)??[]){const el=Array.from(form.querySelectorAll<HTMLInputElement>(`[name="${CSS.escape(field.name)}"]`)).find(el=>el.type!=='radio'||el.value===field.value);if(el){if(el.type!=='radio')el.value=field.value;if(el.type==='checkbox'||el.type==='radio')el.checked=field.checked;}}
+interface Entry {
+  id: string; kind: string; sourcePhrase: string; targetPhrase: string | null;
+  notes: string | null; isEnabled: boolean; createdAt: string; updatedAt: string;
+}
+interface Transcript {
+  id: string; timestamp: string; originalTranscript: string; correctedText: string;
+  duration: number; insertionResult: string;
+  correctionAudit: { heard: string; written: string }[]; isPinned: boolean;
+}
+interface Preferences {
+  model: string; keepHistory: boolean; retention: string; recordingMode: string;
+  shortcut: string; appearance: string; onboardingDone: boolean; autoInsert: boolean;
+}
+interface Model { id: string; name: string; bytes: number }
+interface Snapshot {
+  data: { preferences: Preferences; history: Transcript[]; dictionary: Entry[]; recovery: string | null };
+  phase: string; models: Model[]; installed: string[]; ready: boolean; settingUp: boolean;
+  notice: string | null; shortcutError: string | null; capability: string;
+  platform: string; version: string;
+}
+
+const root = document.querySelector<HTMLDivElement>('#app')!;
+const overlay = new URLSearchParams(location.search).has('overlay');
+const sections = ['dashboard', 'history', 'dictionary', 'statistics', 'models', 'settings'] as const;
+type Section = typeof sections[number];
+type SettingsTab = 'general' | 'audio' | 'permissions';
+
+const names: Record<Section, string> = {
+  dashboard: 'Dashboard', history: 'History', dictionary: 'Dictionary',
+  statistics: 'Statistics', models: 'AI models', settings: 'Settings',
+};
+const glyphs: Record<Section, string> = {
+  dashboard: 'layout-dashboard', history: 'history', dictionary: 'book-open',
+  statistics: 'chart-no-axes-combined', models: 'cpu', settings: 'settings',
+};
+const allIcons = {
+  LayoutDashboard, History, BookOpen, ChartNoAxesCombined, Cpu, Settings, Mic,
+  Square, Copy, Trash2, Pin, Download, Check, ArrowUpRight, Keyboard, ShieldCheck,
+  Search, Clock3, AlignLeft, AudioLines, Sparkles, LockKeyhole, SlidersHorizontal,
+  Info, Palette, ChevronDown, ChevronRight, FileText, Timer, Activity, Plus,
+  RotateCcw, MoreHorizontal, Mouse, CircleCheck,
+};
+
+let state: Snapshot;
+let section: Section = 'dashboard';
+let settingsTab: SettingsTab = 'general';
+let selectedDay = 'today';
+let search = '';
+let localError = '';
+let progress = '';
+let busy = false;
+let editing: string | null = null;
+let expandedHistory: string | null = null;
+let statsRange: 'week' | 'month' | 'year' = 'week';
+let capturing = false;
+let modifierCandidate = '';
+let shortcutDraft: string | null = null;
+let capturedMouse: number | null = null;
+let showSetupOptions = false;
+
+type DraftField = { name: string; value: string; checked: boolean };
+const formDrafts = new Map<string, DraftField[]>();
+const resetDrafts = new Set<string>();
+
+const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]!));
+const icon = (name: string) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+const button = (action: string, label: string, cls = '', attrs = '') =>
+  `<button data-action="${action}" class="${cls}" ${attrs}>${label}</button>`;
+const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+const secondsLabel = (seconds: number) => {
+  const rounded = Math.round(seconds);
+  return `${String(Math.floor(rounded / 60)).padStart(2, '0')}:${String(rounded % 60).padStart(2, '0')}`;
+};
+const timeLabel = (value: string) => new Date(value).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+const sameDay = (value: string, date: Date) => dayKey(new Date(value)) === dayKey(date);
+const modelSize = (bytes: number) => bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
+
+function preserveUI() {
+  root.querySelectorAll<HTMLFormElement>('form[id]').forEach(form => {
+    if (!resetDrafts.has(form.id)) {
+      formDrafts.set(form.id, Array.from(form.querySelectorAll<HTMLInputElement>('input[name],select[name]'))
+        .map(element => ({ name: element.name, value: element.value, checked: element.checked })));
+    }
   });
-  const target=key?root.querySelector<HTMLInputElement>(key):null;
-  target?.focus({preventScroll:true});
-  if(target&&start!=null&&end!=null&&['text','search','url','tel','password'].includes(target.type))target.setSelectionRange(start,end);
- };
+  const active = document.activeElement as HTMLInputElement;
+  const key = active?.id ? `#${CSS.escape(active.id)}`
+    : active?.name ? `[name="${CSS.escape(active.name)}"]${active.type === 'radio' ? `[value="${CSS.escape(active.value)}"]` : ''}`
+      : active?.dataset.section ? `[data-section="${active.dataset.section}"]`
+        : active?.dataset.action ? `[data-action="${active.dataset.action}"]${active.dataset.id ? `[data-id="${active.dataset.id}"]` : ''}` : null;
+  const start = active?.selectionStart;
+  const end = active?.selectionEnd;
+  return () => {
+    root.querySelectorAll<HTMLFormElement>('form[id]').forEach(form => {
+      if (resetDrafts.has(form.id)) {
+        formDrafts.delete(form.id);
+        resetDrafts.delete(form.id);
+        return;
+      }
+      for (const field of formDrafts.get(form.id) ?? []) {
+        const element = Array.from(form.querySelectorAll<HTMLInputElement>(`[name="${CSS.escape(field.name)}"]`))
+          .find(candidate => candidate.type !== 'radio' || candidate.value === field.value);
+        if (!element) continue;
+        if (element.type !== 'radio') element.value = field.value;
+        if (element.type === 'checkbox' || element.type === 'radio') element.checked = field.checked;
+      }
+    });
+    const target = key ? root.querySelector<HTMLInputElement>(key) : null;
+    target?.focus({ preventScroll: true });
+    if (target && start != null && end != null && ['text', 'search', 'url', 'tel', 'password'].includes(target.type)) target.setSelectionRange(start, end);
+  };
 }
-let refreshing:Promise<void>|null=null;
-async function refresh(){
- if(refreshing)return refreshing;
- refreshing=(async()=>{try{state=await invoke<Snapshot>('get_state');render();}catch(e){localError=String(e);if(!state)root.innerHTML=`<main class="startup"><h1>Dictate could not connect</h1><p>${esc(e)}</p><button data-action="reload">Retry</button></main>`;}})();
- try{await refreshing;}finally{refreshing=null;}
+
+let refreshing: Promise<void> | null = null;
+async function refresh() {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    try { state = await invoke<Snapshot>('get_state'); render(); }
+    catch (error) {
+      localError = String(error);
+      if (!state) root.innerHTML = `<main class="startup"><h1>Dictate could not connect</h1><p>${esc(error)}</p>${button('reload', 'Try again')}</main>`;
+    }
+  })();
+  try { await refreshing; } finally { refreshing = null; }
 }
-async function call(command:string,args:Record<string,unknown>={},resetForm?:string){
- if(busy)return;busy=true;localError='';
- try{await invoke(command,args);if(resetForm)resetDrafts.add(resetForm);}catch(e){localError=String(e);}finally{busy=false;await refresh();}
+
+async function call(command: string, args: Record<string, unknown> = {}, resetForm?: string) {
+  if (busy) return;
+  busy = true; localError = '';
+  try { await invoke(command, args); if (resetForm) resetDrafts.add(resetForm); }
+  catch (error) { localError = String(error); }
+  finally { busy = false; await refresh(); }
 }
-function status(){return state.phase==='listening'?'Listening':state.phase==='preparing'?'Starting microphone':state.phase==='finalizing'?'Transcribing locally':state.phase==='delivering'?'Returning your words':state.settingUp?'Preparing model':state.ready?'Ready to dictate':'Set up a model';}
-function recordingButton(){const listening=state.phase==='listening';const pending=['preparing','finalizing','delivering'].includes(state.phase);return button(listening?'finish':'record',icon(listening?'square':'mic')+(listening?'Finish recording':'Start recording'),'primary',(!state.ready||pending||state.data.recovery?'disabled':'') );}
-function feedback(){return `<div class="feedback" aria-live="polite">${localError?`<p class="error">${esc(localError)}</p>`:''}${state.notice?`<p>${esc(state.notice)}</p>`:''}${state.data.recovery?`<section class="recovery"><h2>Your words are here</h2><p class="transcript">${esc(state.data.recovery)}</p><div class="actions">${button('copy-recovery',icon('copy')+'Copy text','primary')}${button('retry-delivery','Retry insertion in 3 seconds')}${button('discard-recovery','Dismiss')}</div></section>`:''}</div>`;}
-function shortcutLabel(value:string){return value.split('+').map(key=>({ControlRight:'Right Ctrl',ControlLeft:'Left Ctrl',AltRight:'Right Alt',AltLeft:'Left Alt',ShiftRight:'Right Shift',ShiftLeft:'Left Shift',MetaLeft:'Left Windows',MetaRight:'Right Windows',MouseMiddle:'Middle mouse',MouseBack:'Mouse back',MouseForward:'Mouse forward',CommandOrControl:'Ctrl',Space:'Space'}[key]??key.replace(/^Key|^Digit/,'').replace('Arrow',''))).join(' + ');}
-function shortcutHint(){return `<kbd>${esc(shortcutLabel(state.data.preferences.shortcut))}</kbd>`;}
-function modelSize(bytes:number){return bytes>=1e9?`${(bytes/1e9).toFixed(1)} GB`:`${Math.round(bytes/1e6)} MB`;}
-function pageHeading(title:string,description:string,actions=''){return `<header class="page-heading"><div><h1>${title}</h1><p>${description}</p></div>${actions}</header>`;}
-function emptyState(title:string,description:string,action='',glyph='mic'){return `<section class="empty"><div class="empty-icon">${icon(glyph)}</div><h2>${title}</h2><p>${description}</p>${action}</section>`;}
-function setupAction(){return state.settingUp?`<div class="download-progress" role="status"><p id="model-progress">${esc(progress||'Preparing your model…')}</p><progress aria-label="Model setup"></progress></div>${button('cancel-setup','Cancel')}`:state.ready?`<span class="success">${icon('check')} Model ready</span>`:button('setup',icon('download')+'Set up speech model','primary');}
 
-function onboarding(){return `${pageHeading('Let’s get you speaking.','Set up once. Your words stay on this computer.')}<section class="setup-workspace"><div class="setup-intro"><div class="voice-symbol">${icon('mic')}</div><h2>Speak it. See it written.</h2><p>${state.data.preferences.recordingMode==='holdToTalk'?'Hold your shortcut, speak, and release.':'Press your shortcut, speak, then press again to finish.'} Dictate turns speech into text locally.</p><div class="privacy-note">${icon('shield-check')} No account. No audio uploads.</div></div><div class="setup-steps"><section><span class="step-index">1</span><div><h2>Choose your speech model</h2><p>Start with Whisper Tiny, a 78 MB download. NVIDIA Parakeet and larger Whisper models are available in Speech models.</p>${setupAction()}${button('browse-models','Browse speech models','quiet')}</div></section><section><span class="step-index">2</span><div><h2>Your recording shortcut</h2><p>${shortcutHint()} · ${state.data.preferences.recordingMode==='holdToTalk'?'Hold to speak, release to finish.':'Press once to start, again to finish.'}</p><p class="small">Change the key or assign a mouse button in Settings.</p></div></section><section><span class="step-index">3</span><div><h2>Try a short recording</h2><p>Allow your microphone if Windows asks. Your transcript will be ready to copy.</p>${recordingButton()}</div></section></div></section><div class="setup-footer"><span>Models download once. Dictation works offline afterward.</span>${button('complete-setup',state.ready?'Continue to Dictate':'Explore the app')}${icon('arrow-right')}</div>`;}
-
-function row(item:Transcript){return `<article class="history-row"><div class="row-meta"><time datetime="${esc(item.timestamp)}">${stamp(item.timestamp)}</time><span>${duration(item.duration)}</span><span>${['insertedViaPaste','insertedViaAccessibility'].includes(item.insertionResult)?'Inserted':'Available to copy'}</span></div><p class="transcript">${esc(item.correctedText)}</p>${item.correctionAudit.length?`<details><summary>${item.correctionAudit.length} dictionary correction${item.correctionAudit.length===1?'':'s'}</summary><p class="small">${item.correctionAudit.map(a=>`${esc(a.heard)} → ${esc(a.written)}`).join(' · ')}</p><p class="small">Original: ${esc(item.originalTranscript)}</p></details>`:''}<div class="row-actions">${button('copy-history',icon('copy')+'Copy','quiet',`data-id="${item.id}"`)}${button('pin-history',icon('pin')+(item.isPinned?'Unpin':'Pin'),'quiet',`data-id="${item.id}" aria-pressed="${item.isPinned}"`)}${button('delete-history',icon('trash-2')+'Delete','quiet',`data-id="${item.id}"`)}</div></article>`;}
-function dashboard(){const history=state.data.history;const today=history.filter(h=>new Date(h.timestamp).toDateString()===new Date().toDateString());return `${pageHeading('Dictation','Your voice, wherever you write.',`<span class="status-label"><span class="dot ${state.ready?'ready':''}"></span>${status()}</span>`)}<section class="dictation-workspace"><div class="voice-symbol ${state.phase==='listening'?'is-listening':''}">${icon('mic')}</div><h2>${state.ready?'Ready when you are':'Set up your speech model'}</h2><p>${state.ready?`${state.data.preferences.recordingMode==='holdToTalk'?'Hold':'Press'} ${shortcutHint()} in another app, or record here.`:'Download a local model to start turning speech into text.'}</p>${state.ready?recordingButton():setupAction()}<p class="small">${state.ready?(state.data.preferences.autoInsert?'Words appear at your cursor when insertion is available. You can always copy them.':'Automatic insertion is off. Your words stay ready to copy.'):'No account or subscription required.'}</p></section><div class="session-summary"><span><strong>${today.length}</strong> sessions today</span><span><strong>${today.reduce((n,h)=>n+wordCount(h.correctedText),0).toLocaleString()}</strong> words today</span><button class="quiet" data-section="settings">${icon('keyboard')} ${esc(shortcutLabel(state.data.preferences.shortcut))}</button></div><section class="recent-section"><div class="section-heading"><h2>Recent dictations</h2><button class="quiet" data-section="history">View history ${icon('arrow-right')}</button></div>${history.length?history.slice(0,3).map(h=>`<button class="recent" data-section="history"><span>${esc(h.correctedText)}</span><time>${stamp(h.timestamp)}</time></button>`).join(''):'<p class="inline-empty">Your completed dictations will appear here.</p>'}</section>`;}
-
-function historyView(){const items=state.data.history.filter(h=>h.correctedText.toLowerCase().includes(search.toLowerCase()));return `${pageHeading('History','Find, copy, and revisit your words.',button('export-history',icon('download')+'Export'))}<label class="search">${icon('search')}<span class="sr-only">Search transcripts</span><input id="search" value="${esc(search)}" placeholder="Search your dictations" type="search"><span>${items.length} ${items.length===1?'dictation':'dictations'}</span></label><div class="history-list">${items.length?items.map(row).join(''):emptyState(search?'No matching dictations':'Your words will live here',search?'Try a different word or clear the search.':'Record your first thought. It will be saved here when history is enabled.',search?button('clear-search','Clear search'):state.ready?recordingButton():button('browse-models','Set up a speech model','primary'),'history')}</div>`;}
-
-function dictionaryView(){const entries=state.data.dictionary;const edit=entries.find(e=>e.id===editing);return `<div class="page-heading"><div><h1>Dictionary</h1><p>Your names, phrases, and preferred spellings.</p></div><div class="actions">${button('import-dictionary','Import')}${button('export-dictionary','Export')}</div></div><form id="dictionary-form" class="panel"><h2>${edit?'Edit phrase':'Add a phrase'}</h2><div class="form-grid"><label>Type<select name="kind"><option value="correction" ${edit?.kind==='correction'?'selected':''}>Correction</option><option value="vocabulary" ${edit?.kind==='vocabulary'?'selected':''}>Vocabulary</option></select></label><label>Spoken phrase or name<input name="source" required maxlength="2048" value="${esc(edit?.sourcePhrase)}" placeholder="cloud code"></label><label>Write instead<input name="target" maxlength="2048" value="${esc(edit?.targetPhrase)}" placeholder="Claude Code"></label></div><div class="actions"><button id="save-dictionary" class="primary" type="submit">${edit?'Save changes':'Add phrase'}</button>${edit?button('cancel-edit','Cancel'):''}</div></form><div class="dictionary-list">${entries.length?entries.map(e=>`<article><div><strong>${esc(e.sourcePhrase)}</strong>${e.targetPhrase?`<span> → ${esc(e.targetPhrase)}</span>`:''}<p class="small">${esc(e.kind)}</p></div><div class="actions">${button('toggle-entry',e.isEnabled?'Enabled':'Disabled','quiet',`data-id="${e.id}" aria-pressed="${e.isEnabled}"`)}${button('edit-entry','Edit','quiet',`data-id="${e.id}"`)}${button('delete-entry',icon('trash-2'),'quiet',`data-id="${e.id}" aria-label="Delete ${esc(e.sourcePhrase)}"`)}</div></article>`).join(''):emptyState('Make it sound like you','Add a correction to replace misheard words. Vocabulary hints help Whisper recognize names.','','book-open')}</div>`;}
-function modelsView(){return `${pageHeading('Speech models','Download once. Recognize speech on your computer.')}<div class="model-intro">${icon('shield-check')}<p>All models run locally on your CPU. An NVIDIA graphics card is not required.</p></div>${state.settingUp?`<div class="model-setup-notice" role="status"><p id="model-progress">${esc(progress||'Preparing your model…')}</p><progress aria-label="Model setup"></progress>${button('cancel-setup','Cancel setup')}</div>`:''}<div class="model-list">${state.models.map(m=>{const active=state.ready&&state.data.preferences.model===m.id;const installed=state.installed.includes(m.id);const parakeet=m.id==='parakeet';return `<article class="model-row ${active?'model-active':''}"><div class="model-symbol">${icon(parakeet?'mic':'cpu')}</div><div class="model-description"><div class="model-title"><h2>${esc(m.name.replace(' · multilingual',''))}</h2>${m.id==='tiny'?'<span class="tag">Quick setup</span>':parakeet?'<span class="tag">NVIDIA</span>':''}</div><p>${parakeet?'Parakeet TDT v3 · 25 languages. A larger, quantized model.':m.id==='tiny'?'Small download, low memory use. A good place to start.':m.id==='base'?'More capacity for everyday multilingual dictation.':'For difficult speech; uses more memory and processing time.'}</p><div class="model-facts"><span>${modelSize(m.bytes)}</span><span>${parakeet?'8 GB RAM recommended':'Multilingual'}</span><span>${installed?'Downloaded':'Download required'}</span></div></div><div class="model-actions">${active?'<span class="success">'+icon('check')+'In use</span>':button('select-model',installed?'Use model':'Download',m.id==='tiny'?'primary':'',`data-id="${m.id}" ${state.settingUp?'disabled':''}`)}${installed?button('remove-model','Remove','quiet',`data-id="${m.id}" ${state.settingUp?'disabled':''}`):''}</div></article>`;}).join('')}</div><p class="small model-footnote">Downloads come from public Hugging Face repositories and are verified with SHA-256 before loading. Whisper is by OpenAI; Parakeet is by NVIDIA, converted to ONNX by the community. Vocabulary hints apply to Whisper; dictionary corrections work with both.</p>`;}
-
-function statistics(){const h=state.data.history;const words=h.reduce((n,i)=>n+wordCount(i.correctedText),0);return `${pageHeading('Statistics','A look at the dictations saved on this computer.')}<dl class="statistics"><div><dt>${icon('book-open')} Words dictated</dt><dd>${words.toLocaleString()}</dd><span>Across your saved history</span></div><div><dt>${icon('mic')} Recording time</dt><dd>${Math.round(h.reduce((n,i)=>n+i.duration,0)/60)} <small>min</small></dd><span>${h.length} ${h.length===1?'session':'sessions'} recorded</span></div><div><dt>${icon('check')} Dictionary corrections</dt><dd>${h.reduce((n,i)=>n+i.correctionAudit.length,0)}</dd><span>Your preferred spellings applied</span></div></dl><section class="statistics-detail"><h2>Your last seven days</h2>${Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-i);const items=h.filter(v=>new Date(v.timestamp).toDateString()===d.toDateString());return `<div><span>${i===0?'Today':d.toLocaleDateString(undefined,{weekday:'long'})}</span><span>${items.length} sessions</span><strong>${items.reduce((n,v)=>n+wordCount(v.correctedText),0).toLocaleString()} words</strong></div>`;}).join('')}</section><p class="small">These totals use saved history. Deleting a dictation removes it from the totals. No analytics are uploaded.</p>`;}
-
-function settingsView(){const p=state.data.preferences;const value=shortcutDraft??p.shortcut;const segments=(name:string,items:[string,string][],selected:string)=>`<div class="segments" role="group" aria-label="${name}">${items.map(([v,label])=>`<label><input type="radio" name="${name}" value="${v}" ${v===selected?'checked':''}><span>${label}</span></label>`).join('')}</div>`;return `${pageHeading('Settings','Make Dictate work the way you do.')}<form id="settings-form"><section class="settings-group"><h2>Recording</h2><div class="setting-row shortcut-row"><div><h3>Recording shortcut</h3><p>One key, a combination, or a mouse button.</p></div><input type="hidden" name="shortcut" value="${esc(value)}"><button type="button" data-action="capture-shortcut" class="shortcut-capture ${capturing?'capturing':''}" aria-label="Change recording shortcut">${icon('keyboard')}<kbd>${capturing?'Press a key or mouse button…':esc(shortcutLabel(value))}</kbd></button></div><div class="shortcut-presets"><span>Try</span>${[['ControlRight','Right Ctrl'],['F8','F8'],['MouseBack','Mouse back']].map(([key,label])=>button('shortcut-preset',label,'quiet',`data-id="${key}"`)).join('')}</div><p class="shortcut-help" role="status">${capturing?'Press a key or middle/side mouse button. Press Escape to cancel.':'The assigned key is reserved while Dictate is running. Mouse left/right clicks and Escape stay available for normal use.'}</p><div class="setting-row"><div><h3>Recording mode</h3><p>Hold and release, or press twice.</p></div>${segments('recordingMode',[['holdToTalk','Hold to talk'],['clickToToggle','Press to toggle']],p.recordingMode)}</div><label class="setting-row"><span><strong>Insert text at the cursor</strong><small>Keep words ready to copy when insertion isn’t available.</small></span><input class="switch" name="autoInsert" type="checkbox" role="switch" ${p.autoInsert?'checked':''}></label></section><section class="settings-group"><h2>Preferences</h2><div class="setting-row"><div><h3>Appearance</h3><p>Follow Windows, or choose a theme.</p></div>${segments('appearance',[['system','System'],['light','Light'],['dark','Dark']],p.appearance)}</div><label class="setting-row"><span><strong>Save dictation history</strong><small>Stored on this computer only.</small></span><input class="switch" name="keepHistory" type="checkbox" role="switch" ${p.keepHistory?'checked':''}></label><label class="setting-row"><span><strong>Keep unpinned history</strong></span><select name="retention" aria-label="Keep unpinned history">${[['forever','Forever'],['oneDay','One day'],['oneWeek','One week'],['oneMonth','30 days']].map(([v,label])=>`<option value="${v}" ${v===p.retention?'selected':''}>${label}</option>`).join('')}</select></label></section><div class="settings-save"><span>Changes take effect when saved.</span><button id="save-settings" class="primary" type="submit">Save changes</button></div></form><section class="data-footer"><div><h2>Your local data</h2><p>Dictate ${esc(state.version)} · Windows community beta</p></div><div class="actions">${button('show-setup','Open setup')}${button('clear-history','Delete history','danger')}</div></section>`;}
-
-function render(){
- const restoreUI=preserveUI();
- const theme=state.data.preferences.appearance;document.documentElement.dataset.theme=theme==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;
- if(overlay){root.innerHTML=`<div class="recording-overlay"><span class="recording-dot"></span><span>${status()}</span><div class="level"><span id="level"></span></div></div>`;document.body.classList.add('overlay');return;}
- const view=({dashboard,history:historyView,dictionary:dictionaryView,models:modelsView,statistics,settings:settingsView}[section]??dashboard)();
- root.innerHTML=`<aside><div class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M5 22c5 0 3-9 8-9s5 15 10 15 4-9 10-9"/></svg><span>Dictate</span></div><nav aria-label="Main navigation">${Object.keys(names).map(s=>`<button data-section="${s}" ${state.data.preferences.onboardingDone&&section===s?'aria-current="page"':''}>${icon(glyphs[s])}${names[s]}</button>`).join('')}</nav><div class="sidebar-status"><span class="dot ${state.phase==='listening'?'recording':state.ready?'ready':''}"></span><div><strong>${status()}</strong><small>On-device dictation</small></div></div></aside><main>${feedback()}${!state.data.preferences.onboardingDone?onboarding():view}${state.data.preferences.onboardingDone&&state.shortcutError?`<p class="shortcut-notice">${esc(state.shortcutError)}</p>`:''}${state.phase!=='idle'?`<div class="recording-bar" role="status"><span>${status()}</span><div class="level"><span id="level"></span></div>${state.phase==='listening'?button('finish','Finish'):''}${state.phase!=='delivering'?button('cancel-recording','Cancel'):''}</div>`:''}</main>`;
- createIcons({icons:allIcons});bindForms();restoreUI();
- const input=root.querySelector<HTMLInputElement>('#search');input?.addEventListener('input',()=>{search=input.value;const pos=input.selectionStart;render();const next=root.querySelector<HTMLInputElement>('#search');next?.focus();next?.setSelectionRange(pos,pos);});
+function status() {
+  if (state.phase === 'listening') return 'Listening';
+  if (state.phase === 'preparing') return 'Starting microphone';
+  if (state.phase === 'finalizing') return 'Transcribing locally';
+  if (state.phase === 'delivering') return 'Returning your words';
+  if (state.settingUp) return 'Preparing model';
+  return state.ready ? 'Dictate ready' : 'Set up a model';
 }
-root.addEventListener('click',async e=>{
- const b=(e.target as Element).closest<HTMLButtonElement>('button');if(!b||b.disabled)return;
- if(capturing&&b.dataset.section)await stopCapture();
- if(b.dataset.section){if(!state.data.preferences.onboardingDone){try{await invoke('save_preferences',{preferences:{...state.data.preferences,onboardingDone:true}});await refresh();}catch(e){localError=String(e);render();return;}}section=b.dataset.section;search='';editing=null;render();const heading=root.querySelector<HTMLHeadingElement>('h1');if(heading){heading.tabIndex=-1;heading.focus();}return;}
- if(b.dataset.action==='reload'){location.reload();return;}
- if(!state)return;
- if(capturing && b.dataset.action!=='capture-shortcut'){await stopCapture();}
- const id=b.dataset.id;const action=b.dataset.action;const history=state.data.history;const entries=state.data.dictionary;
- switch(action){
-  case 'clear-search':search='';render();break;
-  case 'browse-models':await call('save_preferences',{preferences:{...state.data.preferences,onboardingDone:true}});if(!localError){section='models';render();}break;
-  case 'capture-shortcut':if(capturing){await stopCapture();}else{try{await invoke('pause_shortcut',{paused:true});capturing=true;modifierCandidate='';render();}catch(e){localError=String(e);render();}}break;
-  case 'shortcut-preset':shortcutDraft=id!;render();break;
-  case 'record':await call('start_recording');break;
-  case 'finish':await call('finish_recording');break;
-  case 'reload':location.reload();break;
-  case 'cancel-recording':try{await invoke('cancel_recording');}catch(e){localError=String(e);}await refresh();break;
-  case 'setup':await call('setup_model',{id:state.data.preferences.model,download:true});break;
-  case 'select-model':await call('setup_model',{id,download:!state.installed.includes(id!)});break;
-  case 'cancel-setup':await invoke('cancel_setup');break;
-  case 'remove-model':if(await confirm('Remove this downloaded model? You can download it again later.',{title:'Remove model',kind:'warning'}))await call('remove_model',{id});break;
-  case 'complete-setup':await call('save_preferences',{preferences:{...state.data.preferences,onboardingDone:true}});break;
-  case 'show-setup':await call('save_preferences',{preferences:{...state.data.preferences,onboardingDone:false}});break;
-  case 'copy-recovery':await call('copy_text',{text:state.data.recovery});break;
-  case 'discard-recovery':if(await confirm('Dismiss this recovered transcript? If history is off, this removes its only saved copy.',{title:'Dismiss transcript',kind:'warning'}))await call('discard_recovery');break;
-  case 'retry-delivery':await call('retry_delivery');break;
-  case 'copy-history':await call('copy_text',{text:history.find(h=>h.id===id)?.correctedText});break;
-  case 'pin-history':await call('update_history',{id,action:'pin'});break;
-  case 'delete-history':if(await confirm('Delete this transcript from history?',{title:'Delete transcript',kind:'warning'}))await call('update_history',{id,action:'delete'});break;
-  case 'clear-history':if(await confirm('Delete all history? Dictionary, models and pending recovery will remain.',{title:'Delete history',kind:'warning'}))await call('update_history',{id:null,action:'clear'});break;
-  case 'edit-entry':editing=id!;resetDrafts.add('dictionary-form');render();break;
-  case 'cancel-edit':editing=null;resetDrafts.add('dictionary-form');render();break;
-  case 'toggle-entry':await call('save_dictionary',{entries:entries.map(v=>v.id===id?{...v,isEnabled:!v.isEnabled,updatedAt:new Date().toISOString()}:v)});break;
-  case 'delete-entry':if(await confirm('Remove this dictionary phrase?',{title:'Remove phrase',kind:'warning'}))await call('save_dictionary',{entries:entries.filter(v=>v.id!==id)});break;
-  case 'export-history':case 'export-dictionary':{const kind=action.split('-')[1];const path=await save({defaultPath:`dictate-${kind}.json`,filters:[{name:'JSON',extensions:['json']}]});if(path)await call('export_data',{path,kind});break;}
-  case 'import-dictionary':{const path=await open({multiple:false,directory:false,filters:[{name:'Dictionary JSON',extensions:['json']}]});if(path)await call('import_dictionary',{path});break;}
- }
+
+function shortcutLabel(value: string) {
+  return value.split('+').map(key => ({
+    ControlRight: 'Right Ctrl', ControlLeft: 'Left Ctrl', AltRight: 'Right Alt', AltLeft: 'Left Alt',
+    ShiftRight: 'Right Shift', ShiftLeft: 'Left Shift', MetaLeft: 'Left Windows', MetaRight: 'Right Windows',
+    MouseMiddle: 'Middle mouse', MouseBack: 'Mouse back', MouseForward: 'Mouse forward',
+    CommandOrControl: 'Ctrl', Space: 'Space',
+  }[key] ?? key.replace(/^Key|^Digit/, '').replace('Arrow', ''))).join(' + ');
+}
+
+function recordingButton() {
+  const listening = state.phase === 'listening';
+  const pending = ['preparing', 'finalizing', 'delivering'].includes(state.phase);
+  return button(listening ? 'finish' : 'record', icon(listening ? 'square' : 'mic') + (listening ? 'Finish recording' : 'Start recording'), 'primary record-button', (!state.ready || pending || state.data.recovery ? 'disabled' : ''));
+}
+
+function eyebrowHeader(eyebrow: string, title: string, subtitle: string, actions = '') {
+  return `<header class="page-header"><div><p class="eyebrow">${eyebrow}</p><h1 tabindex="-1">${title}</h1><p class="subtitle">${subtitle}</p></div>${actions ? `<div class="header-actions">${actions}</div>` : ''}</header>`;
+}
+
+function cardHeader(iconName: string, title: string, detail: string) {
+  return `<header class="card-header"><span class="icon-tile">${icon(iconName)}</span><div><h2>${title}</h2><p>${detail}</p></div></header>`;
+}
+
+function segments(name: string, items: [string, string][], selected: string) {
+  return `<div class="segments" role="radiogroup" aria-label="${esc(name)}">${items.map(([value, label]) => `<label><input type="radio" name="${name}" value="${value}" ${value === selected ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div>`;
+}
+
+function feedback() {
+  if (!localError && !state.notice && !state.data.recovery) return '';
+  return `<div class="feedback" aria-live="polite">${localError ? `<p class="notice error">${esc(localError)}</p>` : ''}${state.notice ? `<p class="notice">${esc(state.notice)}</p>` : ''}${state.data.recovery ? `<section class="recovery">${cardHeader('rotate-ccw', 'Your words are safe', 'Insertion did not finish, so Dictate kept the transcript here.')}<p class="transcript">${esc(state.data.recovery)}</p><div class="actions">${button('copy-recovery', icon('copy') + 'Copy', 'primary')}${button('retry-delivery', 'Retry insertion in 3 seconds')}${button('discard-recovery', 'Discard', 'danger')}</div></section>` : ''}</div>`;
+}
+
+function sidebar() {
+  return `<aside class="sidebar"><button class="brand" data-section="dashboard" aria-label="Open Dashboard"><span class="brand-mark"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M5 22c5 0 3-9 8-9s5 15 10 15 4-9 10-9"/></svg></span><strong>Dictate</strong></button><p class="nav-label">Workspace</p><nav aria-label="Main navigation">${sections.map(item => `<button data-section="${item}" ${state.data.preferences.onboardingDone && section === item ? 'aria-current="page"' : ''}>${icon(glyphs[item])}<span>${names[item]}</span></button>`).join('')}</nav><div class="sidebar-status"><span class="dot ${state.phase === 'listening' ? 'recording' : state.ready ? 'ready' : ''}"></span><div><strong>${status()}</strong><small>LOCAL · PRIVATE</small></div></div></aside>`;
+}
+
+function dashboard() {
+  const history = state.data.history;
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (6 - index));
+    return { date, words: history.filter(item => sameDay(item.timestamp, date)).reduce((sum, item) => sum + wordCount(item.correctedText), 0) };
+  });
+  const weekWords = days.reduce((sum, day) => sum + day.words, 0);
+  const max = Math.max(1, ...days.map(day => day.words));
+  const points = days.map((day, index) => `${8 + index * 15.3},${82 - (day.words / max) * 58}`).join(' ');
+  const model = state.models.find(item => item.id === state.data.preferences.model);
+  const modelAction = `<button class="model-status-button" data-section="models"><span class="dot ${state.ready ? 'ready' : ''}"></span><span><strong>${esc(model?.name ?? 'Choose a local model')}</strong><small>${state.ready ? 'On-device · ready' : 'Setup needed'}</small></span>${icon('chevron-right')}</button>`;
+  const recent = history.slice(0, 3);
+  return `<div class="content-shell dashboard-page">${eyebrowHeader('Your voice, in motion', 'Good to hear you.', 'A calm place to see what Dictate is doing for you.', modelAction + recordingButton())}<section class="overview-card"><div class="overview-copy"><h2>Week activity</h2><p>Words captured each day</p><strong>${weekWords.toLocaleString()}</strong><span>words dictated</span></div><div class="line-chart" aria-label="Words dictated over the last seven days"><svg viewBox="0 0 100 92" preserveAspectRatio="none"><polyline points="${points}"/><g>${days.map((day, index) => `<circle cx="${8 + index * 15.3}" cy="${82 - (day.words / max) * 58}" r="1.3"/>`).join('')}</g></svg><div class="chart-labels">${days.map(day => `<span>${day.date.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>`).join('')}</div></div></section><div class="dashboard-grid"><section class="surface-card quick-card"><h2>Quick actions</h2><p>Move from thought to text.</p>${[['history', 'history', 'Open history', 'Review recent dictation'], ['dictionary', 'book-open', 'Manage dictionary', 'Shape the words Dictate knows'], ['models', 'cpu', 'Choose a model', 'Tune speed and accuracy']].map(([target, glyph, title, detail]) => `<button data-section="${target}" class="quick-row">${icon(glyph)}<span><strong>${title}</strong><small>${detail}</small></span>${icon('arrow-up-right')}</button>`).join('')}</section><section class="surface-card recent-card"><header><div><h2>Recent transcriptions</h2><p>The last few things you said</p></div>${recent.length ? '<button class="link-button" data-section="history">View all</button>' : ''}</header>${recent.length ? recent.map(item => `<button class="recent-row" data-section="history"><span class="dot ready"></span><span><strong>${esc(item.correctedText)}</strong><small>${timeLabel(item.timestamp)}</small></span><time>${secondsLabel(item.duration)}</time></button>`).join('') : '<div class="quiet-empty">Your completed dictations will appear here.</div>'}</section></div></div>`;
+}
+
+function historyDayTabs() {
+  const dates = Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() - index); return date; });
+  return `<div class="day-index" role="tablist" aria-label="History day">${dates.map((date, index) => { const value = index === 0 ? 'today' : dayKey(date); return `<button data-action="history-day" data-id="${value}" role="tab" aria-selected="${selectedDay === value}"><span>${date.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase()}</span><strong>${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</strong></button>`; }).join('')}<button data-action="history-day" data-id="all" role="tab" aria-selected="${selectedDay === 'all'}"><span>ALL</span>${icon('more-horizontal')}</button></div>`;
+}
+
+function historyRow(item: Transcript) {
+  const date = new Date(item.timestamp);
+  const expanded = expandedHistory === item.id;
+  const inserted = ['insertedViaPaste', 'insertedViaAccessibility'].includes(item.insertionResult);
+  return `<article class="history-card ${expanded ? 'expanded' : ''}"><div class="date-block"><strong>${date.getDate()}</strong><span>${date.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</span></div><div class="history-content"><p class="history-transcript">${esc(item.correctedText)}</p><div class="history-meta">${icon('clock-3')} ${timeLabel(item.timestamp)} ${icon('align-left')} ${wordCount(item.correctedText)} words ${icon('audio-lines')} ${secondsLabel(item.duration)} <span class="status-chip ${inserted ? 'success' : ''}"><span class="dot ${inserted ? 'ready' : ''}"></span>${inserted ? 'Inserted' : 'Ready to copy'}</span></div>${expanded ? `<div class="history-actions">${button('copy-history', icon('copy') + 'Copy', 'quiet', `data-id="${item.id}"`)}${button('pin-history', icon('pin') + (item.isPinned ? 'Unpin' : 'Pin'), 'quiet', `data-id="${item.id}"`)}${button('delete-history', icon('trash-2') + 'Delete', 'quiet danger', `data-id="${item.id}"`)}</div>${item.correctionAudit.length ? `<p class="audit">${item.correctionAudit.map(audit => `${esc(audit.heard)} → ${esc(audit.written)}`).join(' · ')}</p>` : ''}` : ''}</div><button class="expand-button" data-action="toggle-history" data-id="${item.id}" aria-label="${expanded ? 'Collapse' : 'Expand'} transcript" aria-expanded="${expanded}">${icon('chevron-down')}</button></article>`;
+}
+
+function historyView() {
+  const query = search.trim().toLowerCase();
+  const items = state.data.history.filter(item => {
+    const matchesSearch = !query || item.correctedText.toLowerCase().includes(query);
+    if (selectedDay === 'all') return matchesSearch;
+    const date = new Date();
+    if (selectedDay !== 'today') { const [year, month, day] = selectedDay.split('-').map(Number); date.setFullYear(year, month - 1, day); }
+    return matchesSearch && sameDay(item.timestamp, date);
+  });
+  const dayLabel = selectedDay === 'today' ? 'Today' : selectedDay === 'all' ? 'All' : new Date(`${selectedDay}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return `<div class="history-page">${historyDayTabs()}<header class="history-toolbar"><div><h1 tabindex="-1">History</h1><span class="day-pill">${dayLabel}</span></div><label class="history-search">${icon('search')}<span class="sr-only">Search history</span><input id="search" type="search" value="${esc(search)}" placeholder="Search history"></label><span class="item-count">${items.length} items</span>${button('export-history', icon('more-horizontal'), 'icon-button', 'aria-label="More history actions"')}</header><main class="history-scroll">${items.length ? `<div class="history-section-title"><span></span><strong>${dayLabel.toUpperCase()}</strong><small>${items.length}</small><i></i></div>${items.map(historyRow).join('')}` : `<section class="empty-state">${icon('history')}<h2>${query ? 'No matching dictations' : 'Your words will live here'}</h2><p>${query ? 'Try a different word or clear the search.' : 'Record your first thought. It will be saved here when history is enabled.'}</p>${query ? button('clear-search', 'Clear search') : ''}</section>`}</main></div>`;
+}
+
+function dictionaryForm(entry?: Entry) {
+  return `<form id="dictionary-form" class="surface-card dictionary-form"><header><div><h2>${entry ? 'Edit rule' : 'Add a rule'}</h2><p>Teach Dictate a name or the spelling you prefer.</p></div>${button('cancel-edit', 'Cancel', 'quiet')}</header><div class="form-grid"><label>Type<select name="kind"><option value="correction" ${entry?.kind === 'correction' ? 'selected' : ''}>Correction</option><option value="vocabulary" ${entry?.kind === 'vocabulary' ? 'selected' : ''}>Vocabulary</option></select></label><label>Heard phrase<input name="source" required maxlength="2048" value="${esc(entry?.sourcePhrase)}" placeholder="codecs"></label><label>Write instead<input name="target" maxlength="2048" value="${esc(entry?.targetPhrase)}" placeholder="codex"></label></div><button type="submit" class="primary">${entry ? 'Save changes' : 'Add rule'}</button></form>`;
+}
+
+function dictionaryView() {
+  const entries = state.data.dictionary;
+  const edit = editing && editing !== 'new' ? entries.find(entry => entry.id === editing) : undefined;
+  const actions = `${button('import-dictionary', 'Import', 'quiet')}${button('export-dictionary', 'Export', 'quiet')}${button('add-entry', icon('plus') + 'Add rule', 'primary')}`;
+  return `<div class="content-shell dictionary-page"><header class="plain-header"><div><h1 tabindex="-1">Dictionary</h1><p>Teach Dictate preferred words and spoken corrections.</p></div><div class="header-actions">${actions}</div></header><p class="collection-count">${entries.length} ${entries.length === 1 ? 'rule' : 'rules'}</p>${editing ? dictionaryForm(edit) : ''}<section class="dictionary-surface">${entries.length ? entries.map((entry, index) => `<article class="dictionary-row"><span class="rule-index" style="--rule:${['var(--coral)', 'var(--violet)', 'var(--moss)', 'var(--amber)'][index % 4]}"></span><div><strong>${esc(entry.sourcePhrase)}</strong>${entry.targetPhrase ? `${icon('arrow-up-right')}<strong class="target-word">${esc(entry.targetPhrase)}</strong>` : ''}<small>${entry.kind === 'correction' ? 'Corrections' : 'Vocabulary'} · ${new Date(entry.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</small></div><div class="row-actions">${button('toggle-entry', entry.isEnabled ? 'Enabled' : 'Disabled', 'quiet', `data-id="${entry.id}" aria-pressed="${entry.isEnabled}"`)}${button('edit-entry', 'Edit', 'quiet', `data-id="${entry.id}"`)}${button('delete-entry', icon('trash-2'), 'icon-button danger', `data-id="${entry.id}" aria-label="Delete ${esc(entry.sourcePhrase)}"`)}</div></article>`).join('') : `<div class="empty-state">${icon('book-open')}<h2>Make it sound like you</h2><p>Add a correction for names, products, and phrases Dictate should spell your way.</p>${button('add-entry', icon('plus') + 'Add rule', 'primary')}</div>`}</section></div>`;
+}
+
+function statisticsView() {
+  const now = new Date();
+  const cutoff = new Date(now);
+  if (statsRange === 'week') cutoff.setDate(cutoff.getDate() - 6);
+  else if (statsRange === 'month') cutoff.setDate(cutoff.getDate() - 27);
+  else cutoff.setMonth(cutoff.getMonth() - 11, 1);
+  cutoff.setHours(0, 0, 0, 0);
+  const history = state.data.history.filter(item => new Date(item.timestamp) >= cutoff);
+  const words = history.reduce((sum, item) => sum + wordCount(item.correctedText), 0);
+  const seconds = history.reduce((sum, item) => sum + item.duration, 0);
+  const average = history.length ? Math.round(words / history.length) : 0;
+  const listening = `${Math.floor(seconds / 3600)}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}`;
+  const count = statsRange === 'week' ? 7 : statsRange === 'month' ? 4 : 12;
+  const buckets = Array.from({ length: count }, (_, index) => {
+    const start = new Date(now); const end = new Date(now);
+    if (statsRange === 'week') { start.setDate(start.getDate() - (count - 1 - index)); end.setTime(start.getTime()); }
+    else if (statsRange === 'month') { start.setDate(start.getDate() - ((count - index) * 7 - 1)); end.setDate(end.getDate() - ((count - 1 - index) * 7)); }
+    else { start.setMonth(start.getMonth() - (count - 1 - index), 1); end.setMonth(start.getMonth() + 1, 0); }
+    start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999);
+    const value = history.filter(item => { const date = new Date(item.timestamp); return date >= start && date <= end; }).reduce((sum, item) => sum + wordCount(item.correctedText), 0);
+    const label = statsRange === 'week' ? start.toLocaleDateString(undefined, { weekday: 'narrow' }) : statsRange === 'month' ? start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : start.toLocaleDateString(undefined, { month: 'short' });
+    return { label, value };
+  });
+  const max = Math.max(1, ...buckets.map(bucket => bucket.value));
+  const period = statsRange === 'week' ? 'this week' : statsRange === 'month' ? 'last 4 weeks' : 'last 12 months';
+  const metrics = [['align-left', 'Total words', words.toLocaleString(), period, 'violet'], ['file-text', 'Sessions', history.length.toLocaleString(), 'transcriptions', 'blue'], ['activity', 'Average', average.toLocaleString(), 'words per session', 'moss'], ['timer', 'Listening time', listening, 'captured locally', 'amber']];
+  return `<div class="content-shell statistics-page">${eyebrowHeader('A little signal', 'Statistics.', 'See how your voice compounds into written work.', segments('statsRange', [['week', 'Week'], ['month', 'Month'], ['year', 'Year']], statsRange))}<div class="metric-grid">${metrics.map(([glyph, label, value, detail, color]) => `<article class="metric-card ${color}">${icon(glyph)}<span>${label}</span><strong>${value}</strong><small>${detail}</small></article>`).join('')}</div><section class="surface-card activity-card"><h2>Activity</h2><p>${period[0].toUpperCase() + period.slice(1)} of dictation</p><div class="bar-chart" style="--columns:${count}">${buckets.map((bucket, index) => `<div><i style="height:${Math.max(4, (bucket.value / max) * 100)}%;--bar:${index === count - 1 ? 'var(--violet)' : 'var(--accent-blue)'}"></i><span>${bucket.label}</span></div>`).join('')}</div></section></div>`;
+}
+
+function modelAction(model: Model, prominent = false) {
+  const active = state.ready && state.data.preferences.model === model.id;
+  const installed = state.installed.includes(model.id);
+  if (active) return `<span class="active-badge">${icon('circle-check')}ACTIVE</span>`;
+  return button('select-model', installed ? 'Use model' : 'Download', prominent ? 'primary' : '', `data-id="${model.id}" ${state.settingUp ? 'disabled' : ''}`);
+}
+
+function modelRow(model: Model) {
+  const active = state.ready && state.data.preferences.model === model.id;
+  const installed = state.installed.includes(model.id);
+  const parakeet = model.id === 'parakeet';
+  return `<article class="catalog-row ${active ? 'active' : ''}"><span class="model-icon ${parakeet ? 'moss' : 'violet'}">${icon(parakeet ? 'audio-lines' : 'file-text')}</span><div><h3>${esc(model.name.replace(' · multilingual', ''))}${parakeet || model.id === 'tiny' ? `<span class="tag">${parakeet ? 'Multilingual' : 'Quick setup'}</span>` : ''}</h3><p>${parakeet ? 'NVIDIA · ONNX · On-device · 25 languages' : 'OpenAI Whisper · On-device · Multilingual'}</p></div><span class="model-state"><span class="dot ${installed ? 'ready' : ''}"></span>${installed ? 'Ready' : 'Not installed'}</span><div class="model-row-actions">${modelAction(model)}${installed ? button('remove-model', icon('trash-2'), 'icon-button danger', `data-id="${model.id}" aria-label="Remove ${esc(model.name)}"`) : ''}</div><span class="model-size">${modelSize(model.bytes)}</span></article>`;
+}
+
+function modelsView() {
+  const current = state.models.find(model => model.id === state.data.preferences.model) ?? state.models[0];
+  const recommendation = state.models.find(model => model.id === 'parakeet') ?? current;
+  return `<div class="content-shell models-page">${eyebrowHeader('The engine room', 'AI models.', 'Choose the local model that gives your words their shape.')}<section class="current-model"><span class="model-icon">${icon('audio-lines')}</span><div><small>Currently using</small><strong>${esc(current?.name ?? 'No model selected')}</strong></div><span class="tag">${current?.id === 'parakeet' ? 'PARAKEET' : 'WHISPER'}</span><span class="model-state"><span class="dot ${state.ready ? 'ready' : ''}"></span>${state.ready ? 'ACTIVE' : 'LOADING'}</span></section>${state.settingUp ? `<section class="setup-progress" role="status"><div><strong id="model-progress">${esc(progress || 'Preparing your model…')}</strong><progress aria-label="Model setup"></progress></div>${button('cancel-setup', 'Cancel setup')}</section>` : ''}<section class="recommended-model"><div><p class="eyebrow">${icon('sparkles')} Recommended for you</p><h2>${esc(recommendation?.name ?? '')}</h2><div class="tags"><span class="tag">Multilingual</span><span class="tag">${recommendation ? modelSize(recommendation.bytes) : ''}</span></div><p>${recommendation?.id === 'parakeet' ? 'NVIDIA · ONNX · On-device · 25 languages' : 'OpenAI Whisper · On-device · Multilingual'}</p>${recommendation ? modelAction(recommendation, true) : ''}</div><div class="performance"><strong>How it performs</strong><span>Speed</span><div class="score">${'<i></i>'.repeat(7)}${'<b></b>'.repeat(3)}</div><span>Accuracy</span><div class="score">${'<i></i>'.repeat(9)}<b></b></div></div></section><section class="surface-card model-catalog"><h2>Model catalog</h2><p>Download once, then keep your voice on this PC.</p><h3>Parakeet — NVIDIA · fast, near-Whisper accuracy</h3>${state.models.filter(model => model.id === 'parakeet').map(modelRow).join('')}<h3>Whisper — OpenAI · established multilingual recognition</h3>${state.models.filter(model => model.id !== 'parakeet').map(modelRow).join('')}</section></div>`;
+}
+
+function settingsTabs() {
+  return `<div class="settings-tabs" role="tablist">${([['general', 'sliders-horizontal', 'General'], ['audio', 'audio-lines', 'Audio'], ['permissions', 'shield-check', 'Permissions']] as [SettingsTab, string, string][]).map(([tab, glyph, label]) => `<button data-action="settings-tab" data-id="${tab}" role="tab" aria-selected="${settingsTab === tab}">${icon(glyph)}${label}</button>`).join('')}</div>`;
+}
+
+function settingsGeneral() {
+  const preferences = state.data.preferences;
+  const shortcut = shortcutDraft ?? preferences.shortcut;
+  return `<form id="settings-form"><section class="settings-card">${cardHeader('palette', 'Appearance', 'Color Index is the Dictate identity. This controls the system appearance only.')}<div class="setting-row"><div><strong>Appearance</strong><small>Follow Windows, or choose a theme.</small></div>${segments('appearance', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], preferences.appearance)}</div></section><section class="settings-card">${cardHeader('keyboard', 'Shortcut', 'Hold the key while speaking; release it to finish.')}<div class="setting-row"><div><strong>Push-to-talk key</strong><small>Choose one key, a combination, or a mouse button.</small></div><input type="hidden" name="shortcut" value="${esc(shortcut)}"><button type="button" data-action="capture-shortcut" class="shortcut-capture ${capturing ? 'capturing' : ''}"><span>${capturing ? 'Press a key or mouse button…' : esc(shortcutLabel(shortcut))}</span>${icon('chevron-down')}</button></div><div class="platform-tip">${icon('mouse')}<div><strong>Make Dictate comfortable to reach</strong><small>Try Right Ctrl, F8, or a middle/side mouse button. Escape cancels capture.</small></div><div class="preset-row">${[['ControlRight', 'Right Ctrl'], ['F8', 'F8'], ['MouseBack', 'Mouse back']].map(([value, label]) => button('shortcut-preset', label, 'link-button', `data-id="${value}"`)).join('')}</div></div><div class="setting-row"><div><strong>Recording behavior</strong><small>${preferences.recordingMode === 'holdToTalk' ? 'Hold the shortcut to speak; release it to finish.' : 'Press once to start; press again to finish.'}</small></div>${segments('recordingMode', [['holdToTalk', 'Hold to talk'], ['clickToToggle', 'Click to toggle']], preferences.recordingMode)}</div></section><section class="settings-card">${cardHeader('sliders-horizontal', 'General', 'Small choices that keep Dictate quiet, focused, and ready.')}<label class="setting-row"><div><strong>Keep history</strong><small>History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div><div class="setting-row"><div><strong>Delete all history</strong><small>Dictionary, models, and preferences remain.</small></div>${button('clear-history', 'Delete', 'danger')}</div></section><section class="settings-card">${cardHeader('info', 'About', 'Dictate updates are distributed with the app build.')}<div class="about-row"><p>Dictate is a private, local writing instrument for short spoken fragments.</p><span>Dictate ${esc(state.version)} · Windows</span></div><div class="setting-row"><div><strong>Review onboarding</strong><small>Walk through microphone and insertion setup again.</small></div>${button('show-setup', 'Review onboarding')}</div></section><button id="save-settings" type="submit" class="primary save-settings">Save changes</button></form>`;
+}
+
+function settingsAudio() {
+  const selected = state.models.find(model => model.id === state.data.preferences.model);
+  return `<section class="settings-card">${cardHeader('audio-lines', 'Recording & Models', 'Choose the microphone and recognition engine behind each session.')}<div class="setting-row"><div><strong>Microphone</strong><small>Dictate captures only while a recording session is active.</small></div><span class="permission-status"><span class="dot ready"></span>Available</span></div><div class="setting-row"><div><strong>Transcription model</strong><small>${selected?.id === 'parakeet' ? 'NVIDIA · ONNX · On-device · 25 languages' : 'OpenAI Whisper · On-device · Multilingual'}</small></div><button data-section="models">${esc(selected?.name ?? 'Choose a model')}${icon('chevron-right')}</button></div></section><section class="settings-card">${cardHeader('cpu', 'Local models', 'Download once, then keep your voice on this PC.')}<div class="settings-models">${state.models.map(modelRow).join('')}</div></section>`;
+}
+
+function settingsPermissions() {
+  const preferences = state.data.preferences;
+  return `<form id="settings-form"><section class="settings-card">${cardHeader('lock-keyhole', 'Insertion & Permissions', 'Dictate returns words to the focused text field. If insertion is unavailable, your transcript stays ready to copy.')}<label class="setting-row"><div><strong>Insert words at your cursor</strong><small>Uses Windows text input in the external field that has keyboard focus.</small></div><input class="switch" name="autoInsert" type="checkbox" role="switch" ${preferences.autoInsert ? 'checked' : ''}></label><div class="setting-row"><div><strong>Microphone</strong><small>Required to hear your voice on this PC.</small></div><span class="permission-status"><span class="dot ready"></span>Windows managed</span></div></section><section class="settings-card">${cardHeader('shield-check', 'Privacy', 'History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.')}<div class="privacy-copy"><strong>Stored on this PC</strong><p>History and dictionary entries use local app data. Preferences and pending recovery text also remain local.</p><a href="https://github.com/leviackerman05/dictate/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Read the privacy policy</a></div><label class="setting-row"><div><strong>Keep history</strong><small>Turn this off when you do not want completed transcripts saved.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div></section><input type="hidden" name="appearance" value="${esc(preferences.appearance)}"><input type="hidden" name="recordingMode" value="${esc(preferences.recordingMode)}"><input type="hidden" name="shortcut" value="${esc(shortcutDraft ?? preferences.shortcut)}"><button id="save-settings" type="submit" class="primary save-settings">Save changes</button></form>`;
+}
+
+function settingsView() {
+  return `<div class="content-shell settings-page">${eyebrowHeader('Control room', 'Settings', 'Tune Dictate around the way you speak and write.')}${settingsTabs()}${settingsTab === 'general' ? settingsGeneral() : settingsTab === 'audio' ? settingsAudio() : settingsPermissions()}</div>`;
+}
+
+function setupAction() {
+  if (state.settingUp) return `<div class="download-progress"><strong id="model-progress">${esc(progress || 'Preparing your model…')}</strong><progress aria-label="Model setup"></progress>${button('cancel-setup', 'Cancel setup', 'link-button')}</div>`;
+  if (state.ready) return `<span class="permission-status"><span class="dot ready"></span>Ready</span>`;
+  return button('setup', 'Set up speech model', 'primary');
+}
+
+function onboarding() {
+  const model = state.models.find(item => item.id === state.data.preferences.model) ?? state.models[0];
+  if (showSetupOptions) return `<div class="onboarding-backdrop"><section class="onboarding-panel options"><header><div><h2>Make Dictate yours</h2><p>Choose a local model and how you start recording.</p></div>${button('close-setup-options', 'Done')}</header><div class="setting-row"><div><strong>Speech model</strong><small>All available models run locally on your CPU.</small></div><button data-action="browse-models">${esc(model?.name ?? 'Choose a model')}${icon('chevron-right')}</button></div><div class="setting-row"><div><strong>Recording shortcut</strong><small>Change this any time in Settings.</small></div><span class="shortcut-pill">${esc(shortcutLabel(state.data.preferences.shortcut))}</span></div><div class="setting-row"><div><strong>Recording behavior</strong></div>${segments('setupMode', [['holdToTalk', 'Hold to talk'], ['clickToToggle', 'Click to toggle']], state.data.preferences.recordingMode)}</div></section></div>`;
+  return `<div class="onboarding-backdrop"><section class="onboarding-panel"><header class="onboarding-brand"><div class="brand-inline"><span class="brand-mark"><svg viewBox="0 0 40 40"><path d="M5 22c5 0 3-9 8-9s5 15 10 15 4-9 10-9"/></svg></span><strong>Dictate</strong></div><span>Private on your PC · Free</span></header><div class="onboarding-title"><h2>${state.ready ? 'Ready for your first words' : 'Make room for your voice'}</h2><p>A microphone, a speech model, and you. No account needed.</p></div><div class="onboarding-steps"><div>${icon('mic')}<span><strong>Allow your microphone</strong><small>Your recording is processed on this PC.</small></span><span class="permission-status"><span class="dot ready"></span>Windows managed</span></div><div>${icon('audio-lines')}<span><strong>${esc(model?.name ?? 'Local speech model')}</strong><small>Download once, then dictate offline. First setup may take a few minutes.</small></span>${setupAction()}</div><div>${icon('mouse')}<span><strong>Insert words at your cursor</strong><small>Dictate types into the external field that has keyboard focus. If it cannot, your words stay ready to copy.</small></span><span class="permission-status"><span class="dot ${state.data.preferences.autoInsert ? 'ready' : ''}"></span>${state.data.preferences.autoInsert ? 'Ready' : 'Off'}</span></div></div><footer><div>${button('setup-options', 'Setup options', 'link-button')}<a href="https://github.com/leviackerman05/dictate/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Privacy</a></div><div>${button('complete-setup', 'Explore first', 'link-button')}${button('complete-setup', 'Start using Dictate', 'primary', state.ready ? '' : 'disabled')}</div></footer></section></div>`;
+}
+
+function render() {
+  const restoreUI = state ? preserveUI() : () => {};
+  const theme = state.data.preferences.appearance;
+  document.documentElement.dataset.theme = theme === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;
+  if (overlay) {
+    const active = ['preparing', 'listening'].includes(state.phase);
+    const processing = ['finalizing', 'delivering'].includes(state.phase);
+    const signal = active
+      ? `<div class="pebble-bars" aria-hidden="true">${Array.from({ length: 9 }, (_, index) => `<i class="pebble-bar" style="--index:${index}"></i>`).join('')}</div>`
+      : processing ? '<div class="pebble-dots" aria-hidden="true"><i></i><i></i><i></i></div>'
+        : state.phase === 'failed' ? '<span class="pebble-failure" aria-hidden="true">!</span>'
+          : '<div class="pebble-ready" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>';
+    root.innerHTML = `<div class="recording-overlay ${active ? 'active' : ''}" role="status" aria-label="${esc(status())}">${signal}</div>`;
+    document.body.classList.add('overlay'); return;
+  }
+  const views: Record<Section, () => string> = { dashboard, history: historyView, dictionary: dictionaryView, statistics: statisticsView, models: modelsView, settings: settingsView };
+  root.innerHTML = `${sidebar()}<div class="main-frame">${feedback()}${views[section]()}${state.shortcutError ? `<p class="shortcut-notice">${esc(state.shortcutError)}</p>` : ''}</div>${!state.data.preferences.onboardingDone ? onboarding() : ''}`;
+  createIcons({ icons: allIcons }); bindForms(); restoreUI();
+  const input = root.querySelector<HTMLInputElement>('#search');
+  input?.addEventListener('input', () => { search = input.value; const position = input.selectionStart; render(); const next = root.querySelector<HTMLInputElement>('#search'); next?.focus(); next?.setSelectionRange(position, position); });
+}
+
+root.addEventListener('click', async event => {
+  const buttonElement = (event.target as Element).closest<HTMLButtonElement>('button');
+  if (!buttonElement || buttonElement.disabled) return;
+  if (capturing && buttonElement.dataset.section) await stopCapture();
+  if (buttonElement.dataset.section) {
+    section = buttonElement.dataset.section as Section; search = ''; editing = null; showSetupOptions = false;
+    if (!state.data.preferences.onboardingDone) await call('save_preferences', { preferences: { ...state.data.preferences, onboardingDone: true } }); else render();
+    root.querySelector<HTMLHeadingElement>('h1')?.focus({ preventScroll: true }); return;
+  }
+  const action = buttonElement.dataset.action; const id = buttonElement.dataset.id;
+  if (action === 'reload') { location.reload(); return; }
+  if (capturing && action !== 'capture-shortcut') await stopCapture();
+  const history = state.data.history; const entries = state.data.dictionary;
+  switch (action) {
+    case 'history-day': selectedDay = id!; render(); break;
+    case 'toggle-history': expandedHistory = expandedHistory === id ? null : id!; render(); break;
+    case 'clear-search': search = ''; render(); break;
+    case 'settings-tab': settingsTab = id as SettingsTab; resetDrafts.add('settings-form'); render(); break;
+    case 'add-entry': editing = 'new'; resetDrafts.add('dictionary-form'); render(); break;
+    case 'edit-entry': editing = id!; resetDrafts.add('dictionary-form'); render(); break;
+    case 'cancel-edit': editing = null; resetDrafts.add('dictionary-form'); render(); break;
+    case 'setup-options': showSetupOptions = true; render(); break;
+    case 'close-setup-options': showSetupOptions = false; render(); break;
+    case 'capture-shortcut': if (capturing) await stopCapture(); else { try { await invoke('pause_shortcut', { paused: true }); capturing = true; modifierCandidate = ''; render(); } catch (error) { localError = String(error); render(); } } break;
+    case 'shortcut-preset': shortcutDraft = id!; render(); break;
+    case 'record': await call('start_recording'); break;
+    case 'finish': await call('finish_recording'); break;
+    case 'cancel-recording': try { await invoke('cancel_recording'); } catch (error) { localError = String(error); } await refresh(); break;
+    case 'setup': await call('setup_model', { id: state.data.preferences.model, download: true }); break;
+    case 'select-model': await call('setup_model', { id, download: !state.installed.includes(id!) }); break;
+    case 'browse-models': await call('save_preferences', { preferences: { ...state.data.preferences, onboardingDone: true } }); section = 'models'; showSetupOptions = false; render(); break;
+    case 'cancel-setup': await invoke('cancel_setup'); break;
+    case 'remove-model': if (await confirm('Remove this downloaded model? You can download it again later.', { title: 'Remove model', kind: 'warning' })) await call('remove_model', { id }); break;
+    case 'complete-setup': await call('save_preferences', { preferences: { ...state.data.preferences, onboardingDone: true } }); break;
+    case 'show-setup': await call('save_preferences', { preferences: { ...state.data.preferences, onboardingDone: false } }); break;
+    case 'copy-recovery': await call('copy_text', { text: state.data.recovery }); break;
+    case 'discard-recovery': if (await confirm('Discard this recovered transcript?', { title: 'Discard transcript', kind: 'warning' })) await call('discard_recovery'); break;
+    case 'retry-delivery': await call('retry_delivery'); break;
+    case 'copy-history': await call('copy_text', { text: history.find(item => item.id === id)?.correctedText }); break;
+    case 'pin-history': await call('update_history', { id, action: 'pin' }); break;
+    case 'delete-history': if (await confirm('Delete this transcript from history?', { title: 'Delete transcript', kind: 'warning' })) await call('update_history', { id, action: 'delete' }); break;
+    case 'clear-history': if (await confirm('Delete all history? Dictionary, models, and pending recovery remain.', { title: 'Delete history', kind: 'warning' })) await call('update_history', { id: null, action: 'clear' }); break;
+    case 'toggle-entry': await call('save_dictionary', { entries: entries.map(entry => entry.id === id ? { ...entry, isEnabled: !entry.isEnabled, updatedAt: new Date().toISOString() } : entry) }); break;
+    case 'delete-entry': if (await confirm('Remove this dictionary rule?', { title: 'Remove rule', kind: 'warning' })) await call('save_dictionary', { entries: entries.filter(entry => entry.id !== id) }); break;
+    case 'export-history': { const path = await save({ defaultPath: 'dictate-history.json', filters: [{ name: 'JSON', extensions: ['json'] }] }); if (path) await call('export_data', { path, kind: 'history' }); break; }
+    case 'export-dictionary': { const path = await save({ defaultPath: 'dictate-dictionary.json', filters: [{ name: 'JSON', extensions: ['json'] }] }); if (path) await call('export_data', { path, kind: 'dictionary' }); break; }
+    case 'import-dictionary': { const path = await open({ multiple: false, directory: false, filters: [{ name: 'Dictionary JSON', extensions: ['json'] }] }); if (path) await call('import_dictionary', { path }); break; }
+  }
 });
-function bindForms(){
- root.querySelector<HTMLFormElement>('#dictionary-form')?.addEventListener('submit',async e=>{e.preventDefault();const form=new FormData(e.target as HTMLFormElement);const kind=String(form.get('kind'));const prior=state.data.dictionary.find(v=>v.id===editing);const entry:Entry={id:prior?.id??crypto.randomUUID(),kind,sourcePhrase:String(form.get('source')).trim(),targetPhrase:kind==='correction'?String(form.get('target')).trim():null,notes:prior?.notes??null,isEnabled:prior?.isEnabled??true,createdAt:prior?.createdAt??new Date().toISOString(),updatedAt:new Date().toISOString()};await call('save_dictionary',{entries:[...state.data.dictionary.filter(v=>v.id!==entry.id),entry]},'dictionary-form');if(!localError){editing=null;resetDrafts.add('dictionary-form');render();}});
- root.querySelector<HTMLFormElement>('#settings-form')?.addEventListener('submit',async e=>{e.preventDefault();const form=new FormData(e.target as HTMLFormElement);await call('save_preferences',{preferences:{...state.data.preferences,recordingMode:form.get('recordingMode'),shortcut:shortcutDraft??form.get('shortcut'),appearance:form.get('appearance'),keepHistory:form.has('keepHistory'),retention:form.get('retention'),autoInsert:form.has('autoInsert')}},'settings-form');if(!localError){shortcutDraft=null;localError='';} });
-}
-window.addEventListener('keydown',e=>{if(!capturing&&e.key==='Escape'&&state?.phase!=='idle'){void invoke('cancel_recording').catch(()=>{});}});
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(state?.data.preferences.appearance==='system')render();});
 
-async function stopCapture(value?:string){
- capturing=false;modifierCandidate='';
- try{await invoke('pause_shortcut',{paused:false});}catch(e){localError=String(e);}
- if(value){shortcutDraft=value;const input=root.querySelector<HTMLInputElement>('input[name="shortcut"]');if(input)input.value=value;}
- render();root.querySelector<HTMLButtonElement>('[data-action="capture-shortcut"]')?.focus();
+function bindForms() {
+  root.querySelectorAll<HTMLInputElement>('input[name="statsRange"]').forEach(input => input.addEventListener('change', () => { statsRange = input.value as typeof statsRange; render(); }));
+  root.querySelectorAll<HTMLInputElement>('input[name="setupMode"]').forEach(input => input.addEventListener('change', () => { void call('save_preferences', { preferences: { ...state.data.preferences, recordingMode: input.value } }); }));
+  root.querySelector<HTMLFormElement>('#dictionary-form')?.addEventListener('submit', async event => {
+    event.preventDefault(); const form = new FormData(event.target as HTMLFormElement); const kind = String(form.get('kind')); const prior = state.data.dictionary.find(entry => entry.id === editing);
+    const entry: Entry = { id: prior?.id ?? crypto.randomUUID(), kind, sourcePhrase: String(form.get('source')).trim(), targetPhrase: kind === 'correction' ? String(form.get('target')).trim() : null, notes: prior?.notes ?? null, isEnabled: prior?.isEnabled ?? true, createdAt: prior?.createdAt ?? new Date().toISOString(), updatedAt: new Date().toISOString() };
+    await call('save_dictionary', { entries: [...state.data.dictionary.filter(item => item.id !== entry.id), entry] }, 'dictionary-form'); if (!localError) { editing = null; resetDrafts.add('dictionary-form'); render(); }
+  });
+  root.querySelector<HTMLFormElement>('#settings-form')?.addEventListener('submit', async event => {
+    event.preventDefault(); const form = new FormData(event.target as HTMLFormElement);
+    await call('save_preferences', { preferences: { ...state.data.preferences, recordingMode: form.get('recordingMode') ?? state.data.preferences.recordingMode, shortcut: shortcutDraft ?? form.get('shortcut') ?? state.data.preferences.shortcut, appearance: form.get('appearance') ?? state.data.preferences.appearance, keepHistory: form.has('keepHistory'), retention: form.get('retention') ?? state.data.preferences.retention, autoInsert: settingsTab === 'permissions' ? form.has('autoInsert') : state.data.preferences.autoInsert } }, 'settings-form'); if (!localError) shortcutDraft = null;
+  });
 }
-function combination(e:KeyboardEvent|MouseEvent,code:string){return [e.ctrlKey?'Ctrl':'',e.altKey?'Alt':'',e.shiftKey?'Shift':'',e.metaKey?'Win':'',code].filter(Boolean).join('+');}
-window.addEventListener('keydown',e=>{
- if(!capturing)return;e.preventDefault();e.stopImmediatePropagation();if(e.repeat)return;
- if(e.code==='Escape'){void stopCapture();return;}
- if(/^(Control|Alt|Shift|Meta)(Left|Right)$/.test(e.code)){modifierCandidate=e.code;return;}
- if(e.code)void stopCapture(combination(e,e.code));
-},true);
-window.addEventListener('keyup',e=>{if(capturing&&e.code===modifierCandidate){e.preventDefault();e.stopImmediatePropagation();void stopCapture(e.code);}},true);
-window.addEventListener('mousedown',e=>{if(!capturing||![1,3,4].includes(e.button))return;e.preventDefault();e.stopImmediatePropagation();capturedMouse=e.button;void stopCapture(combination(e,({1:'MouseMiddle',3:'MouseBack',4:'MouseForward'} as Record<number,string>)[e.button]));},true);
-window.addEventListener('auxclick',e=>{if(capturing||e.button===capturedMouse){e.preventDefault();e.stopImmediatePropagation();capturedMouse=null;}},true);
-window.addEventListener('blur',()=>{if(capturing)void stopCapture();});
 
-async function initialize(){
-await listen('state-changed',()=>{void refresh();});
-await listen<{progress:number;stage:string}>('model-progress',e=>{progress=e.payload.stage==='loading'?'Download verified. Loading local model…':`Downloading: ${Math.round(e.payload.progress*100)}%`;const status=root.querySelector('#model-progress');if(status&&state?.settingUp)status.textContent=progress;});
-await listen<number>('level',e=>{const bar=document.getElementById('level');if(bar)bar.style.transform=`scaleX(${Math.max(.02,Math.min(1,e.payload))})`;});
-await refresh();
+async function stopCapture(value?: string) {
+  capturing = false; modifierCandidate = '';
+  try { await invoke('pause_shortcut', { paused: false }); } catch (error) { localError = String(error); }
+  if (value) shortcutDraft = value; render(); root.querySelector<HTMLButtonElement>('[data-action="capture-shortcut"]')?.focus();
 }
-void initialize().catch(e=>{root.innerHTML=`<main class="startup"><h1>Dictate could not connect</h1><p>${esc(e)}</p></main>`;});
+function combination(event: KeyboardEvent | MouseEvent, code: string) { return [event.ctrlKey ? 'Ctrl' : '', event.altKey ? 'Alt' : '', event.shiftKey ? 'Shift' : '', event.metaKey ? 'Win' : '', code].filter(Boolean).join('+'); }
+window.addEventListener('keydown', event => { if (!capturing) { if (event.key === 'Escape' && state?.phase !== 'idle') void invoke('cancel_recording').catch(() => {}); return; } event.preventDefault(); event.stopImmediatePropagation(); if (event.repeat) return; if (event.code === 'Escape') { void stopCapture(); return; } if (/^(Control|Alt|Shift|Meta)(Left|Right)$/.test(event.code)) { modifierCandidate = event.code; return; } if (event.code) void stopCapture(combination(event, event.code)); }, true);
+window.addEventListener('keyup', event => { if (capturing && event.code === modifierCandidate) { event.preventDefault(); event.stopImmediatePropagation(); void stopCapture(event.code); } }, true);
+window.addEventListener('mousedown', event => { if (!capturing || ![1, 3, 4].includes(event.button)) return; event.preventDefault(); event.stopImmediatePropagation(); capturedMouse = event.button; void stopCapture(combination(event, ({ 1: 'MouseMiddle', 3: 'MouseBack', 4: 'MouseForward' } as Record<number, string>)[event.button])); }, true);
+window.addEventListener('auxclick', event => { if (capturing || event.button === capturedMouse) { event.preventDefault(); event.stopImmediatePropagation(); capturedMouse = null; } }, true);
+window.addEventListener('blur', () => { if (capturing) void stopCapture(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state?.data.preferences.appearance === 'system') render(); });
+
+async function initialize() {
+  await listen('state-changed', () => { void refresh(); });
+  await listen<{ progress: number; stage: string }>('model-progress', event => { progress = event.payload.stage === 'loading' ? 'Download verified. Loading local model…' : `Downloading: ${Math.round(event.payload.progress * 100)}%`; const statusElement = root.querySelector('#model-progress'); if (statusElement && state?.settingUp) statusElement.textContent = progress; });
+  await listen<number>('level', event => {
+    const level = Math.max(.14, Math.pow(Math.min(1, event.payload * 2.2), .55));
+    document.querySelectorAll<HTMLElement>('.pebble-bar').forEach((bar, index) => {
+      const motion = .35 + .65 * Math.abs(Math.sin(performance.now() / 130 + index * .82));
+      bar.style.height = `${Math.max(3, 3 + 9 * level * motion)}px`;
+      bar.style.opacity = String(.52 + level * .48);
+    });
+  });
+  await refresh();
+}
+void initialize().catch(error => { root.innerHTML = `<main class="startup"><h1>Dictate could not connect</h1><p>${esc(error)}</p></main>`; });

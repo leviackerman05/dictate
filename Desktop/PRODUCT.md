@@ -6,8 +6,8 @@ web
 
 ## Stack
 Existing TypeScript renderer inside a Tauri 2 Windows desktop application; Rust
-microphone capture, local recognition and native input integration. The separate
-native SwiftUI Mac app is outside this redesign.
+microphone capture, local recognition and native input integration. The native
+SwiftUI Mac app is the product and visual reference for this renderer.
 
 ## Users and purpose
 People who want to dictate into their everyday applications without coding,
@@ -27,10 +27,11 @@ and update the website download after validation. The current installer is
 unsigned and Smart App Control may block it outside a suitable test environment.
 
 ## Brand commitments
-Keep the Dictate name, waveform mark and existing features. The user rejected
-large serif typography, sparse pages, crude controls and Mac-specific shortcut
-labels in the Windows app. Windows-native versus matching Mac closely is an
-open optional preference; the working assumption is Windows-native.
+Keep the Dictate name, waveform mark and existing features. The user requires the
+Windows app to match the Mac app closely in structure, features, palette,
+typography, onboarding, and overall finish. Platform facts stay native: Windows
+shortcut names, Windows permissions, and Windows-supported local models replace
+Apple-only behavior.
 
 ## Evidence
 The owner's eight current Windows screenshots are the redesign's anti-reference.

@@ -40,8 +40,9 @@ available to copy instead of repeatedly asking for permission.
 ## Download
 
 [Download Dictate for Mac or Windows](https://dictate-macos.vercel.app/download).
-The **v1.1.0-beta.5 community beta** includes the native Mac app and a redesigned
-Windows app with single-key shortcuts and offline Parakeet recognition. No developer tools, account, API key, or payment is needed to
+The **v1.1.0-beta.6 community beta** includes the native Mac app and a Windows
+app aligned to the same Dictate interface, with single-key shortcuts, dark mode,
+and offline Parakeet recognition. No developer tools, account, API key, or payment is needed to
 use an installer. Physical-device acceptance testing is still pending; see
 [the validation record](docs/evidence/portability-validation.md).
 
