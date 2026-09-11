@@ -40,7 +40,7 @@ available to copy instead of repeatedly asking for permission.
 ## Download
 
 [Download Dictate for Mac or Windows](https://dictate-macos.vercel.app/download).
-The **v1.1.0-beta.6 community beta** includes the native Mac app and a Windows
+The **v1.1.0-beta.7 community beta** includes the native Mac app and a Windows
 app aligned to the same Dictate interface, with single-key shortcuts, dark mode,
 and offline Parakeet recognition. No developer tools, account, API key, or payment is needed to
 use an installer. Physical-device acceptance testing is still pending; see
@@ -89,7 +89,7 @@ NVIDIA Parakeet, and Whisper. Windows offers CPU Whisper Tiny/Base/Small and
 NVIDIA Parakeet TDT v3 with verified in-app downloads. No NVIDIA GPU is needed.
 On Windows, hold **Right Ctrl** to speak and release to finish. Assign a key,
 combination, or middle/side mouse button in **Settings → Recording shortcut**,
-then **Save changes**. Parakeet downloads 670 MB; 8 GB RAM is recommended.
+and the change is saved immediately. Parakeet downloads 670 MB; 8 GB RAM is recommended.
 Apple may install an OS-managed speech asset, while Parakeet and Whisper models
 are downloaded from their documented Hugging Face repositories. Raw microphone
 audio is only used for the active recording session and is not written to disk.

@@ -254,6 +254,10 @@ async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
         state.generation.fetch_add(1, Ordering::SeqCst) + 1
     };
     *state.notice.lock().unwrap() = None;
+    position_overlay(&app);
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.show();
+    }
     changed(&app);
     let handle = app.clone();
     let result =
@@ -265,6 +269,9 @@ async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
         state.audio.cancel();
         *state.phase.lock().unwrap() = Phase::Idle;
         state.notice(&error);
+        if let Some(overlay) = app.get_webview_window("overlay") {
+            let _ = overlay.hide();
+        }
         changed(&app);
         return Err(error);
     }
@@ -280,9 +287,6 @@ async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
             return Ok(());
         }
         *phase = Phase::Listening;
-        if let Some(overlay) = app.get_webview_window("overlay") {
-            let _ = overlay.show();
-        }
     }
     changed(&app);
     let handle = app.clone();
@@ -664,33 +668,82 @@ fn import_dictionary(app: tauri::AppHandle, path: PathBuf) -> Result<(), String>
     save_dictionary(app, entries)
 }
 
-fn handle_shortcut(app: &tauri::AppHandle, pressed: bool) {
+async fn handle_shortcut_event(app: tauri::AppHandle, pressed: bool) {
     let state = app.state::<Runtime>();
     let phase = *state.phase.lock().unwrap();
     let toggle = state.data.lock().unwrap().preferences.recording_mode == "clickToToggle";
     let action = state.gesture.lock().unwrap().event(pressed, toggle, phase);
+    let result = match action {
+        Action::Start => {
+            let result = start_recording(app.clone()).await;
+            if result.is_ok()
+                && !toggle
+                && !app.state::<Runtime>().gesture.lock().unwrap().is_pressed()
+            {
+                finish_recording(app.clone()).await
+            } else {
+                result
+            }
+        }
+        Action::Stop => finish_recording(app.clone()).await,
+        Action::None => Ok(()),
+    };
+    if let Err(e) = result {
+        app.state::<Runtime>().notice(e);
+        changed(&app);
+    }
+}
+
+fn handle_shortcut(app: &tauri::AppHandle, pressed: bool) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let result = match action {
-            Action::Start => {
-                let result = start_recording(app.clone()).await;
-                if result.is_ok()
-                    && !toggle
-                    && !app.state::<Runtime>().gesture.lock().unwrap().is_pressed()
-                {
-                    finish_recording(app.clone()).await
-                } else {
-                    result
-                }
-            }
-            Action::Stop => finish_recording(app.clone()).await,
-            Action::None => Ok(()),
-        };
-        if let Err(e) = result {
-            app.state::<Runtime>().notice(e);
-            changed(&app);
-        }
+        handle_shortcut_event(app, pressed).await;
     });
+}
+
+const OVERLAY_HOST_WIDTH: f64 = 108.0;
+const OVERLAY_HOST_HEIGHT: f64 = 52.0;
+const OVERLAY_VISIBLE_HEIGHT: f64 = 22.0;
+const OVERLAY_BOTTOM_INSET: f64 = 18.0;
+
+fn position_overlay(app: &tauri::AppHandle) {
+    let Some(overlay) = app.get_webview_window("overlay") else {
+        return;
+    };
+    let cursor = overlay.cursor_position().ok();
+    let monitor = overlay
+        .available_monitors()
+        .ok()
+        .and_then(|monitors| {
+            cursor.and_then(|point| {
+                monitors.into_iter().find(|monitor| {
+                    let origin = monitor.position();
+                    let size = monitor.size();
+                    point.x >= origin.x as f64
+                        && point.x < origin.x as f64 + size.width as f64
+                        && point.y >= origin.y as f64
+                        && point.y < origin.y as f64 + size.height as f64
+                })
+            })
+        })
+        .or_else(|| overlay.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else { return };
+    let work = monitor.work_area();
+    let scale = monitor.scale_factor();
+    let host_width = OVERLAY_HOST_WIDTH * scale;
+    let host_height = OVERLAY_HOST_HEIGHT * scale;
+    let visible_height = OVERLAY_VISIBLE_HEIGHT * scale;
+    let inset = OVERLAY_BOTTOM_INSET * scale;
+    let x = work.position.x as f64 + (work.size.width as f64 - host_width) / 2.0;
+    // The visible capsule is centered inside a larger transparent host so its
+    // soft shadow is never clipped. The work area excludes the taskbar.
+    let y = work.position.y as f64 + work.size.height as f64
+        - inset
+        - (host_height + visible_height) / 2.0;
+    let _ = overlay.set_position(tauri::PhysicalPosition::new(
+        x.round() as i32,
+        y.round() as i32,
+    ));
 }
 #[tauri::command]
 fn pause_shortcut(app: tauri::AppHandle, paused: bool) -> Result<(), String> {
@@ -707,6 +760,7 @@ fn main() {
     tauri::Builder::default()
  .plugin(tauri_plugin_single_instance::init(|app,_,_|{if let Some(w)=app.get_webview_window("main"){let _=w.show();let _=w.set_focus();}}))
  .plugin(tauri_plugin_dialog::init())
+ .plugin(tauri_plugin_opener::init())
  .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app,_,event|{
   #[cfg(not(windows))]
   handle_shortcut(app,event.state==ShortcutState::Pressed);
@@ -729,8 +783,12 @@ fn main() {
   let model=data.preferences.model.clone();let shortcut=data.preferences.shortcut.clone();
   app.manage(Runtime{data:Mutex::new(data),dir,audio:audio::Audio::new(app.handle().clone()),clipboard:delivery::Clipboard::new(),engine:Mutex::new(None),phase:Mutex::new(Phase::Idle),gesture:Mutex::new(ShortcutGesture::default()),cancel:Arc::new(AtomicBool::new(false)),setup_cancel:Arc::new(AtomicBool::new(false)),setting_up:AtomicBool::new(false),generation:AtomicU64::new(0),notice:Mutex::new(None),shortcut_error:Mutex::new(None)});
   if let Err(e)=shortcuts::start(app.handle().clone(),shortcut.as_str()){*app.state::<Runtime>().shortcut_error.lock().unwrap()=Some(format!("Global shortcut unavailable: {e}. Use the Record button or choose another shortcut."));}
-  let overlay=tauri::WebviewWindowBuilder::new(app,"overlay",tauri::WebviewUrl::App("index.html?overlay=1".into())).title("Dictate recording").inner_size(152.,22.).transparent(true).decorations(false).always_on_top(true).skip_taskbar(true).focused(false).focusable(false).visible(false).resizable(false).build()?;
-  if let Ok(Some(monitor))=overlay.primary_monitor(){let scale=monitor.scale_factor();let size=monitor.size();let origin=monitor.position();let _=overlay.set_position(tauri::LogicalPosition::new(origin.x as f64/scale+(size.width as f64/scale-152.)/2.,origin.y as f64/scale+size.height as f64/scale-44.));}
+  let overlay_builder=tauri::WebviewWindowBuilder::new(app,"overlay",tauri::WebviewUrl::App("index.html?overlay=1".into())).title("Dictate recording").inner_size(OVERLAY_HOST_WIDTH,OVERLAY_HOST_HEIGHT).decorations(false).shadow(false).always_on_top(true).skip_taskbar(true).focused(false).focusable(false).visible(false).resizable(false);
+  #[cfg(windows)]
+  let overlay_builder=overlay_builder.transparent(true);
+  let overlay=overlay_builder.build()?;
+  let _=overlay.set_ignore_cursor_events(true);
+  position_overlay(app.handle());
   let show=tauri::menu::MenuItem::with_id(app,"show","Open Dictate",true,None::<&str>)?;
   let quit=tauri::menu::MenuItem::with_id(app,"quit","Quit Dictate",true,None::<&str>)?;
   let menu=tauri::menu::Menu::with_items(app,&[&show,&quit])?;

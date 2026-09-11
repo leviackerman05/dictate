@@ -1058,13 +1058,14 @@ private struct QuickActionsCard: View {
 private struct WeeklyLineChart: View {
     let values: [Int]
     let labels: [String]
+    @State private var hoveredIndex: Int?
 
     var body: some View {
         GeometryReader { geometry in
             let maxValue = max(values.max() ?? 1, 1)
             let points = values.enumerated().map { index, value in
                 CGPoint(
-                    x: values.count > 1 ? geometry.size.width * CGFloat(index) / CGFloat(values.count - 1) : geometry.size.width / 2,
+                    x: values.isEmpty ? geometry.size.width / 2 : geometry.size.width * (CGFloat(index) + 0.5) / CGFloat(values.count),
                     y: geometry.size.height - 26 - (geometry.size.height - 42) * CGFloat(value) / CGFloat(maxValue)
                 )
             }
@@ -1076,12 +1077,32 @@ private struct WeeklyLineChart: View {
                 }
                 .stroke(DesignSystem.ColorToken.action, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
 
-                ForEach(Array(points.enumerated()), id: \.offset) { _, point in
-                    Circle()
-                        .fill(DesignSystem.ColorToken.cardBackground)
-                        .overlay { Circle().stroke(DesignSystem.ColorToken.action, lineWidth: 2) }
-                        .frame(width: 7, height: 7)
-                        .position(point)
+                ForEach(Array(points.enumerated()), id: \.offset) { index, point in
+                    ZStack {
+                        Circle()
+                            .fill(DesignSystem.ColorToken.cardBackground)
+                            .overlay { Circle().stroke(DesignSystem.ColorToken.action, lineWidth: 2) }
+                            .frame(width: 7, height: 7)
+                        if hoveredIndex == index {
+                            Text("\(values[index]) \(values[index] == 1 ? "word" : "words")")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .foregroundStyle(DesignSystem.ColorToken.primaryText)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(DesignSystem.ColorToken.cardBackground, in: Capsule())
+                                .overlay { Capsule().stroke(DesignSystem.ColorToken.border) }
+                                .fixedSize()
+                                .offset(y: -24)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+                    .position(point)
+                    .zIndex(hoveredIndex == index ? 2 : 0)
+                    .onHover { isHovering in
+                        hoveredIndex = isHovering ? index : nil
+                    }
                 }
 
                 HStack {

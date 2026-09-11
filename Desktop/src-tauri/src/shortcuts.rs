@@ -15,7 +15,7 @@ mod native {
     struct Input {
         trigger: Mutex<Trigger>,
         paused: AtomicBool,
-        sender: mpsc::Sender<bool>,
+        sender: tokio::sync::mpsc::UnboundedSender<bool>,
     }
     static INPUT: OnceLock<Input> = OnceLock::new();
     unsafe fn modifiers() -> u8 {
@@ -112,7 +112,7 @@ mod native {
     }
     pub fn start(app: tauri::AppHandle, binding: &str) -> Result<(), String> {
         let trigger = Trigger::new(Binding::parse(binding)?);
-        let (sender, receiver) = mpsc::channel();
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
         INPUT
             .set(Input {
                 trigger: Mutex::new(trigger),
@@ -154,14 +154,14 @@ mod native {
         ready_rx
             .recv_timeout(std::time::Duration::from_secs(5))
             .map_err(|e| e.to_string())??;
-        std::thread::Builder::new()
-            .name("dictate-shortcut-actions".into())
-            .spawn(move || {
-                for pressed in receiver {
-                    super::super::handle_shortcut(&app, pressed);
-                }
-            })
-            .map_err(|e| e.to_string())?;
+        // Process physical edges through one async consumer. A quick release
+        // or second toggle press can no longer race microphone startup and
+        // observe an older recording phase.
+        tauri::async_runtime::spawn(async move {
+            while let Some(pressed) = receiver.recv().await {
+                super::super::handle_shortcut_event(app.clone(), pressed).await;
+            }
+        });
         Ok(())
     }
     pub fn configure(value: &str) -> Result<(), String> {

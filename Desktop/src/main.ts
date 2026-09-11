@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open, save, confirm } from '@tauri-apps/plugin-dialog';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   createIcons, LayoutDashboard, History, BookOpen, ChartNoAxesCombined, Cpu,
   Settings, Mic, Square, Copy, Trash2, Pin, Download, Check, ArrowUpRight,
@@ -34,6 +35,7 @@ interface Snapshot {
 
 const root = document.querySelector<HTMLDivElement>('#app')!;
 const overlay = new URLSearchParams(location.search).has('overlay');
+const privacyURL = 'https://dictate-macos.vercel.app/privacy';
 const sections = ['dashboard', 'history', 'dictionary', 'statistics', 'models', 'settings'] as const;
 type Section = typeof sections[number];
 type SettingsTab = 'general' | 'audio' | 'permissions';
@@ -81,8 +83,9 @@ const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => 
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[char]!));
 const icon = (name: string) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+const brandMark = () => '<span class="brand-mark"><img src="/dictate-mark.svg" alt=""></span>';
 const button = (action: string, label: string, cls = '', attrs = '') =>
-  `<button data-action="${action}" class="${cls}" ${attrs}>${label}</button>`;
+  `<button type="button" data-action="${action}" class="${cls}" ${attrs}>${label}</button>`;
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 const secondsLabel = (seconds: number) => {
   const rounded = Math.round(seconds);
@@ -203,7 +206,8 @@ function shortcutLabel(value: string) {
 function recordingButton() {
   const listening = state.phase === 'listening';
   const pending = ['preparing', 'finalizing', 'delivering'].includes(state.phase);
-  return button(listening ? 'finish' : 'record', icon(listening ? 'square' : 'mic') + (listening ? 'Finish recording' : 'Start recording'), 'primary record-button', (!state.ready || pending || state.data.recovery ? 'disabled' : ''));
+  const mark = listening ? '<span class="stop-mark" aria-hidden="true"></span>' : icon('mic');
+  return button(listening ? 'finish' : 'record', mark + (listening ? 'Finish recording' : 'Start recording'), listening ? 'record-button recording' : 'primary record-button', (!state.ready || pending || state.data.recovery ? 'disabled' : ''));
 }
 
 function eyebrowHeader(eyebrow: string, title: string, subtitle: string, actions = '') {
@@ -224,7 +228,7 @@ function feedback() {
 }
 
 function sidebar() {
-  return `<aside class="sidebar"><button class="brand" data-section="dashboard" aria-label="Open Dashboard"><span class="brand-mark"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M5 22c5 0 3-9 8-9s5 15 10 15 4-9 10-9"/></svg></span><strong>Dictate</strong></button><p class="nav-label">Workspace</p><nav aria-label="Main navigation">${sections.map(item => `<button data-section="${item}" ${state.data.preferences.onboardingDone && section === item ? 'aria-current="page"' : ''}>${icon(glyphs[item])}<span>${names[item]}</span></button>`).join('')}</nav><div class="sidebar-status"><span class="dot ${state.phase === 'listening' ? 'recording' : state.ready ? 'ready' : ''}"></span><div><strong>${status()}</strong><small>LOCAL · PRIVATE</small></div></div></aside>`;
+  return `<aside class="sidebar"><button class="brand" data-section="dashboard" aria-label="Open Dashboard">${brandMark()}<strong>Dictate</strong></button><p class="nav-label">Workspace</p><nav aria-label="Main navigation">${sections.map(item => `<button data-section="${item}" ${state.data.preferences.onboardingDone && section === item ? 'aria-current="page"' : ''}>${icon(glyphs[item])}<span>${names[item]}</span></button>`).join('')}</nav><div class="sidebar-status"><span class="dot ${state.phase === 'listening' ? 'recording' : state.ready ? 'ready' : ''}"></span><div><strong>${status()}</strong><small>LOCAL · PRIVATE</small></div></div></aside>`;
 }
 
 function dashboard() {
@@ -235,11 +239,16 @@ function dashboard() {
   });
   const weekWords = days.reduce((sum, day) => sum + day.words, 0);
   const max = Math.max(1, ...days.map(day => day.words));
-  const points = days.map((day, index) => `${8 + index * 15.3},${82 - (day.words / max) * 58}`).join(' ');
+  const chartPoints = days.map((day, index) => ({
+    ...day,
+    x: ((index + .5) / days.length) * 100,
+    y: 82 - (day.words / max) * 58,
+  }));
+  const points = chartPoints.map(point => `${point.x},${point.y}`).join(' ');
   const model = state.models.find(item => item.id === state.data.preferences.model);
   const modelAction = `<button class="model-status-button" data-section="models"><span class="dot ${state.ready ? 'ready' : ''}"></span><span><strong>${esc(model?.name ?? 'Choose a local model')}</strong><small>${state.ready ? 'On-device · ready' : 'Setup needed'}</small></span>${icon('chevron-right')}</button>`;
   const recent = history.slice(0, 3);
-  return `<div class="content-shell dashboard-page">${eyebrowHeader('Your voice, in motion', 'Good to hear you.', 'A calm place to see what Dictate is doing for you.', modelAction + recordingButton())}<section class="overview-card"><div class="overview-copy"><h2>Week activity</h2><p>Words captured each day</p><strong>${weekWords.toLocaleString()}</strong><span>words dictated</span></div><div class="line-chart" aria-label="Words dictated over the last seven days"><svg viewBox="0 0 100 92" preserveAspectRatio="none"><polyline points="${points}"/><g>${days.map((day, index) => `<circle cx="${8 + index * 15.3}" cy="${82 - (day.words / max) * 58}" r="1.3"/>`).join('')}</g></svg><div class="chart-labels">${days.map(day => `<span>${day.date.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>`).join('')}</div></div></section><div class="dashboard-grid"><section class="surface-card quick-card"><h2>Quick actions</h2><p>Move from thought to text.</p>${[['history', 'history', 'Open history', 'Review recent dictation'], ['dictionary', 'book-open', 'Manage dictionary', 'Shape the words Dictate knows'], ['models', 'cpu', 'Choose a model', 'Tune speed and accuracy']].map(([target, glyph, title, detail]) => `<button data-section="${target}" class="quick-row">${icon(glyph)}<span><strong>${title}</strong><small>${detail}</small></span>${icon('arrow-up-right')}</button>`).join('')}</section><section class="surface-card recent-card"><header><div><h2>Recent transcriptions</h2><p>The last few things you said</p></div>${recent.length ? '<button class="link-button" data-section="history">View all</button>' : ''}</header>${recent.length ? recent.map(item => `<button class="recent-row" data-section="history"><span class="dot ready"></span><span><strong>${esc(item.correctedText)}</strong><small>${timeLabel(item.timestamp)}</small></span><time>${secondsLabel(item.duration)}</time></button>`).join('') : '<div class="quiet-empty">Your completed dictations will appear here.</div>'}</section></div></div>`;
+  return `<div class="content-shell dashboard-page">${eyebrowHeader('Your voice, in motion', 'Good to hear you.', 'A calm place to see what Dictate is doing for you.', modelAction + recordingButton())}<section class="overview-card"><div class="overview-copy"><h2>Week activity</h2><p>Words captured each day</p><strong>${weekWords.toLocaleString()}</strong><span>words dictated</span></div><div class="line-chart" aria-label="Words dictated over the last seven days"><div class="line-plot"><svg viewBox="0 0 100 92" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"/></svg>${chartPoints.map(point => `<span class="chart-point" tabindex="0" aria-label="${esc(point.date.toLocaleDateString(undefined, { weekday: 'long' }))}: ${point.words} words" style="left:${point.x}%;top:${(point.y / 92) * 100}%"><span class="chart-tooltip">${point.words} ${point.words === 1 ? 'word' : 'words'}</span></span>`).join('')}</div><div class="chart-labels">${days.map(day => `<span>${day.date.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>`).join('')}</div></div></section><div class="dashboard-grid"><section class="surface-card quick-card"><h2>Quick actions</h2><p>Move from thought to text.</p>${[['history', 'history', 'Open history', 'Review recent dictation'], ['dictionary', 'book-open', 'Manage dictionary', 'Shape the words Dictate knows'], ['models', 'cpu', 'Choose a model', 'Tune speed and accuracy']].map(([target, glyph, title, detail]) => `<button data-section="${target}" class="quick-row">${icon(glyph)}<span><strong>${title}</strong><small>${detail}</small></span>${icon('arrow-up-right')}</button>`).join('')}</section><section class="surface-card recent-card"><header><div><h2>Recent transcriptions</h2><p>The last few things you said</p></div>${recent.length ? '<button class="link-button" data-section="history">View all</button>' : ''}</header>${recent.length ? recent.map(item => `<button class="recent-row" data-section="history"><span class="dot ready"></span><span><strong>${esc(item.correctedText)}</strong><small>${timeLabel(item.timestamp)}</small></span><time>${secondsLabel(item.duration)}</time></button>`).join('') : '<div class="quiet-empty">Your completed dictations will appear here.</div>'}</section></div></div>`;
 }
 
 function historyDayTabs() {
@@ -304,7 +313,7 @@ function statisticsView() {
   const max = Math.max(1, ...buckets.map(bucket => bucket.value));
   const period = statsRange === 'week' ? 'this week' : statsRange === 'month' ? 'last 4 weeks' : 'last 12 months';
   const metrics = [['align-left', 'Total words', words.toLocaleString(), period, 'violet'], ['file-text', 'Sessions', history.length.toLocaleString(), 'transcriptions', 'blue'], ['activity', 'Average', average.toLocaleString(), 'words per session', 'moss'], ['timer', 'Listening time', listening, 'captured locally', 'amber']];
-  return `<div class="content-shell statistics-page">${eyebrowHeader('A little signal', 'Statistics.', 'See how your voice compounds into written work.', segments('statsRange', [['week', 'Week'], ['month', 'Month'], ['year', 'Year']], statsRange))}<div class="metric-grid">${metrics.map(([glyph, label, value, detail, color]) => `<article class="metric-card ${color}">${icon(glyph)}<span>${label}</span><strong>${value}</strong><small>${detail}</small></article>`).join('')}</div><section class="surface-card activity-card"><h2>Activity</h2><p>${period[0].toUpperCase() + period.slice(1)} of dictation</p><div class="bar-chart" style="--columns:${count}">${buckets.map((bucket, index) => `<div><i style="height:${Math.max(4, (bucket.value / max) * 100)}%;--bar:${index === count - 1 ? 'var(--violet)' : 'var(--accent-blue)'}"></i><span>${bucket.label}</span></div>`).join('')}</div></section></div>`;
+  return `<div class="content-shell statistics-page">${eyebrowHeader('A little signal', 'Statistics.', 'See how your voice compounds into written work.', segments('statsRange', [['week', 'Week'], ['month', 'Month'], ['year', 'Year']], statsRange))}<div class="metric-grid">${metrics.map(([glyph, label, value, detail, color]) => `<article class="metric-card ${color}">${icon(glyph)}<span>${label}</span><strong>${value}</strong><small>${detail}</small></article>`).join('')}</div><section class="surface-card activity-card"><h2>Activity</h2><p>${period[0].toUpperCase() + period.slice(1)} of dictation</p><div class="bar-chart" style="--columns:${count}">${buckets.map((bucket, index) => `<div class="bar-column" tabindex="0" aria-label="${esc(bucket.label)}: ${bucket.value} words"><span class="bar-tooltip">${bucket.value} ${bucket.value === 1 ? 'word' : 'words'}</span><i style="height:${Math.max(4, (bucket.value / max) * 100)}%;--bar:${index === count - 1 ? 'var(--violet)' : 'var(--accent-blue)'}"></i><span>${bucket.label}</span></div>`).join('')}</div></section></div>`;
 }
 
 function modelAction(model: Model, prominent = false) {
@@ -344,7 +353,7 @@ function settingsAudio() {
 
 function settingsPermissions() {
   const preferences = state.data.preferences;
-  return `<form id="settings-form"><section class="settings-card">${cardHeader('lock-keyhole', 'Insertion & Permissions', 'Dictate returns words to the focused text field. Changes save automatically.')}<label class="setting-row"><div><strong>Insert words at your cursor</strong><small>Uses Windows text input in the external field that has keyboard focus.</small></div><input class="switch" name="autoInsert" type="checkbox" role="switch" ${preferences.autoInsert ? 'checked' : ''}></label><div class="setting-row"><div><strong>Microphone</strong><small>Required to hear your voice on this PC.</small></div><span class="permission-status"><span class="dot ready"></span>Windows managed</span></div></section><section class="settings-card">${cardHeader('shield-check', 'Privacy', 'History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.')}<div class="privacy-copy"><strong>Stored on this PC</strong><p>History and dictionary entries use local app data. Preferences and pending recovery text also remain local.</p><a href="https://github.com/leviackerman05/dictate/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Read the privacy policy</a></div><label class="setting-row"><div><strong>Keep history</strong><small>Turn this off when you do not want completed transcripts saved.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div></section></form>`;
+  return `<form id="settings-form"><section class="settings-card">${cardHeader('lock-keyhole', 'Insertion & Permissions', 'Dictate returns words to the focused text field. Changes save automatically.')}<label class="setting-row"><div><strong>Insert words at your cursor</strong><small>Uses Windows text input in the external field that has keyboard focus.</small></div><input class="switch" name="autoInsert" type="checkbox" role="switch" ${preferences.autoInsert ? 'checked' : ''}></label><div class="setting-row"><div><strong>Microphone</strong><small>Required to hear your voice on this PC.</small></div><span class="permission-status"><span class="dot ready"></span>Windows managed</span></div></section><section class="settings-card">${cardHeader('shield-check', 'Privacy', 'History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.')}<div class="privacy-copy"><strong>Stored on this PC</strong><p>History and dictionary entries use local app data. Preferences and pending recovery text also remain local.</p>${button('open-privacy', 'Read the privacy policy', 'link-button privacy-link')}</div><label class="setting-row"><div><strong>Keep history</strong><small>Turn this off when you do not want completed transcripts saved.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div></section></form>`;
 }
 
 function settingsView() {
@@ -360,7 +369,7 @@ function setupAction() {
 function onboarding() {
   const model = state.models.find(item => item.id === state.data.preferences.model) ?? state.models[0];
   if (showSetupOptions) return `<div class="onboarding-backdrop"><section class="onboarding-panel options"><header><div><h2>Make Dictate yours</h2><p>Choose a local model and how you start recording.</p></div>${button('close-setup-options', 'Done')}</header><div class="setting-row"><div><strong>Speech model</strong><small>All available models run locally on your CPU.</small></div><button data-action="browse-models">${esc(model?.name ?? 'Choose a model')}${icon('chevron-right')}</button></div><div class="setting-row"><div><strong>Recording shortcut</strong><small>Change this any time in Settings.</small></div><span class="shortcut-pill">${esc(shortcutLabel(state.data.preferences.shortcut))}</span></div><div class="setting-row"><div><strong>Recording behavior</strong></div>${segments('setupMode', [['holdToTalk', 'Hold to talk'], ['clickToToggle', 'Click to toggle']], state.data.preferences.recordingMode)}</div></section></div>`;
-  return `<div class="onboarding-backdrop"><section class="onboarding-panel"><header class="onboarding-brand"><div class="brand-inline"><span class="brand-mark"><svg viewBox="0 0 40 40"><path d="M5 22c5 0 3-9 8-9s5 15 10 15 4-9 10-9"/></svg></span><strong>Dictate</strong></div><span>Private on your PC · Free</span></header><div class="onboarding-title"><h2>${state.ready ? 'Ready for your first words' : 'Make room for your voice'}</h2><p>A microphone, a speech model, and you. No account needed.</p></div><div class="onboarding-steps"><div>${icon('mic')}<span><strong>Allow your microphone</strong><small>Your recording is processed on this PC.</small></span><span class="permission-status"><span class="dot ready"></span>Windows managed</span></div><div>${icon('audio-lines')}<span><strong>${esc(model?.name ?? 'Local speech model')}</strong><small>Download once, then dictate offline. First setup may take a few minutes.</small></span>${setupAction()}</div><div>${icon('mouse')}<span><strong>Insert words at your cursor</strong><small>Dictate types into the external field that has keyboard focus. If it cannot, your words stay ready to copy.</small></span><span class="permission-status"><span class="dot ${state.data.preferences.autoInsert ? 'ready' : ''}"></span>${state.data.preferences.autoInsert ? 'Ready' : 'Off'}</span></div></div><footer><div>${button('setup-options', 'Setup options', 'link-button')}<a href="https://github.com/leviackerman05/dictate/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Privacy</a></div><div>${button('complete-setup', 'Explore first', 'link-button')}${button('complete-setup', 'Start using Dictate', 'primary', state.ready ? '' : 'disabled')}</div></footer></section></div>`;
+  return `<div class="onboarding-backdrop"><section class="onboarding-panel"><header class="onboarding-brand"><div class="brand-inline">${brandMark()}<strong>Dictate</strong></div><span>Private on your PC · Free</span></header><div class="onboarding-title"><h2>${state.ready ? 'Ready for your first words' : 'Make room for your voice'}</h2><p>A microphone, a speech model, and you. No account needed.</p></div><div class="onboarding-steps"><div>${icon('mic')}<span><strong>Allow your microphone</strong><small>Your recording is processed on this PC.</small></span><span class="permission-status"><span class="dot ready"></span>Windows managed</span></div><div>${icon('audio-lines')}<span><strong>${esc(model?.name ?? 'Local speech model')}</strong><small>Download once, then dictate offline. First setup may take a few minutes.</small></span>${setupAction()}</div><div>${icon('mouse')}<span><strong>Insert words at your cursor</strong><small>Dictate types into the external field that has keyboard focus. If it cannot, your words stay ready to copy.</small></span><span class="permission-status"><span class="dot ${state.data.preferences.autoInsert ? 'ready' : ''}"></span>${state.data.preferences.autoInsert ? 'Ready' : 'Off'}</span></div></div><footer><div>${button('setup-options', 'Setup options', 'link-button')}${button('open-privacy', 'Privacy', 'link-button')}</div><div>${button('complete-setup', 'Explore first', 'link-button')}${button('complete-setup', 'Start using Dictate', 'primary', state.ready ? '' : 'disabled')}</div></footer></section></div>`;
 }
 
 function render() {
@@ -375,7 +384,7 @@ function render() {
       : processing ? '<div class="pebble-dots" aria-hidden="true"><i></i><i></i><i></i></div>'
         : state.phase === 'failed' ? '<span class="pebble-failure" aria-hidden="true">!</span>'
           : '<div class="pebble-ready" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>';
-    root.innerHTML = `<div class="recording-overlay ${active ? 'active' : ''}" role="status" aria-label="${esc(status())}">${signal}</div>`;
+    root.innerHTML = `<div class="recording-overlay ${active ? 'active' : processing ? 'processing' : ''}" role="status" aria-label="${esc(status())}">${signal}</div>`;
     document.body.classList.add('overlay'); return;
   }
   const views: Record<Section, () => string> = { dashboard, history: historyView, dictionary: dictionaryView, statistics: statisticsView, models: modelsView, settings: settingsView };
@@ -410,6 +419,7 @@ root.addEventListener('click', async event => {
     case 'close-setup-options': showSetupOptions = false; render(); break;
     case 'capture-shortcut': if (capturing) await stopCapture(); else { try { await invoke('pause_shortcut', { paused: true }); capturing = true; modifierCandidate = ''; render(); } catch (error) { localError = String(error); render(); } } break;
     case 'shortcut-preset': await savePreference({ shortcut: id! }); break;
+    case 'open-privacy': try { await openUrl(privacyURL); } catch (error) { localError = `Privacy page could not open: ${String(error)}`; render(); } break;
     case 'record': await call('start_recording'); break;
     case 'finish': await call('finish_recording'); break;
     case 'cancel-recording': try { await invoke('cancel_recording'); } catch (error) { localError = String(error); } await refresh(); break;

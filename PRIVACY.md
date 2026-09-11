@@ -3,7 +3,7 @@
 This document describes the current open-source code and should be updated if
 Dictate's data flows change.
 
-## What stays on the Mac
+## What stays on your computer
 
 - Live microphone samples exist only in memory for the active recording and
   recognizer session. Dictate does not write raw microphone audio to disk or a
@@ -19,6 +19,9 @@ Dictate's data flows change.
   discards it. This recovery journal contains text, never audio.
 - History is optional. Turning **Keep history** off affects future dictations;
   deleting existing history remains a separate action.
+- On Windows, preferences, dictionary entries, optional history, pending
+  recovery text, and downloaded models live under the platform application-data
+  directory for `app.dictate.portable` (normally under `%APPDATA%`).
 
 ## Network access
 
@@ -34,6 +37,9 @@ Network access can still occur when a model is prepared:
   `FluidInference` model repository on Hugging Face.
 - Whisper models are downloaded by WhisperKit from
   `argmaxinc/whisperkit-coreml` on Hugging Face.
+- The Windows beta downloads pinned Whisper or NVIDIA Parakeet files from their
+  public Hugging Face repositories and verifies SHA-256 checksums before loading
+  them.
 
 The benchmark command is deliberately offline-only and reports a model as
 unavailable instead of downloading it.
@@ -61,10 +67,9 @@ Third-party code and downloadable model notices are listed in
 
 ## Windows beta
 
-The portable app processes audio in memory with CPU whisper.cpp. Raw audio is
-not written to files. Initial model downloads go to the public
-`ggerganov/whisper.cpp` repository on Hugging Face and are checked against pinned
-SHA-256 hashes. No audio, transcript, or dictionary is sent with these requests.
+The Windows app processes audio in memory with CPU whisper.cpp or NVIDIA
+Parakeet. Raw audio is not written to files. No audio, transcript, or dictionary
+is sent with model-download requests.
 
 `data.json` in the platform application-data directory for `app.dictate.portable`
 contains preferences, dictionary, optional history, and pending recovery text.

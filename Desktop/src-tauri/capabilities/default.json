@@ -8,6 +8,14 @@
     "core:default",
     "dialog:allow-open",
     "dialog:allow-save",
-    "dialog:allow-confirm"
+    "dialog:allow-confirm",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://dictate-macos.vercel.app/privacy"
+        }
+      ]
+    }
   ]
 }

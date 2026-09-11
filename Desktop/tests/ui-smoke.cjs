@@ -18,7 +18,7 @@ const fs=require('fs');
  ],dictionary:[
   {id:'codex',kind:'correction',sourcePhrase:'codecs',targetPhrase:'Codex',notes:null,isEnabled:true,createdAt:stamp(14),updatedAt:stamp(2)},
   {id:'parakeet',kind:'vocabulary',sourcePhrase:'Parakeet',targetPhrase:null,notes:null,isEnabled:true,createdAt:stamp(8),updatedAt:stamp(1)}
- ],recovery:null},phase:'idle',models:[{id:'tiny',name:'Whisper Tiny',bytes:77691713},{id:'base',name:'Whisper Base',bytes:147951465},{id:'small',name:'Whisper Small',bytes:487601967},{id:'parakeet',name:'NVIDIA Parakeet v3',bytes:670479942}],installed:['parakeet'],ready:true,settingUp:false,notice:null,shortcutError:null,capability:'Text is inserted into the current editable field when Windows allows it. Otherwise, copy your words.',platform:'windows',version:'1.1.0-beta.6'};
+ ],recovery:null},phase:'idle',models:[{id:'tiny',name:'Whisper Tiny',bytes:77691713},{id:'base',name:'Whisper Base',bytes:147951465},{id:'small',name:'Whisper Small',bytes:487601967},{id:'parakeet',name:'NVIDIA Parakeet v3',bytes:670479942}],installed:['parakeet'],ready:true,settingUp:false,notice:null,shortcutError:null,capability:'Text is inserted into the current editable field when Windows allows it. Otherwise, copy your words.',platform:'windows',version:'1.1.0-beta.7'};
  window.calls=[];
  window.__TAURI_INTERNALS__={transformCallback:fn=>{let id=next++;callbacks[id]=fn;return id},unregisterCallback:id=>delete callbacks[id],invoke:async(cmd,args)=>{
  window.calls.push({cmd,args});
@@ -37,7 +37,7 @@ const fs=require('fs');
  });
  const preview=process.env.DICTATE_PREVIEW_URL || 'http://127.0.0.1:1420';
  await page.goto(preview);await page.waitForSelector('nav');
- const dir=require('path').resolve(__dirname,'../../docs/evidence/ui/windows-beta6');fs.mkdirSync(dir,{recursive:true});
+ const dir=require('path').resolve(__dirname,'../../docs/evidence/ui/windows-beta7');fs.mkdirSync(dir,{recursive:true});
  const results=[];
  for(const theme of ['light','dark']){
 
@@ -93,6 +93,9 @@ const fs=require('fs');
  await page.waitForFunction(()=>window.mock.data.preferences.keepHistory===false);
  await page.locator('[data-action="shortcut-preset"][data-id="F8"]').click();
  await page.waitForFunction(()=>window.mock.data.preferences.shortcut==='F8');
+ await page.locator('[data-action="settings-tab"][data-id="permissions"]').click();
+ await page.locator('[data-action="open-privacy"]').click();
+ await page.waitForFunction(()=>window.calls.some(call=>call.cmd==='plugin:opener|open_url'));
  await page.locator('nav [data-section="dictionary"]').click();
  await page.locator('[data-action="add-entry"]').click();
  await page.locator('[name="source"]').fill('cloud code');await page.locator('[name="target"]').fill('Claude Code');
@@ -100,18 +103,28 @@ const fs=require('fs');
  if(await page.locator('[name="source"]').inputValue()!=='cloud code')throw Error('Refresh discarded dictionary draft');
  await page.locator('#dictionary-form button[type="submit"]').click();
  if(!(await page.evaluate(()=>window.mock.data.dictionary.some(entry=>entry.targetPhrase==='Claude Code'))))throw Error('Dictionary save failed');
+ await page.locator('nav [data-section="dashboard"]').click();
+ if(await page.locator('.brand-mark img[src="/dictate-mark.svg"]').count()!==1)throw Error('Shared Dictate mark is missing');
+ if(await page.locator('.chart-point').count()!==7)throw Error('Dashboard graph point alignment layer is missing');
+ await page.locator('.chart-point').last().hover();
+ if(!(await page.locator('.chart-point').last().getAttribute('aria-label'))?.includes('words'))throw Error('Dashboard graph value is unavailable');
+ await page.locator('nav [data-section="statistics"]').click();
+ await page.locator('.bar-column').last().hover();
+ if(!(await page.locator('.bar-column').last().getAttribute('aria-label'))?.includes('words'))throw Error('Statistics graph value is unavailable');
  await page.locator('nav [data-section="dashboard"]').click();await page.locator('[data-action="record"]').click();
+ if(!(await page.locator('[data-action="finish"]').first().getAttribute('class'))?.includes('recording'))throw Error('Recording button did not use the red active treatment');
+ if(await page.locator('[data-action="finish"] .stop-mark').count()!==1)throw Error('Recording stop mark is missing');
  await page.locator('[data-action="finish"]').first().click();await page.getByText('A synthetic transcript for recovery testing.',{exact:true}).waitFor();
  await page.locator('[data-action="copy-recovery"]').click();
  if(await page.locator('.recovery').count())throw Error('Copied recovery was not cleared');
  await page.setViewportSize({width:760,height:560});
  for(const section of ['dashboard','settings','models']){await page.locator(`nav [data-section="${section}"]`).click();await page.screenshot({path:`${dir}/${section}-minimum.png`,fullPage:true});results.push({section,size:'minimum',overflow:await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)});}
- await page.locator('nav [data-section="settings"]').click();await page.locator('[data-action="show-setup"]').click();await page.screenshot({path:`${dir}/setup-minimum.png`,fullPage:true});
- await page.setViewportSize({width:152,height:22});await page.goto(`${preview}?overlay=1`);await page.waitForSelector('.recording-overlay');
+ await page.locator('nav [data-section="settings"]').click();await page.locator('[data-action="settings-tab"][data-id="general"]').click();await page.locator('[data-action="show-setup"]').click();await page.screenshot({path:`${dir}/setup-minimum.png`,fullPage:true});
+ await page.setViewportSize({width:108,height:52});await page.goto(`${preview}?overlay=1`);await page.waitForSelector('.recording-overlay');
  await page.evaluate(()=>{window.mock.phase='listening';window.emitState();});await page.waitForTimeout(100);await page.screenshot({path:`${dir}/overlay-listening.png`});
  if(await page.locator('.recording-overlay button').count())throw Error('Recorder pebble must not contain actions');
  if(await page.locator('.pebble-bar').count()!==9)throw Error('Recorder pebble level bars missing');
  await page.evaluate(()=>{window.mock.phase='finalizing';window.emitState();});await page.waitForTimeout(50);await page.screenshot({path:`${dir}/overlay-processing.png`});
- fs.writeFileSync(`${dir}/ui-check.json`,JSON.stringify({scope:'Chromium preview with synthetic IPC on macOS; not native Windows certification',results,errors,preferences:prefs,checks:['Mac-parity light and dark screens','onboarding dismissal','compact action-free recorder pebble','single modifier capture','chord capture','mouse preset','segmented preference autosave','switch autosave','Parakeet selection','automatic save failure recovery','dictionary draft across refresh','dictionary save','record and recovery copy']},null,2));
+ fs.writeFileSync(`${dir}/ui-check.json`,JSON.stringify({scope:'Chromium preview with synthetic IPC on macOS; native Windows packaging is verified by GitHub Actions',results,errors,preferences:prefs,checks:['Mac-parity light and dark screens','shared Dictate brand mark','dashboard and statistics hover values','red recording button and filled stop mark','system privacy URL opener','onboarding dismissal','compact action-free recorder pebble','single modifier capture','chord capture','mouse preset','segmented preference autosave','switch autosave','Parakeet selection','automatic save failure recovery','dictionary draft across refresh','dictionary save','record and recovery copy']},null,2));
  console.log(JSON.stringify({results,errors}));await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -1,0 +1,44 @@
+[
+  {
+    "path": "/",
+    "viewport": "desktop",
+    "title": "Dictate — speak, release, keep writing",
+    "horizontalOverflow": false,
+    "errors": []
+  },
+  {
+    "path": "/download",
+    "viewport": "desktop",
+    "title": "Download Dictate — free local dictation",
+    "horizontalOverflow": false,
+    "errors": []
+  },
+  {
+    "path": "/privacy",
+    "viewport": "desktop",
+    "title": "Privacy — Dictate",
+    "horizontalOverflow": false,
+    "errors": []
+  },
+  {
+    "path": "/",
+    "viewport": "mobile",
+    "title": "Dictate — speak, release, keep writing",
+    "horizontalOverflow": false,
+    "errors": []
+  },
+  {
+    "path": "/download",
+    "viewport": "mobile",
+    "title": "Download Dictate — free local dictation",
+    "horizontalOverflow": false,
+    "errors": []
+  },
+  {
+    "path": "/privacy",
+    "viewport": "mobile",
+    "title": "Privacy — Dictate",
+    "horizontalOverflow": false,
+    "errors": []
+  }
+]

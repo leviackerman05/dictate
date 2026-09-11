@@ -1,6 +1,6 @@
 [package]
 name = "dictate-desktop"
-version = "1.1.0-beta.6"
+version = "1.1.0-beta.7"
 edition = "2021"
 license = "MIT"
 description = "Private local dictation for Windows"
@@ -11,6 +11,7 @@ dictate-core = { path = "../core" }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
