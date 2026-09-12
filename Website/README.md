@@ -1,39 +1,37 @@
 # Dictate website
 
-This is a separate Astro surface for Dictate. It is intentionally smaller and quieter than a dashboard: one product promise, one synthetic interaction, three product beats, and the Color Index palette.
+Static Astro site hosted at [dictate-macos.vercel.app](https://dictate-macos.vercel.app).
 
-Production: [dictate-macos.vercel.app](https://dictate-macos.vercel.app)
+## Develop and check
 
-## Local development
+From `Website`:
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
-Run the full static checks before previewing:
+Before deployment:
 
 ```sh
 npm run check
+npm test
 npm run check:links
 npm run build
-npm run preview
 ```
 
-Both download CTAs use GitHub's stable latest-release asset URL:
-
-```text
-https://github.com/leviackerman05/dictate/releases/latest/download/Dictate.dmg
-```
-
-The release workflow always uploads the DMG with that exact filename, so the website does not need to know the current version tag.
+Download links for both Mac and Windows use the version in
+`src/data/release.json`, which must match `../Release/version.txt`. Publish the
+GitHub release assets before deploying a new download version. Verify public
+assets with `npm run check:links -- --remote`.
 
 ## Deploy
 
-The site is a static Astro build hosted on Vercel. From this directory:
+From `Website`, using the existing Vercel project:
 
 ```sh
-npx vercel@latest --prod
+npx vercel --prod
 ```
 
-Vercel supplies the production hostname during the build so canonical and social URLs point to the live deployment.
+The project uses `npm ci` and `npm run build`, serving the generated `dist/`
+directory. Vercel supplies the production hostname for canonical and social URLs.

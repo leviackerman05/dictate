@@ -12,12 +12,11 @@ beta compiles for macOS 14; older-OS runtime testing remains pending.
 
 1. Open `Dictate.dmg` and drag Dictate to **Applications**.
 2. Open **Dictate** from Applications or Spotlight.
-3. Allow microphone access and click **Use model** for Apple Speech. Grant
+3. Allow microphone access and choose a speech model in setup. Grant
    Accessibility only if you want automatic insertion into other apps.
 
 On supported macOS 26 devices, Apple recognition is the default and uses an OS-managed asset.
-Beta 4 applies that default once to older saved selections too; future explicit
-choices remain saved. Open **Setup options** to change your model or shortcut.
+Existing saved model choices are preserved. Open **Setup options** to change your model or shortcut.
 Older macOS uses a downloadable local model. Setup shows progress, supports
 cancel/retry, and does not silently download a different model on launch.
 
@@ -85,6 +84,12 @@ then sends Unicode text without changing your clipboard. Elevated, password,
 and inaccessible fields keep the transcript ready to copy. If confirmation is
 uncertain, inspect the destination before retrying to avoid duplicate text.
 
+Right Ctrl is the default recording shortcut. Change it in Settings → Recording
+shortcut; changes save automatically. The idle indicator can be hidden in
+Settings → General. Quit Dictate from the tray menu before updating; closing
+the window only hides it. See [Windows notes](../Desktop/README.md) for models
+and local-data details.
+
 ## Linux support is paused
 
 Current builds and development support are limited to Mac and Windows. Older
@@ -99,40 +104,8 @@ On Windows use `Get-FileHash .\Dictate-Windows-x64-setup.exe -Algorithm SHA256`
 and compare it with the release's checksum. `manifest.json` also records all
 file sizes and hashes. A matching checksum confirms integrity, not notarization.
 
-## Build the native Mac app from source
+## Build from source
 
-Install full Xcode with the macOS 26 SDK, then run:
-
-```sh
-swift test
-make app
-open build/Dictate.app
-```
-
-The bundle identifier defaults to `app.dictate.desktop`. Isolate a developer
-build with `DICTATE_BUNDLE_IDENTIFIER=com.example.dictate make app`.
-
-`make preflight` validates architecture, minimum OS, resources, usage strings,
-signature integrity and DMG contents. It reports actual Gatekeeper rejection for
-an unnotarized community build; passing packaging checks is not Apple approval.
-
-### Windows beta shortcuts, insertion, and models
-
-Choose **Quit Dictate** from the old app’s system tray menu before installing
-the new beta. Closing its window only hides it. Right Ctrl is the default:
-hold it to speak, then release to finish. Settings → Recording shortcut records
-a key, combination, or middle/back/forward mouse button. Save changes applies it.
-Use Press to toggle if holding is inconvenient. The key is reserved while Dictate
-runs; ordinary left/right mouse clicks and Escape cannot be assigned.
-
-Speech models offers Whisper Tiny (78 MB), Base (148 MB), Small (488 MB), and
-NVIDIA Parakeet TDT v3 (670 MB). They all run locally on CPU. Parakeet recommends
-8 GB RAM, including when allocating memory to Windows Sandbox. Whisper Tiny is
-the smaller quick-start choice. The installer includes the ONNX and C++ runtime
-components; no separate C++ package or developer tools are needed to use it.
-The current beta accepts focused editors that expose custom Windows accessibility controls
-and sends Unicode text without replacing clipboard contents. Password fields are
-still rejected, and a failed delivery keeps the transcript ready to copy or retry.
-Signing status is unchanged: the current beta does not bypass Smart App Control.
-
-The Windows model catalog also includes Whisper Medium (1.53 GB) and Large v3 Turbo (1.62 GB). Both use the local CPU; allow 8 GB RAM and longer processing times. The ready indicator is enabled by default and can be hidden in Settings → General. Microsoft Store/MSIX signing is being prepared; the current GitHub installer remains unsigned.
+See the main README for [Mac](../README.md#mac) and
+[Windows](../README.md#windows) prerequisites, build commands, and output paths.
+Optional tests and packaging checks are in the [developer guide](DEVELOPMENT.md).
