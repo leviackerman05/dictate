@@ -4,6 +4,7 @@ mod delivery;
 mod engine;
 mod models;
 mod shortcuts;
+mod updates;
 
 use chrono::Utc;
 use dictate_core::*;
@@ -778,6 +779,16 @@ fn pause_shortcut(app: tauri::AppHandle, paused: bool) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn check_for_update(app: tauri::AppHandle) -> updates::UpdateStatus {
+    updates::check(app).await
+}
+
+#[tauri::command]
+async fn install_store_update(app: tauri::AppHandle) -> Result<(), String> {
+    updates::install(app).await
+}
+
 fn main() {
     // Store MSIX bundles an official Fixed Version WebView2 runtime. Resolve it
     // beside the executable before starting threads; never from the working dir.
@@ -800,7 +811,7 @@ fn main() {
   #[cfg(windows)]
   let _=(app,event);
  }).build())
- .invoke_handler(tauri::generate_handler![get_state,pause_shortcut,setup_model,cancel_setup,remove_model,start_recording,finish_recording,cancel_recording,copy_text,discard_recovery,retry_delivery,save_preferences,save_dictionary,update_history,export_data,import_dictionary])
+ .invoke_handler(tauri::generate_handler![get_state,pause_shortcut,setup_model,cancel_setup,remove_model,start_recording,finish_recording,cancel_recording,copy_text,discard_recovery,retry_delivery,save_preferences,save_dictionary,update_history,export_data,import_dictionary,check_for_update,install_store_update])
  .setup(|app|{
   let dir=app.path().app_data_dir()?;std::fs::create_dir_all(&dir)?;let file=dir.join("data.json");
   let fresh_install = !file.exists();

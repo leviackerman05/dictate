@@ -32,10 +32,12 @@ interface Snapshot {
   notice: string | null; shortcutError: string | null; capability: string;
   platform: string; version: string;
 }
+interface UpdateStatus { source: 'store' | 'download' | 'unavailable'; available: boolean; message: string }
 
 const root = document.querySelector<HTMLDivElement>('#app')!;
 const overlay = new URLSearchParams(location.search).has('overlay');
 const privacyURL = 'https://dictate-macos.vercel.app/privacy';
+const windowsDownloadURL = 'https://dictate-macos.vercel.app/download#windows';
 const sections = ['dashboard', 'history', 'dictionary', 'statistics', 'models', 'settings'] as const;
 type Section = typeof sections[number];
 type SettingsTab = 'general' | 'audio' | 'permissions';
@@ -74,6 +76,8 @@ let showSetupOptions = false;
 let optimisticPreferences: Preferences | null = null;
 let pendingPreferences: Preferences | null = null;
 let savingPreferences = false;
+let updateStatus: UpdateStatus | null = null;
+let updateBusy = false;
 
 type DraftField = { name: string; value: string; checked: boolean };
 const formDrafts = new Map<string, DraftField[]>();
@@ -154,6 +158,24 @@ async function call(command: string, args: Record<string, unknown> = {}, resetFo
   try { await invoke(command, args); if (resetForm) resetDrafts.add(resetForm); }
   catch (error) { localError = String(error); }
   finally { busy = false; await refresh(); }
+}
+
+async function checkForUpdate() {
+  if (updateBusy || overlay) return;
+  updateBusy = true;
+  if (state) render();
+  try { updateStatus = await invoke<UpdateStatus>('check_for_update'); }
+  catch (error) { updateStatus = { source: 'download', available: false, message: `Update check failed: ${String(error)}` }; }
+  finally { updateBusy = false; if (state) render(); }
+}
+
+function updateRow() {
+  const status = updateStatus;
+  const label = updateBusy ? 'Checking for updates…' : status?.available ? 'Update available' : status?.source === 'store' ? 'Up to date' : 'Windows updates';
+  const message = updateBusy ? 'Asking Microsoft Store for the latest signed package.' : status?.message ?? 'Check Microsoft Store for a newer signed package.';
+  const action = status?.available ? 'install-update' : status?.source === 'download' ? 'open-windows-download' : 'check-update';
+  const actionLabel = status?.available ? 'Download update' : status?.source === 'download' ? 'Get latest build' : 'Check again';
+  return `<div class="setting-row update-row"><div><strong>${label}</strong><small>${esc(message)}</small></div>${button(action, updateBusy ? 'Checking…' : actionLabel, status?.available ? 'primary' : '', updateBusy ? 'disabled' : '')}</div>`;
 }
 
 async function savePreference(changes: Partial<Preferences>) {
@@ -361,7 +383,7 @@ function settingsTabs() {
 function settingsGeneral() {
   const preferences = state.data.preferences;
   const shortcut = preferences.shortcut;
-  return `<form id="settings-form"><section class="settings-card">${cardHeader('palette', 'Appearance', 'Color Index is the Dictate identity. This controls the system appearance only.')}<div class="setting-row"><div><strong>Appearance</strong><small>Follow Windows, or choose a theme. Changes save automatically.</small></div>${segments('appearance', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], preferences.appearance)}</div></section><section class="settings-card">${cardHeader('keyboard', 'Shortcut', 'Hold the key while speaking; release it to finish.')}<div class="setting-row"><div><strong>Push-to-talk key</strong><small>Choose one key, a combination, or a mouse button.</small></div><button type="button" data-action="capture-shortcut" class="shortcut-capture ${capturing ? 'capturing' : ''}"><span>${capturing ? 'Press a key or mouse button…' : esc(shortcutLabel(shortcut))}</span>${icon('chevron-down')}</button></div><div class="platform-tip">${icon('mouse')}<div><strong>Make Dictate comfortable to reach</strong><small>Try Right Ctrl, F8, or a middle/side mouse button. Escape cancels capture.</small></div><div class="preset-row">${[['ControlRight', 'Right Ctrl'], ['F8', 'F8'], ['MouseBack', 'Mouse back']].map(([value, label]) => button('shortcut-preset', label, 'link-button', `data-id="${value}"`)).join('')}</div></div><div class="setting-row"><div><strong>Recording behavior</strong><small>${preferences.recordingMode === 'holdToTalk' ? 'Hold the shortcut to speak; release it to finish.' : 'Press once to start; press again to finish.'}</small></div>${segments('recordingMode', [['holdToTalk', 'Hold to talk'], ['clickToToggle', 'Click to toggle']], preferences.recordingMode)}</div></section><section class="settings-card">${cardHeader('sliders-horizontal', 'General', 'Small choices that keep Dictate quiet, focused, and ready.')}<label class="setting-row"><div><strong>Show ready indicator</strong><small>Keep a small recorder visible between dictations.</small></div><input class="switch" name="showReadyIndicator" type="checkbox" role="switch" ${preferences.showReadyIndicator ? 'checked' : ''}></label><label class="setting-row"><div><strong>Keep history</strong><small>History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div><div class="setting-row"><div><strong>Delete all history</strong><small>Dictionary, models, and preferences remain.</small></div>${button('clear-history', 'Delete', 'danger')}</div></section><section class="settings-card">${cardHeader('info', 'About', 'Dictate updates are distributed with the app build.')}<div class="about-row"><p>Dictate is a private, local writing instrument for short spoken fragments.</p><span>Dictate ${esc(state.version)} · Windows</span></div><div class="setting-row"><div><strong>Review onboarding</strong><small>Walk through microphone and insertion setup again.</small></div>${button('show-setup', 'Review onboarding')}</div></section></form>`;
+  return `<form id="settings-form"><section class="settings-card">${cardHeader('palette', 'Appearance', 'Color Index is the Dictate identity. This controls the system appearance only.')}<div class="setting-row"><div><strong>Appearance</strong><small>Follow Windows, or choose a theme. Changes save automatically.</small></div>${segments('appearance', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], preferences.appearance)}</div></section><section class="settings-card">${cardHeader('keyboard', 'Shortcut', 'Hold the key while speaking; release it to finish.')}<div class="setting-row"><div><strong>Push-to-talk key</strong><small>Choose one key, a combination, or a mouse button.</small></div><button type="button" data-action="capture-shortcut" class="shortcut-capture ${capturing ? 'capturing' : ''}"><span>${capturing ? 'Press a key or mouse button…' : esc(shortcutLabel(shortcut))}</span>${icon('chevron-down')}</button></div><div class="platform-tip">${icon('mouse')}<div><strong>Make Dictate comfortable to reach</strong><small>Try Right Ctrl, F8, or a middle/side mouse button. Escape cancels capture.</small></div><div class="preset-row">${[['ControlRight', 'Right Ctrl'], ['F8', 'F8'], ['MouseBack', 'Mouse back']].map(([value, label]) => button('shortcut-preset', label, 'link-button', `data-id="${value}"`)).join('')}</div></div><div class="setting-row"><div><strong>Recording behavior</strong><small>${preferences.recordingMode === 'holdToTalk' ? 'Hold the shortcut to speak; release it to finish.' : 'Press once to start; press again to finish.'}</small></div>${segments('recordingMode', [['holdToTalk', 'Hold to talk'], ['clickToToggle', 'Click to toggle']], preferences.recordingMode)}</div></section><section class="settings-card">${cardHeader('sliders-horizontal', 'General', 'Small choices that keep Dictate quiet, focused, and ready.')}<label class="setting-row"><div><strong>Show ready indicator</strong><small>Keep a small recorder visible between dictations.</small></div><input class="switch" name="showReadyIndicator" type="checkbox" role="switch" ${preferences.showReadyIndicator ? 'checked' : ''}></label><label class="setting-row"><div><strong>Keep history</strong><small>History, dictionary entries, and preferences stay on this PC. Raw audio is never stored.</small></div><input class="switch" name="keepHistory" type="checkbox" role="switch" ${preferences.keepHistory ? 'checked' : ''}></label><div class="setting-row"><div><strong>Retention</strong></div>${segments('retention', [['oneDay', 'One day'], ['oneWeek', 'One week'], ['oneMonth', 'One month'], ['forever', 'Forever']], preferences.retention)}</div><div class="setting-row"><div><strong>Delete all history</strong><small>Dictionary, models, and preferences remain.</small></div>${button('clear-history', 'Delete', 'danger')}</div></section><section class="settings-card">${cardHeader('info', 'About', 'Signed Store builds can update directly through Windows.')}<div class="about-row"><p>Dictate is a private, local writing instrument for short spoken fragments.</p><span>Windows Beta 1</span></div>${updateRow()}<div class="setting-row"><div><strong>Review onboarding</strong><small>Walk through microphone and insertion setup again.</small></div>${button('show-setup', 'Review onboarding')}</div></section></form>`;
 }
 
 function settingsAudio() {
@@ -453,6 +475,9 @@ root.addEventListener('click', async event => {
     case 'capture-shortcut': if (capturing) await stopCapture(); else { try { await invoke('pause_shortcut', { paused: true }); capturing = true; modifierCandidate = ''; render(); } catch (error) { localError = String(error); render(); } } break;
     case 'shortcut-preset': await savePreference({ shortcut: id! }); break;
     case 'open-privacy': try { await openUrl(privacyURL); } catch (error) { localError = `Privacy page could not open: ${String(error)}`; render(); } break;
+    case 'check-update': await checkForUpdate(); break;
+    case 'install-update': updateBusy = true; localError = ''; render(); try { await invoke('install_store_update'); } catch (error) { localError = String(error); updateBusy = false; render(); } break;
+    case 'open-windows-download': try { await openUrl(windowsDownloadURL); } catch (error) { localError = `Download page could not open: ${String(error)}`; render(); } break;
     case 'record': await call('start_recording'); break;
     case 'finish': await call('finish_recording'); break;
     case 'cancel-recording': try { await invoke('cancel_recording'); } catch (error) { localError = String(error); } await refresh(); break;
@@ -523,5 +548,6 @@ async function initialize() {
     });
   });
   await refresh();
+  if (!overlay) void checkForUpdate();
 }
 void initialize().catch(error => { root.innerHTML = `<main class="startup"><h1>Dictate could not connect</h1><p>${esc(error)}</p></main>`; });

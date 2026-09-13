@@ -44,6 +44,8 @@ offers NVIDIA Parakeet.
 **Windows:** First launch downloads NVIDIA Parakeet (670 MB); cancel or choose
 another model in Setup options. No NVIDIA GPU is needed; 8 GB RAM is recommended.
 The installer provides the speech runtime and installs WebView2 if missing.
+Microsoft Store builds check for signed updates under **Settings → General** and
+restart after Windows finishes installing them.
 
 Community Mac builds are not notarized, and Windows installers are unsigned.
 See the [installation guide](docs/INSTALLATION.md) for Mac's Open Anyway step,

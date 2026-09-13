@@ -3,7 +3,7 @@
          xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
          IgnorableNamespaces="uap rescap">
-  <Identity Name="PriyanshSingh.Dictate-PrivateVoiceTyping" Publisher="CN=41A9F374-D1EA-4092-B9C8-24D61C5BE98A" Version="1.1.8.0" ProcessorArchitecture="x64" />
+  <Identity Name="PriyanshSingh.Dictate-PrivateVoiceTyping" Publisher="CN=41A9F374-D1EA-4092-B9C8-24D61C5BE98A" Version="1.1.9.0" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>Dictate - Private Voice Typing</DisplayName>
     <PublisherDisplayName>Priyansh Singh</PublisherDisplayName>

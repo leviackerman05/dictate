@@ -19,7 +19,7 @@ const fs=require('fs');
  ],dictionary:[
   {id:'codex',kind:'correction',sourcePhrase:'codecs',targetPhrase:'Codex',notes:null,isEnabled:true,createdAt:stamp(14),updatedAt:stamp(2)},
   {id:'parakeet',kind:'vocabulary',sourcePhrase:'Parakeet',targetPhrase:null,notes:null,isEnabled:true,createdAt:stamp(8),updatedAt:stamp(1)}
- ],recovery:null},phase:'idle',models:[{id:'tiny',name:'Whisper Tiny',bytes:77691713},{id:'base',name:'Whisper Base',bytes:147951465},{id:'small',name:'Whisper Small',bytes:487601967},{id:'parakeet',name:'NVIDIA Parakeet v3',bytes:670479942}],installed:['parakeet'],ready:true,settingUp:false,notice:null,shortcutError:null,capability:'Text is inserted into the current editable field when Windows allows it. Otherwise, copy your words.',platform:'windows',version:'1.1.0-beta.9'};
+ ],recovery:null},phase:'idle',models:[{id:'tiny',name:'Whisper Tiny',bytes:77691713},{id:'base',name:'Whisper Base',bytes:147951465},{id:'small',name:'Whisper Small',bytes:487601967},{id:'parakeet',name:'NVIDIA Parakeet v3',bytes:670479942}],installed:['parakeet'],ready:true,settingUp:false,notice:null,shortcutError:null,capability:'Text is inserted into the current editable field when Windows allows it. Otherwise, copy your words.',platform:'windows',version:'1.1.1-beta.1'};
  window.calls=[];
  window.__TAURI_INTERNALS__={transformCallback:fn=>{let id=next++;callbacks[id]=fn;return id},unregisterCallback:id=>delete callbacks[id],invoke:async(cmd,args)=>{
  window.calls.push({cmd,args});
@@ -31,6 +31,8 @@ const fs=require('fs');
  if(cmd==='finish_recording'){window.mock.phase='idle';window.mock.data.recovery='A synthetic transcript for recovery testing.';}
  if(cmd==='cancel_recording')window.mock.phase='idle';
  if(cmd==='copy_text')window.mock.data.recovery=null;
+ if(cmd==='check_for_update')return {source:'store',available:true,message:'A Microsoft Store update is ready to download.'};
+ if(cmd==='install_store_update')return null;
  if(cmd==='plugin:event|listen'){listeners.push({event:args.event,id:args.handler});return next++;}
  if(cmd.startsWith('plugin:event|'))return next++;
  return null;
@@ -38,7 +40,7 @@ const fs=require('fs');
  });
  const preview=process.env.DICTATE_PREVIEW_URL || 'http://127.0.0.1:1420';
  await page.goto(preview);await page.waitForSelector('nav');
- const dir=process.env.DICTATE_UI_OUTPUT || require('path').resolve(__dirname,'../../docs/evidence/ui/windows-beta9');fs.mkdirSync(dir,{recursive:true});
+ const dir=process.env.DICTATE_UI_OUTPUT || require('path').resolve(__dirname,'../../docs/evidence/ui/windows-beta1');fs.mkdirSync(dir,{recursive:true});
  const results=[];
  for(const theme of ['light','dark']){
 
@@ -71,6 +73,8 @@ const fs=require('fs');
  if(await firstHistoryToggle.getAttribute('aria-expanded')!=='false')throw Error('History transcript did not collapse');
  await page.locator('nav [data-section="settings"]').click();
  await page.locator('[data-action="settings-tab"][data-id="general"]').click();
+ await page.getByText('Update available',{exact:true}).waitFor();
+ if(await page.getByText('Windows Beta 1',{exact:true}).count()!==1)throw Error('Windows Beta 1 label is missing');
  await page.locator('[name="showReadyIndicator"]').uncheck();
  await page.waitForFunction(()=>window.mock.data.preferences.showReadyIndicator===false);
  await page.locator('[name="showReadyIndicator"]').check();
@@ -160,6 +164,11 @@ const fs=require('fs');
  const statusColumns=await page.locator('.catalog-row .model-state').evaluateAll(nodes=>nodes.map(node=>Math.round(node.getBoundingClientRect().left)));
  if(new Set(statusColumns).size!==1)throw Error('Model status columns are not aligned');
  await page.screenshot({path:`${dir}/models-wide.png`,fullPage:true});
- fs.writeFileSync(`${dir}/ui-check.json`,JSON.stringify({scope:'Chromium preview with synthetic IPC on macOS; native Windows packaging is verified by GitHub Actions',results,errors,preferences:prefs,checks:['Mac-parity light and dark screens','shared Dictate brand mark','dashboard and statistics hover values','red recording button and filled stop mark','system privacy URL opener','onboarding dismissal','sensitive rounded recorder waveform','overlay recovery copy action','wide-monitor composition','aligned model statuses','smooth history disclosure state','compact dictionary cancel target','single modifier capture','chord capture','mouse preset','segmented preference autosave','switch autosave','Parakeet selection','automatic save failure recovery','dictionary draft across refresh','dictionary save','record and recovery copy']},null,2));
+ await page.locator('nav [data-section="settings"]').click();
+ await page.locator('.settings-card').last().scrollIntoViewIfNeeded();
+ await page.screenshot({path:`${dir}/settings-update-wide.png`,fullPage:true});
+ await page.locator('[data-action="install-update"]').click();
+ if(!(await page.evaluate(()=>window.calls.some(call=>call.cmd==='install_store_update'))))throw Error('Store update action was not invoked');
+ fs.writeFileSync(`${dir}/ui-check.json`,JSON.stringify({scope:'Chromium preview with synthetic IPC on macOS; native Windows packaging is verified by GitHub Actions',results,errors,preferences:prefs,checks:['Windows Beta 1 label','Microsoft Store update check and install action','Mac-parity light and dark screens','shared Dictate brand mark','dashboard and statistics hover values','red recording button and filled stop mark','system privacy URL opener','onboarding dismissal','sensitive rounded recorder waveform','overlay recovery copy action','wide-monitor composition','aligned model statuses','smooth history disclosure state','compact dictionary cancel target','single modifier capture','chord capture','mouse preset','segmented preference autosave','switch autosave','Parakeet selection','automatic save failure recovery','dictionary draft across refresh','dictionary save','record and recovery copy']},null,2));
  console.log(JSON.stringify({results,errors}));await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

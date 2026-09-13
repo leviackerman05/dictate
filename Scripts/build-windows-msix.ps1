@@ -5,7 +5,7 @@ param(
     [ValidateNotNullOrEmpty()][string]$Publisher = 'CN=41A9F374-D1EA-4092-B9C8-24D61C5BE98A',
     [ValidateNotNullOrEmpty()][string]$PublisherDisplayName = 'Priyansh Singh',
     [ValidateNotNullOrEmpty()][string]$ProductDisplayName = 'Dictate - Private Voice Typing',
-    [ValidatePattern('^[1-9][0-9]*\.[0-9]+\.[0-9]+\.0$')][string]$Version = '1.1.8.0',
+    [ValidatePattern('^[1-9][0-9]*\.[0-9]+\.[0-9]+\.0$')][string]$Version = '1.1.9.0',
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$WebView2Runtime,
     [string]$Installer,
     [string]$Output

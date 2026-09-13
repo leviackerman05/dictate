@@ -14,7 +14,7 @@ npm --prefix Desktop run tauri -- build --bundles nsis
 .\Scripts\build-windows-msix.ps1 -WebView2Runtime 'C:\path\to\folder-containing-msedgewebview2.exe'
 ```
 
-The script defaults to the reserved product identity, the installed display name **Dictate - Private Voice Typing**, and package version `1.1.8.0`. Future submissions must use a higher version, with the fourth component kept at zero.
+The script defaults to the reserved product identity, the installed display name **Dictate - Private Voice Typing**, and package version `1.1.9.0`. Future submissions must use a higher version, with the fourth component kept at zero.
 
 4. Run Windows App Certification Kit from an Administrator PowerShell:
 
@@ -23,7 +23,7 @@ The script defaults to the reserved product identity, the installed display name
 & 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit\appcert.exe' test -appxpackagepath '.\dist\Dictate-Windows-x64-Store.msix' -reportoutputpath '.\dist\WACK-report.xml'
 ```
 
-5. Test first Parakeet download/cancellation, microphone, tray/shortcut, idle indicator, insertion, model switching, upgrade persistence, uninstall, and offline operation after setup. Store packaging may use a separate per-user data location from the NSIS beta; test data migration before recommending it as an upgrade.
+5. Test first Parakeet download/cancellation, microphone, tray/shortcut, idle indicator, insertion, model switching, upgrade persistence, uninstall, offline operation after setup, and **Settings → General → Download update**. Store packaging may use a separate per-user data location from the NSIS beta; test data migration before recommending it as an upgrade.
 6. Upload `dist\Dictate-Windows-x64-Store.msix` in Partner Center, add real screenshots, age rating, category Productivity, price Free, privacy URL https://dictate-macos.vercel.app/privacy and support URL https://github.com/leviackerman05/dictate/issues. Submit for certification. Microsoft signs the MSIX after it passes certification; the unsigned local package is not a public installer.
 
 ## Listing draft
@@ -34,6 +34,6 @@ The script defaults to the reserved product identity, the installed display name
 
 **Requirements:** Windows 10 version 2004 or later / Windows 11, x64. Internet for initial model download; 8 GB RAM recommended for Parakeet. Microphone required for dictation.
 
-**Certification notes:** runFullTrust is required for the native audio/recognition engines, system-wide push-to-talk key handling, tray operation and inserting dictated text into the user's focused application. Microphone audio is held in memory during active recording and never saved. Network requests download publicly hosted, checksum-verified model files only; recognition is local. No elevated permissions or security-policy changes are requested. WebView2 and speech runtime dependencies are bundled.
+**Certification notes:** runFullTrust is required for the native audio/recognition engines, system-wide push-to-talk key handling, tray operation and inserting dictated text into the user's focused application. Microphone audio is held in memory during active recording and never saved. Network requests download publicly hosted, checksum-verified model files only; recognition is local. The Settings update control uses Windows.Services.Store to check for and request installation of signed Microsoft Store updates, then restarts after Windows reports completion. No elevated permissions or security-policy changes are requested. WebView2 and speech runtime dependencies are bundled.
 
 Microsoft signs MSIX submissions after certification. Store signing does not sign the separate GitHub EXE installer. References: https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options and https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements.

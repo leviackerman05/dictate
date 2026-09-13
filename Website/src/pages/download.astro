@@ -1,18 +1,18 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import BrandLogo from '../components/BrandLogo.astro';
-import {version, releaseURL, assetURL} from '../data/release';
+import {macVersion, macAssetURL, windowsReleaseURL, windowsAssetURL} from '../data/release';
 const home = import.meta.env.BASE_URL;
 const guideImage = `${home}guides/mac-open-anyway.png`;
 ---
 <BaseLayout title="Download Dictate — free local dictation">
   <main class="download-page">
     <header><a class="wordmark" href={home}><BrandLogo size={30}/><span>Dictate</span></a><a class="back" href={home}>Back to home</a></header>
-    <section class="intro"><h1>A few steps.<br/><em>Then just speak.</em></h1><p class="lede">Install Dictate, set up a local model, and start speaking. No account, subscription, or developer tools.</p><p class="release-status">{version} · Community beta</p></section>
+    <section class="intro"><h1>A few steps.<br/><em>Then just speak.</em></h1><p class="lede">Install Dictate, set up a local model, and start speaking. No account, subscription, or developer tools.</p><p class="release-status">Windows Beta 1 · Mac {macVersion}</p></section>
     <p class="platform-hint" data-platform-hint>Available for Mac and Windows. Choose your computer for setup steps.</p>
     <nav class="platform-links" aria-label="Choose your operating system"><a href="#mac" data-platform-choice="mac">Mac</a><a href="#windows" data-platform-choice="windows">Windows</a></nav>
     <section class="platform" id="mac" aria-labelledby="mac-title">
-      <div class="platform-heading"><div><h2 id="mac-title">Mac</h2><p>Apple silicon · macOS 14 or newer</p></div><a class="download" href={assetURL('Dictate.dmg')}>Download for Mac <span aria-hidden="true">↓</span></a></div>
+      <div class="platform-heading"><div><h2 id="mac-title">Mac</h2><p>Apple silicon · macOS 14 or newer</p></div><a class="download" href={macAssetURL('Dictate.dmg')}>Download for Mac <span aria-hidden="true">↓</span></a></div>
       <ol><li>Open the download and drag Dictate to <strong>Applications</strong>.</li><li>Open Dictate from Applications or Spotlight.</li><li>Allow the microphone and set up your speech model. Compatible macOS 26 Macs start with Apple Speech; older Macs use a downloadable local model. Enable automatic insertion to put words at your cursor, or copy them yourself.</li></ol>
       <aside class="mac-guide" aria-labelledby="mac-security-title">
         <h3 id="mac-security-title">If Apple says “Dictate” was not opened</h3>
@@ -29,18 +29,18 @@ const guideImage = `${home}guides/mac-open-anyway.png`;
       <details><summary>Older macOS, Intel, and source builds</summary><p>On macOS 14 and 15, setup uses a downloadable local model. Apple recognition is offered only on compatible macOS 26 devices. The native interface is the same. This beta targets macOS 14; runtime testing on older Macs is still pending. Intel Mac installers are not available.</p><p>You do not need Xcode to use the downloaded app. Compiling the Swift source still requires full Xcode with the macOS 26 SDK.</p><p>Already cloned or extracted the repository? Run <code>./Scripts/start.sh</code> from its folder. It verifies and installs this prebuilt release, preserving your models and history. It does not compile local changes or bypass macOS security.</p></details>
     </section>
     <section class="platform" id="windows" aria-labelledby="windows-title">
-      <div class="platform-heading"><div><h2 id="windows-title">Windows <small>Beta</small></h2><p>Windows 10 / 11 · x64</p></div><a class="download" href={assetURL('Dictate-Windows-x64-setup.exe')}>Download for Windows <span aria-hidden="true">↓</span></a></div>
+      <div class="platform-heading"><div><h2 id="windows-title">Windows <small>Beta 1</small></h2><p>Windows 10 / 11 · x64</p></div><a class="download" href={windowsAssetURL('Dictate-Windows-x64-setup.exe')}>Download for Windows <span aria-hidden="true">↓</span></a></div>
       <aside class="mac-guide" aria-labelledby="windows-security-title">
         <h3 id="windows-security-title">Before downloading on Windows 11</h3>
         <p>This beta is unsigned. If <strong>Smart App Control</strong> is enabled, it may block the installer or app. There is no per-app “Run anyway” exception. This build cannot currently support that setup; we do not recommend turning off Windows protection to use it.</p>
         <p>A <strong>SmartScreen</strong> reputation warning is different and may offer “More info → Run anyway” on a personal PC. Only continue if you trust the download. On a managed computer, ask your administrator. <a href="https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions">Microsoft’s Smart App Control guidance ↗</a></p>
       </aside>
-      <ol><li>Quit the older app from its system tray menu (<strong>Quit Dictate</strong>), then open the installer. It installs for your user account.</li><li>Open Dictate and choose <strong>Set up speech model</strong> (Whisper Tiny, about 78 MB).</li><li>Allow microphone access if prompted. In an editable field, hold <strong>Right Ctrl</strong>, speak, then release. Dictate inserts Unicode text without replacing your clipboard; if the editor refuses insertion, your transcript stays ready to copy or retry.</li></ol>
+      <ol><li>Quit the older app from its system tray menu (<strong>Quit Dictate</strong>), then open the installer. It installs for your user account.</li><li>Open Dictate and let NVIDIA Parakeet finish its first setup download (about 670 MB), or choose another local model in Setup options.</li><li>Allow microphone access if prompted. In an editable field, hold <strong>Right Ctrl</strong>, speak, then release. Dictate inserts Unicode text without replacing your clipboard; if the editor refuses insertion, your transcript stays ready to copy or retry.</li></ol>
       <p>Prefer a different trigger? Open <strong>Settings → General</strong>, then press a key or combination, or a middle/side mouse button. The change saves immediately. Hold-to-talk and press-to-toggle modes are available.</p>
       <p><strong>More local models:</strong> Speech models includes Whisper Base, Whisper Small, and NVIDIA Parakeet v3 (about 670 MB; 8 GB RAM recommended). All run on CPU. No NVIDIA graphics card, Python, CUDA, or paid API is needed.</p>
       <details><summary>First-launch warnings and compatibility</summary><p>This installer has no paid signing certificate. Windows may show an unknown-publisher or SmartScreen warning. Only proceed with a download you trust; follow your organization's policy. If Microsoft Defender reports malware, do not bypass it.</p><p>The installer includes the speech engine runtime and its C++ dependencies. It can download Microsoft's free WebView2 runtime if it is missing. Model setup also needs internet. Recognition runs locally afterward. Automatic insertion supports standard and custom focused editors at the same or lower privilege level, refuses password fields, and preserves the clipboard.</p><p>This remains a community beta. Physical-device microphone and editor testing is still needed; see the release's validation record.</p></details>
     </section>
-    <section class="help"><h2>Local after setup. Free throughout.</h2><p>The app downloads speech models from public repositories. Your recordings are processed on your computer. No API keys, cloud transcription, or paid services are required.</p><p><a href={releaseURL}>Release notes ↗</a><a href={assetURL('manifest.json')}>Checksums and file sizes ↗</a><a href="https://github.com/leviackerman05/dictate/blob/main/docs/evidence/windows-beta9-validation.md">What has been tested ↗</a></p></section>
+    <section class="help"><h2>Local after setup. Free throughout.</h2><p>The app downloads speech models from public repositories. Your recordings are processed on your computer. No API keys, cloud transcription, or paid services are required.</p><p><a href={windowsReleaseURL}>Windows Beta 1 notes ↗</a><a href={windowsAssetURL('manifest.json')}>Windows checksums and file sizes ↗</a><a href="https://github.com/leviackerman05/dictate/blob/main/docs/evidence/windows-beta1-validation.md">What has been tested ↗</a></p></section>
     <footer><span>Dictate · Open source under MIT</span><span><a href={`${home.replace(/\/$/, '')}/privacy`}>Privacy</a> · <a href="https://github.com/leviackerman05/dictate">View the source ↗</a></span></footer>
   </main>
 </BaseLayout>
