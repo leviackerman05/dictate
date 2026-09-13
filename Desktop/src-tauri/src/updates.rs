@@ -11,26 +11,34 @@ pub struct UpdateStatus {
 #[cfg(windows)]
 mod platform {
     use super::UpdateStatus;
+    use std::sync::{Arc, Mutex};
     use tauri::Manager;
     use tokio::sync::oneshot;
     use windows::{
         core::Interface,
-        Services::Store::{StoreContext, StorePackageUpdateState},
+        Services::Store::{
+            StoreContext, StorePackageUpdateResult, StorePackageUpdateState,
+            StorePackageUpdateStatus,
+        },
+        Win32::Foundation::HWND,
         Win32::UI::Shell::IInitializeWithWindow,
     };
+    use windows_collections::IVectorView;
+    use windows_future::AsyncOperationWithProgressCompletedHandler;
 
     async fn context(app: &tauri::AppHandle) -> Result<StoreContext, String> {
         let window = app
             .get_webview_window("main")
             .ok_or_else(|| "The Dictate window is unavailable.".to_string())?;
-        let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+        let hwnd_value = window.hwnd().map_err(|error| error.to_string())?.0 as isize;
         let (send, receive) = oneshot::channel();
         app.run_on_main_thread(move || {
             let result = (|| {
                 let context = StoreContext::GetDefault().map_err(|error| error.to_string())?;
                 let owner: IInitializeWithWindow =
                     context.cast().map_err(|error| error.to_string())?;
-                unsafe { owner.Initialize(hwnd) }.map_err(|error| error.to_string())?;
+                unsafe { owner.Initialize(HWND(hwnd_value as *mut _)) }
+                    .map_err(|error| error.to_string())?;
                 Ok(context)
             })();
             let _ = send.send(result);
@@ -83,22 +91,58 @@ mod platform {
             return Err("No Microsoft Store update is available.".into());
         }
 
-        let request_context = context.clone();
+        let items = (0..updates.Size().map_err(|error| error.to_string())?)
+            .map(|index| updates.GetAt(index).map_err(|error| error.to_string()))
+            .collect::<Result<Vec<_>, _>>()?;
+        let window = app
+            .get_webview_window("main")
+            .ok_or_else(|| "The Dictate window is unavailable.".to_string())?;
+        let hwnd_value = window.hwnd().map_err(|error| error.to_string())?.0 as isize;
         let (send, receive) = oneshot::channel();
+        let completion = Arc::new(Mutex::new(Some(send)));
+        let completion_for_main = completion.clone();
         app.run_on_main_thread(move || {
-            let request = request_context
-                .RequestDownloadAndInstallStorePackageUpdatesAsync(&updates)
-                .map_err(|error| error.to_string());
-            let _ = send.send(request);
+            let start = (|| {
+                let context = StoreContext::GetDefault().map_err(|error| error.to_string())?;
+                let owner: IInitializeWithWindow =
+                    context.cast().map_err(|error| error.to_string())?;
+                unsafe { owner.Initialize(HWND(hwnd_value as *mut _)) }
+                    .map_err(|error| error.to_string())?;
+                let updates = IVectorView::from(items.into_iter().map(Some).collect::<Vec<_>>());
+                let request = context
+                    .RequestDownloadAndInstallStorePackageUpdatesAsync(&updates)
+                    .map_err(|error| error.to_string())?;
+                let completion_for_callback = completion_for_main.clone();
+                let handler = AsyncOperationWithProgressCompletedHandler::<
+                    StorePackageUpdateResult,
+                    StorePackageUpdateStatus,
+                >::new(move |operation, _| {
+                    let result = operation
+                        .ok()?
+                        .GetResults()
+                        .and_then(|result| result.OverallState())
+                        .map_err(|error| error.to_string());
+                    if let Some(send) = completion_for_callback.lock().unwrap().take() {
+                        let _ = send.send(result);
+                    }
+                    Ok(())
+                });
+                request
+                    .SetCompleted(&handler)
+                    .map_err(|error| error.to_string())
+            })();
+            if let Err(error) = start {
+                if let Some(send) = completion_for_main.lock().unwrap().take() {
+                    let _ = send.send(Err(error));
+                }
+            }
         })
         .map_err(|error| error.to_string())?;
-        let result = receive
+        let state = receive
             .await
-            .map_err(|_| "Windows closed the update request unexpectedly.".to_string())??
-            .await
-            .map_err(|error| error.to_string())?;
+            .map_err(|_| "Windows closed the update request unexpectedly.".to_string())??;
 
-        match result.OverallState().map_err(|error| error.to_string())? {
+        match state {
             StorePackageUpdateState::Completed => app.restart(),
             StorePackageUpdateState::Canceled => Err("The Windows update was cancelled.".into()),
             state => Err(format!("Windows could not install the update ({state:?}).")),
