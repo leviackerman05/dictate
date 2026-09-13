@@ -1,5 +1,5 @@
 # Windows workspace
-Mode: Operate. Scope: Desktop/src; Windows desktop, 1120×750 content area and minimum 760×560. The live native macOS app is the direct visual and information-architecture reference. User supplied beta4 screenshots are the anti-reference. Code-led implementation uses the shared Dictate identity and no new raster artwork. Platform-specific model, permission, and input labels remain accurate.
+Mode: Operate. Scope: Desktop/src; Windows desktop, 1120×750 content area, minimum 760×560, and 2560×1440 wide-monitor composition. The live native macOS app is the direct visual and information-architecture reference. User supplied beta4 screenshots are the anti-reference. Code-led implementation uses the shared Dictate identity and no new raster artwork. Platform-specific model, permission, and input labels remain accurate.
 
 ## Direction contract
 THESIS: The same calm writing instrument on Mac and Windows, with one obvious recording action and the same major workflows.

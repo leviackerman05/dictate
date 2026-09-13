@@ -7,7 +7,7 @@ import {
   Settings, Mic, Square, Copy, Trash2, Pin, Download, Check, ArrowUpRight,
   Keyboard, ShieldCheck, Search, Clock3, AlignLeft, AudioLines, Sparkles,
   LockKeyhole, SlidersHorizontal, Info, Palette, ChevronDown,
-  ChevronRight, FileText, Timer, Activity, Plus, RotateCcw,
+  ChevronRight, FileText, Timer, Activity, Plus, RotateCcw, X,
   MoreHorizontal, Mouse, CircleCheck,
 } from 'lucide';
 import './style.css';
@@ -53,7 +53,7 @@ const allIcons = {
   Square, Copy, Trash2, Pin, Download, Check, ArrowUpRight, Keyboard, ShieldCheck,
   Search, Clock3, AlignLeft, AudioLines, Sparkles, LockKeyhole, SlidersHorizontal,
   Info, Palette, ChevronDown, ChevronRight, FileText, Timer, Activity, Plus,
-  RotateCcw, MoreHorizontal, Mouse, CircleCheck,
+  RotateCcw, MoreHorizontal, Mouse, CircleCheck, X,
 };
 
 let state: Snapshot;
@@ -186,6 +186,7 @@ async function savePreference(changes: Partial<Preferences>) {
 }
 
 function status() {
+  if (state.data.recovery && state.phase === 'idle') return 'Transcript ready to copy';
   if (state.phase === 'listening') return 'Listening';
   if (state.phase === 'preparing') return 'Starting microphone';
   if (state.phase === 'finalizing') return 'Transcribing locally';
@@ -260,7 +261,24 @@ function historyRow(item: Transcript) {
   const date = new Date(item.timestamp);
   const expanded = expandedHistory === item.id;
   const inserted = ['insertedViaPaste', 'insertedViaAccessibility'].includes(item.insertionResult);
-  return `<article class="history-card ${expanded ? 'expanded' : ''}"><div class="date-block"><strong>${date.getDate()}</strong><span>${date.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</span></div><div class="history-content"><p class="history-transcript">${esc(item.correctedText)}</p><div class="history-meta">${icon('clock-3')} ${timeLabel(item.timestamp)} ${icon('align-left')} ${wordCount(item.correctedText)} words ${icon('audio-lines')} ${secondsLabel(item.duration)} <span class="status-chip ${inserted ? 'success' : ''}"><span class="dot ${inserted ? 'ready' : ''}"></span>${inserted ? 'Inserted' : 'Ready to copy'}</span></div>${expanded ? `<div class="history-actions">${button('copy-history', icon('copy') + 'Copy', 'quiet', `data-id="${item.id}"`)}${button('pin-history', icon('pin') + (item.isPinned ? 'Unpin' : 'Pin'), 'quiet', `data-id="${item.id}"`)}${button('delete-history', icon('trash-2') + 'Delete', 'quiet danger', `data-id="${item.id}"`)}</div>${item.correctionAudit.length ? `<p class="audit">${item.correctionAudit.map(audit => `${esc(audit.heard)} → ${esc(audit.written)}`).join(' · ')}</p>` : ''}` : ''}</div><button class="expand-button" data-action="toggle-history" data-id="${item.id}" aria-label="${expanded ? 'Collapse' : 'Expand'} transcript" aria-expanded="${expanded}">${icon('chevron-down')}</button></article>`;
+  const details = `<div class="history-details" aria-hidden="${!expanded}" ${expanded ? '' : 'inert'}><div class="history-details-inner"><div class="history-actions">${button('copy-history', icon('copy') + 'Copy', 'quiet', `data-id="${item.id}"`)}${button('pin-history', icon('pin') + (item.isPinned ? 'Unpin' : 'Pin'), 'quiet', `data-id="${item.id}"`)}${button('delete-history', icon('trash-2') + 'Delete', 'quiet danger', `data-id="${item.id}"`)}</div>${item.correctionAudit.length ? `<p class="audit">${item.correctionAudit.map(audit => `${esc(audit.heard)} → ${esc(audit.written)}`).join(' · ')}</p>` : ''}</div></div>`;
+  return `<article class="history-card ${expanded ? 'expanded' : ''}" data-history-id="${item.id}"><div class="date-block"><strong>${date.getDate()}</strong><span>${date.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</span></div><div class="history-content"><p class="history-transcript">${esc(item.correctedText)}</p><div class="history-meta">${icon('clock-3')} ${timeLabel(item.timestamp)} ${icon('align-left')} ${wordCount(item.correctedText)} words ${icon('audio-lines')} ${secondsLabel(item.duration)} <span class="status-chip ${inserted ? 'success' : ''}"><span class="dot ${inserted ? 'ready' : ''}"></span>${inserted ? 'Inserted' : 'Ready to copy'}</span></div>${details}</div><button class="expand-button" data-action="toggle-history" data-id="${item.id}" aria-label="${expanded ? 'Collapse' : 'Expand'} transcript" aria-expanded="${expanded}">${icon('chevron-down')}</button></article>`;
+}
+
+function updateHistoryExpansion(next: string | null) {
+  expandedHistory = next;
+  root.querySelectorAll<HTMLElement>('.history-card').forEach(card => {
+    const expanded = card.dataset.historyId === next;
+    card.classList.toggle('expanded', expanded);
+    const trigger = card.querySelector<HTMLButtonElement>('[data-action="toggle-history"]');
+    trigger?.setAttribute('aria-expanded', String(expanded));
+    trigger?.setAttribute('aria-label', `${expanded ? 'Collapse' : 'Expand'} transcript`);
+    const details = card.querySelector<HTMLElement>('.history-details');
+    if (details) {
+      details.setAttribute('aria-hidden', String(!expanded));
+      details.inert = !expanded;
+    }
+  });
 }
 
 function historyView() {
@@ -379,19 +397,34 @@ function render() {
   if (overlay) {
     const active = ['preparing', 'listening'].includes(state.phase);
     const processing = ['finalizing', 'delivering'].includes(state.phase);
-    const signal = active
+    const recovery = Boolean(state.data.recovery) && state.phase === 'idle';
+    const signal = recovery
+      ? `<div class="pebble-recovery"><button data-action="copy-recovery" aria-label="Copy transcript" title="Copy transcript">${icon('copy')}</button><button data-action="discard-overlay" aria-label="Discard transcript" title="Discard transcript">${icon('x')}</button></div>`
+      : active
       ? `<div class="pebble-bars" aria-hidden="true">${Array.from({ length: 9 }, (_, index) => `<i class="pebble-bar" style="--index:${index}"></i>`).join('')}</div>`
       : processing ? '<div class="pebble-dots" aria-hidden="true"><i></i><i></i><i></i></div>'
         : state.phase === 'failed' ? '<span class="pebble-failure" aria-hidden="true">!</span>'
           : '<div class="pebble-ready" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>';
-    root.innerHTML = `<div class="recording-overlay ${active ? 'active' : processing ? 'processing' : state.phase === 'idle' ? 'idle' : ''}" role="status" aria-label="${esc(status())}">${signal}</div>`;
-    document.body.classList.add('overlay'); return;
+    root.innerHTML = `<div class="recording-overlay ${recovery ? 'recovery-ready' : active ? 'active' : processing ? 'processing' : state.phase === 'idle' ? 'idle' : ''}" role="status" aria-label="${esc(status())}">${signal}</div>`;
+    document.body.classList.add('overlay');
+    document.body.classList.toggle('overlay-interactive', recovery);
+    createIcons({ icons: allIcons });
+    return;
   }
   const views: Record<Section, () => string> = { dashboard, history: historyView, dictionary: dictionaryView, statistics: statisticsView, models: modelsView, settings: settingsView };
   root.innerHTML = `${sidebar()}<div class="main-frame">${feedback()}${views[section]()}${state.shortcutError ? `<p class="shortcut-notice">${esc(state.shortcutError)}</p>` : ''}</div>${!state.data.preferences.onboardingDone ? onboarding() : ''}`;
   createIcons({ icons: allIcons }); bindForms(); restoreUI();
   const input = root.querySelector<HTMLInputElement>('#search');
   input?.addEventListener('input', () => { search = input.value; const position = input.selectionStart; render(); const next = root.querySelector<HTMLInputElement>('#search'); next?.focus(); next?.setSelectionRange(position, position); });
+}
+
+function transitionRender() {
+  const transitionDocument = document as Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !transitionDocument.startViewTransition) {
+    render();
+    return;
+  }
+  void transitionDocument.startViewTransition(() => render()).finished.catch(() => {});
 }
 
 root.addEventListener('click', async event => {
@@ -409,12 +442,12 @@ root.addEventListener('click', async event => {
   const history = state.data.history; const entries = state.data.dictionary;
   switch (action) {
     case 'history-day': selectedDay = id!; render(); break;
-    case 'toggle-history': expandedHistory = expandedHistory === id ? null : id!; render(); break;
+    case 'toggle-history': updateHistoryExpansion(expandedHistory === id ? null : id!); break;
     case 'clear-search': search = ''; render(); break;
     case 'settings-tab': settingsTab = id as SettingsTab; resetDrafts.add('settings-form'); render(); break;
-    case 'add-entry': editing = 'new'; resetDrafts.add('dictionary-form'); render(); break;
-    case 'edit-entry': editing = id!; resetDrafts.add('dictionary-form'); render(); break;
-    case 'cancel-edit': editing = null; resetDrafts.add('dictionary-form'); render(); break;
+    case 'add-entry': editing = 'new'; resetDrafts.add('dictionary-form'); transitionRender(); break;
+    case 'edit-entry': editing = id!; resetDrafts.add('dictionary-form'); transitionRender(); break;
+    case 'cancel-edit': editing = null; resetDrafts.add('dictionary-form'); transitionRender(); break;
     case 'setup-options': showSetupOptions = true; render(); break;
     case 'close-setup-options': showSetupOptions = false; render(); break;
     case 'capture-shortcut': if (capturing) await stopCapture(); else { try { await invoke('pause_shortcut', { paused: true }); capturing = true; modifierCandidate = ''; render(); } catch (error) { localError = String(error); render(); } } break;
@@ -431,6 +464,7 @@ root.addEventListener('click', async event => {
     case 'complete-setup': await savePreference({ onboardingDone: true }); break;
     case 'show-setup': await savePreference({ onboardingDone: false }); break;
     case 'copy-recovery': await call('copy_text', { text: state.data.recovery }); break;
+    case 'discard-overlay': await call('discard_recovery'); break;
     case 'discard-recovery': if (await confirm('Discard this recovered transcript?', { title: 'Discard transcript', kind: 'warning' })) await call('discard_recovery'); break;
     case 'retry-delivery': await call('retry_delivery'); break;
     case 'copy-history': await call('copy_text', { text: history.find(item => item.id === id)?.correctedText }); break;
@@ -480,11 +514,12 @@ async function initialize() {
   await listen<{ progress: number; stage: string }>('model-progress', event => { progress = event.payload.stage === 'loading' ? 'Download verified. Loading local model…' : `Downloading: ${Math.round(event.payload.progress * 100)}%`; const statusElement = root.querySelector('#model-progress'); if (statusElement && state?.settingUp) statusElement.textContent = progress; });
   await listen<number>('level', event => {
     const rms = Number.isFinite(event.payload) ? event.payload : 0;
-    const level = Math.pow(Math.min(1, Math.max(0, rms - .002) / .08), .55);
+    const level = Math.pow(Math.min(1, Math.max(0, rms - .001) / .036), .48);
     document.querySelectorAll<HTMLElement>('.pebble-bar').forEach((bar, index) => {
-      const motion = .35 + .65 * Math.abs(Math.sin(performance.now() / 130 + index * .82));
-      bar.style.height = `${Math.max(3, 3 + 9 * level * motion)}px`;
-      bar.style.opacity = String(.52 + level * .48);
+      const motion = .42 + .58 * Math.abs(Math.sin(performance.now() / 115 + index * .82));
+      const scale = .24 + .76 * Math.min(1, level * motion + level * .18);
+      bar.style.transform = `scaleY(${scale})`;
+      bar.style.opacity = String(.58 + level * .42);
     });
   });
   await refresh();

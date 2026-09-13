@@ -1065,7 +1065,7 @@ dependencies = [
 
 [[package]]
 name = "dictate-core"
-version = "1.1.0-beta.8"
+version = "1.1.0-beta.9"
 dependencies = [
  "chrono",
  "regex",
@@ -1078,7 +1078,7 @@ dependencies = [
 
 [[package]]
 name = "dictate-desktop"
-version = "1.1.0-beta.8"
+version = "1.1.0-beta.9"
 dependencies = [
  "arboard",
  "chrono",

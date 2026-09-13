@@ -691,7 +691,7 @@ fn handle_shortcut(app: &tauri::AppHandle, pressed: bool) {
     });
 }
 
-const OVERLAY_HOST_WIDTH: f64 = 108.0;
+const OVERLAY_HOST_WIDTH: f64 = 152.0;
 const OVERLAY_HOST_HEIGHT: f64 = 52.0;
 const OVERLAY_VISIBLE_HEIGHT: f64 = 22.0;
 const OVERLAY_BOTTOM_INSET: f64 = 18.0;
@@ -701,9 +701,19 @@ fn sync_overlay(app: &tauri::AppHandle) {
         return;
     };
     let state = app.state::<Runtime>();
-    let active = *state.phase.lock().unwrap() != Phase::Idle;
-    let show_ready = state.data.lock().unwrap().preferences.show_ready_indicator;
-    if active || show_ready {
+    let phase = *state.phase.lock().unwrap();
+    let (show_ready, has_recovery) = {
+        let data = state.data.lock().unwrap();
+        (
+            data.preferences.show_ready_indicator,
+            data.recovery.is_some(),
+        )
+    };
+    let active = phase != Phase::Idle;
+    let interactive = phase == Phase::Idle && has_recovery;
+    let _ = overlay.set_focusable(interactive);
+    let _ = overlay.set_ignore_cursor_events(!interactive);
+    if active || show_ready || has_recovery {
         position_overlay(app);
         let _ = overlay.show();
     } else {
@@ -737,8 +747,14 @@ fn position_overlay(app: &tauri::AppHandle) {
     let scale = monitor.scale_factor();
     let host_width = OVERLAY_HOST_WIDTH * scale;
     let host_height = OVERLAY_HOST_HEIGHT * scale;
-    let active = *app.state::<Runtime>().phase.lock().unwrap() != Phase::Idle;
-    let visible_height = (if active { OVERLAY_VISIBLE_HEIGHT } else { 16.0 }) * scale;
+    let state = app.state::<Runtime>();
+    let active = *state.phase.lock().unwrap() != Phase::Idle;
+    let has_recovery = state.data.lock().unwrap().recovery.is_some();
+    let visible_height = (if active || has_recovery {
+        OVERLAY_VISIBLE_HEIGHT
+    } else {
+        16.0
+    }) * scale;
     let inset = OVERLAY_BOTTOM_INSET * scale;
     let x = work.position.x as f64 + (work.size.width as f64 - host_width) / 2.0;
     // The visible capsule is centered inside a larger transparent host so its

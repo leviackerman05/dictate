@@ -87,7 +87,10 @@ reserved for short dates, times, sizes, and status metadata.
 ## Layout
 
 The persistent navigation rail is 220–224 points/pixels wide. At the 1120×750
-reference window, content uses a 36px top inset and a bounded 1040px reading width.
+reference window, content uses a compact reading width. On larger desktop displays,
+the workspace expands fluidly to 1800px and centers within the available area so
+charts, model rows, and paired cards use a 1440p monitor without leaving the
+composition pinned to the left.
 Dashboard, History, Dictionary, Statistics, AI models, and Settings share navigation
 names and comparable structures with Mac. At 760×560 the rail remains visible and
 the content scrolls vertically without horizontal overflow.
@@ -114,9 +117,10 @@ share edges and dividers instead of turning every row into a floating card.
   bottom local/private readiness indicator.
 - **Dashboard:** editorial greeting, current model, recording capsule, weekly line
   chart, quick actions, and recent transcriptions.
-- **Recorder overlay:** a centered 62×22 signal pebble within a transparent 152×22
-  host. Nine blue bars show listening and three dots show processing. It has no text,
-  copy icon, or action buttons; failed transcripts remain recoverable in the main app.
+- **Recorder overlay:** a centered 62×22 signal pebble within a transparent 152px
+  host. Nine rounded blue bars show listening and three dots show processing. When
+  insertion fails, the pebble becomes Copy and Dismiss controls while the transcript
+  also remains recoverable in the main app.
 - **History:** seven-day index, search and count toolbar, dated transcript cards,
   insertion status, and expandable copy/pin/delete actions.
 - **Dictionary:** count, add/import/export actions, color-indexed continuous rule
@@ -132,7 +136,7 @@ share edges and dividers instead of turning every row into a floating card.
   guards against focus changes, and sends Unicode text without replacing clipboard
   contents. Failed delivery retains the transcript for copy or retry.
 
-- **Evidence:** `../docs/evidence/ui/windows-beta6/` contains light, dark, onboarding,
+- **Evidence:** `../docs/evidence/ui/windows-beta9/` contains light, dark, onboarding,
 settings-tab, minimum-window, and recorder-pebble Chromium captures with synthetic
 Tauri IPC. These prove renderer
 layout and frontend interactions. GitHub Actions provides native Windows compilation,
