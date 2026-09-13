@@ -3,10 +3,10 @@
          xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
          IgnorableNamespaces="uap rescap">
-  <Identity Name="REQUIRED_FROM_PARTNER_CENTER" Publisher="REQUIRED_FROM_PARTNER_CENTER" Version="1.0.0.0" ProcessorArchitecture="x64" />
+  <Identity Name="PriyanshSingh.Dictate-PrivateVoiceTyping" Publisher="CN=41A9F374-D1EA-4092-B9C8-24D61C5BE98A" Version="1.1.8.0" ProcessorArchitecture="x64" />
   <Properties>
-    <DisplayName>Dictate</DisplayName>
-    <PublisherDisplayName>REQUIRED_FROM_PARTNER_CENTER</PublisherDisplayName>
+    <DisplayName>Dictate - Private Voice Typing</DisplayName>
+    <PublisherDisplayName>Priyansh Singh</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Dependencies>
@@ -15,7 +15,7 @@
   <Resources><Resource Language="en-US" /></Resources>
   <Applications>
     <Application Id="Dictate" Executable="dictate-desktop.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="Dictate" Description="Private, local dictation. Hold a key, speak, and keep writing."
+      <uap:VisualElements DisplayName="Dictate - Private Voice Typing" Description="Private, local dictation. Hold a key, speak, and keep writing."
         BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
     </Application>
   </Applications>
