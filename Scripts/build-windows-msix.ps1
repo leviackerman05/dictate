@@ -21,14 +21,15 @@ if (!$Output) { $Output = "$root/dist/Dictate-Windows-x64-Store.msix" }
 if (!(Test-Path "$WebView2Runtime/msedgewebview2.exe")) { throw 'Supply the extracted official x64 Fixed Version WebView2 runtime.' }
 $signature = Get-AuthenticodeSignature "$WebView2Runtime/msedgewebview2.exe"
 if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'WebView2 must have a valid Microsoft signature.' }
-$sevenZip = Get-Command 7z -ErrorAction SilentlyContinue
-if (!$sevenZip) { throw 'Install 7-Zip and make sure the 7z command is available in PATH.' }
-$makeappx = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/makeappx.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+$sevenZipCommand = Get-Command 7z.exe -ErrorAction SilentlyContinue
+$sevenZip = if ($sevenZipCommand) { $sevenZipCommand.Source } else { "$env:ProgramFiles/7-Zip/7z.exe" }
+if (!(Test-Path $sevenZip)) { throw 'Install 7-Zip in its standard location or make 7z.exe available in PATH.' }
+$makeappx = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/makeappx.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
 if (!$makeappx) { throw 'Install the free Windows SDK with MakeAppx.' }
 $stage = Join-Path ([IO.Path]::GetTempPath()) ('dictate-store-' + [guid]::NewGuid())
 try {
     New-Item -ItemType Directory -Force "$stage/extracted", "$stage/package/Assets" | Out-Null
-    & $sevenZip.Source x -y "-o$stage/extracted" $Installer | Out-Null
+    & $sevenZip x -y "-o$stage/extracted" $Installer | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Could not extract the validated installer.' }
     $apps = @(Get-ChildItem "$stage/extracted" -Recurse -Filter dictate-desktop.exe)
     if ($apps.Count -ne 1) { throw 'Expected one Dictate executable.' }
