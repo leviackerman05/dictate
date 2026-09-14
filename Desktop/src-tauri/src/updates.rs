@@ -81,21 +81,21 @@ mod platform {
     }
 
     pub async fn install(app: tauri::AppHandle) -> Result<(), String> {
-        let context = context(&app).await?;
-        let updates = context
-            .GetAppAndOptionalStorePackageUpdatesAsync()
-            .map_err(|error| error.to_string())?
-            .await
-            .map_err(|error| error.to_string())?;
-        if updates.Size().map_err(|error| error.to_string())? == 0 {
-            return Err("No Microsoft Store update is available.".into());
-        }
-
-        let items = (0..updates.Size().map_err(|error| error.to_string())?)
-            .map(|index| updates.GetAt(index).map_err(|error| error.to_string()))
-            .collect::<Result<Vec<_>, _>>()?;
-        drop(updates);
-        drop(context);
+        let items = {
+            let context = context(&app).await?;
+            let updates = context
+                .GetAppAndOptionalStorePackageUpdatesAsync()
+                .map_err(|error| error.to_string())?
+                .await
+                .map_err(|error| error.to_string())?;
+            let count = updates.Size().map_err(|error| error.to_string())?;
+            if count == 0 {
+                return Err("No Microsoft Store update is available.".into());
+            }
+            (0..count)
+                .map(|index| updates.GetAt(index).map_err(|error| error.to_string()))
+                .collect::<Result<Vec<_>, _>>()?
+        };
         let window = app
             .get_webview_window("main")
             .ok_or_else(|| "The Dictate window is unavailable.".to_string())?;
