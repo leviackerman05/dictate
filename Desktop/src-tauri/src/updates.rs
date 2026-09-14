@@ -94,6 +94,8 @@ mod platform {
         let items = (0..updates.Size().map_err(|error| error.to_string())?)
             .map(|index| updates.GetAt(index).map_err(|error| error.to_string()))
             .collect::<Result<Vec<_>, _>>()?;
+        drop(updates);
+        drop(context);
         let window = app
             .get_webview_window("main")
             .ok_or_else(|| "The Dictate window is unavailable.".to_string())?;
