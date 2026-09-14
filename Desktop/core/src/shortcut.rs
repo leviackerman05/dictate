@@ -35,36 +35,87 @@ impl Binding {
             modifiers |= bit;
         }
         let key = match name {
-            "ControlRight" => Key::Keyboard(0xA3), "ControlLeft" => Key::Keyboard(0xA2),
-            "AltRight" => Key::Keyboard(0xA5), "AltLeft" => Key::Keyboard(0xA4),
-            "ShiftRight" => Key::Keyboard(0xA1), "ShiftLeft" => Key::Keyboard(0xA0),
-            "MetaLeft" => Key::Keyboard(0x5B), "MetaRight" => Key::Keyboard(0x5C),
-            "MouseMiddle" => Key::Mouse(1), "MouseBack" => Key::Mouse(3), "MouseForward" => Key::Mouse(4),
-            "NumpadAdd" => Key::Keyboard(0x6B), "NumpadSubtract" => Key::Keyboard(0x6D),
-            "NumpadMultiply" => Key::Keyboard(0x6A), "NumpadDivide" => Key::Keyboard(0x6F),
+            "ControlRight" => Key::Keyboard(0xA3),
+            "ControlLeft" => Key::Keyboard(0xA2),
+            "AltRight" => Key::Keyboard(0xA5),
+            "AltLeft" => Key::Keyboard(0xA4),
+            "ShiftRight" => Key::Keyboard(0xA1),
+            "ShiftLeft" => Key::Keyboard(0xA0),
+            "MetaLeft" => Key::Keyboard(0x5B),
+            "MetaRight" => Key::Keyboard(0x5C),
+            "MouseLeft" => Key::Mouse(0),
+            "MouseMiddle" => Key::Mouse(1),
+            "MouseRight" => Key::Mouse(2),
+            "MouseBack" => Key::Mouse(3),
+            "MouseForward" => Key::Mouse(4),
+            "NumpadAdd" => Key::Keyboard(0x6B),
+            "NumpadSubtract" => Key::Keyboard(0x6D),
+            "NumpadMultiply" => Key::Keyboard(0x6A),
+            "NumpadDivide" => Key::Keyboard(0x6F),
             "NumpadDecimal" => Key::Keyboard(0x6E),
-            _ if name.starts_with("Numpad") && name.len()==7 && name.as_bytes()[6].is_ascii_digit() => Key::Keyboard(0x60+(name.as_bytes()[6]-b'0') as u16),
-            "Space" => Key::Keyboard(0x20), "Tab" => Key::Keyboard(9),
-            "Enter" => Key::Keyboard(13), "Backspace" => Key::Keyboard(8),
-            "CapsLock" => Key::Keyboard(0x14), "Insert" => Key::Keyboard(0x2D),
-            "Delete" => Key::Keyboard(0x2E), "Home" => Key::Keyboard(0x24), "End" => Key::Keyboard(0x23),
-            "PageUp" => Key::Keyboard(0x21), "PageDown" => Key::Keyboard(0x22),
-            "ArrowLeft" => Key::Keyboard(0x25), "ArrowUp" => Key::Keyboard(0x26),
-            "ArrowRight" => Key::Keyboard(0x27), "ArrowDown" => Key::Keyboard(0x28),
-            "Backquote" => Key::Keyboard(0xC0), "Minus" => Key::Keyboard(0xBD),
-            "Equal" => Key::Keyboard(0xBB), "BracketLeft" => Key::Keyboard(0xDB),
-            "BracketRight" => Key::Keyboard(0xDD), "Backslash" => Key::Keyboard(0xDC),
-            "Semicolon" => Key::Keyboard(0xBA), "Quote" => Key::Keyboard(0xDE),
-            "Comma" => Key::Keyboard(0xBC), "Period" => Key::Keyboard(0xBE), "Slash" => Key::Keyboard(0xBF),
-            _ if name.starts_with("Key") && name.len() == 4 && name.as_bytes()[3].is_ascii_uppercase() => Key::Keyboard(name.as_bytes()[3] as u16),
-            _ if name.starts_with("Digit") && name.len() == 6 && name.as_bytes()[5].is_ascii_digit() => Key::Keyboard(name.as_bytes()[5] as u16),
+            _ if name.starts_with("Numpad")
+                && name.len() == 7
+                && name.as_bytes()[6].is_ascii_digit() =>
+            {
+                Key::Keyboard(0x60 + (name.as_bytes()[6] - b'0') as u16)
+            }
+            "Space" => Key::Keyboard(0x20),
+            "Tab" => Key::Keyboard(9),
+            "Enter" => Key::Keyboard(13),
+            "Backspace" => Key::Keyboard(8),
+            "CapsLock" => Key::Keyboard(0x14),
+            "Insert" => Key::Keyboard(0x2D),
+            "Delete" => Key::Keyboard(0x2E),
+            "Home" => Key::Keyboard(0x24),
+            "End" => Key::Keyboard(0x23),
+            "PageUp" => Key::Keyboard(0x21),
+            "PageDown" => Key::Keyboard(0x22),
+            "ArrowLeft" => Key::Keyboard(0x25),
+            "ArrowUp" => Key::Keyboard(0x26),
+            "ArrowRight" => Key::Keyboard(0x27),
+            "ArrowDown" => Key::Keyboard(0x28),
+            "Backquote" => Key::Keyboard(0xC0),
+            "Minus" => Key::Keyboard(0xBD),
+            "Equal" => Key::Keyboard(0xBB),
+            "BracketLeft" => Key::Keyboard(0xDB),
+            "BracketRight" => Key::Keyboard(0xDD),
+            "Backslash" => Key::Keyboard(0xDC),
+            "Semicolon" => Key::Keyboard(0xBA),
+            "Quote" => Key::Keyboard(0xDE),
+            "Comma" => Key::Keyboard(0xBC),
+            "Period" => Key::Keyboard(0xBE),
+            "Slash" => Key::Keyboard(0xBF),
+            _ if name.starts_with("Key")
+                && name.len() == 4
+                && name.as_bytes()[3].is_ascii_uppercase() =>
+            {
+                Key::Keyboard(name.as_bytes()[3] as u16)
+            }
+            _ if name.starts_with("Digit")
+                && name.len() == 6
+                && name.as_bytes()[5].is_ascii_digit() =>
+            {
+                Key::Keyboard(name.as_bytes()[5] as u16)
+            }
             _ if name.starts_with('F') => {
-                let n = name[1..].parse::<u16>().map_err(|_| "Unsupported function key.")?;
-                if !(1..=24).contains(&n) { return Err("Choose F1 through F24.".into()); }
+                let n = name[1..]
+                    .parse::<u16>()
+                    .map_err(|_| "Unsupported function key.")?;
+                if !(1..=24).contains(&n) {
+                    return Err("Choose F1 through F24.".into());
+                }
                 Key::Keyboard(0x70 + n - 1)
             }
-            _ => return Err("Choose a keyboard key, middle mouse button, or mouse side button. Escape is reserved for Cancel.".into()),
+            _ => return Err(
+                "Choose a supported keyboard key or mouse button. Escape is reserved for Cancel."
+                    .into(),
+            ),
         };
+        if matches!(key, Key::Mouse(0 | 2)) && modifiers == 0 {
+            return Err(
+                "Use Ctrl, Alt, Shift, or Win with the primary or secondary mouse button.".into(),
+            );
+        }
         Ok(Self { key, modifiers })
     }
 }
@@ -84,6 +135,11 @@ impl Trigger {
         self.held = false;
     }
     /// Returns whether to consume the event, and one edge per physical press/release.
+    ///
+    /// Windows modifier bindings are observers: they must never swallow the user's
+    /// key. Keeping both edges in the normal input stream avoids leaving another
+    /// application with a mismatched modifier state when hooks are reconfigured or
+    /// interrupted between key-down and key-up.
     pub fn event(
         &mut self,
         key: Key,
@@ -97,10 +153,10 @@ impl Trigger {
         if !down {
             let held = self.held;
             self.held = false;
-            return (held, held.then_some(false));
+            return (false, held.then_some(false));
         }
         if self.held {
-            return (true, None);
+            return (false, None);
         }
         let own = match key {
             Key::Keyboard(0xA2 | 0xA3) => CTRL,
@@ -113,7 +169,7 @@ impl Trigger {
             return (false, None);
         }
         self.held = true;
-        (true, Some(true))
+        (false, Some(true))
     }
 }
 #[cfg(test)]
@@ -125,6 +181,8 @@ mod tests {
             ("ControlRight", Key::Keyboard(0xA3)),
             ("F8", Key::Keyboard(0x77)),
             ("MouseBack", Key::Mouse(3)),
+            ("Ctrl+MouseLeft", Key::Mouse(0)),
+            ("Shift+MouseRight", Key::Mouse(2)),
             ("KeyR", Key::Keyboard(0x52)),
         ] {
             assert_eq!(Binding::parse(name).unwrap().key, key);
@@ -139,6 +197,7 @@ mod tests {
             "",
             "Escape",
             "MouseLeft",
+            "MouseRight",
             "Ctrl+Ctrl+KeyA",
             "F25",
             "Keyé",
@@ -148,20 +207,20 @@ mod tests {
         }
     }
     #[test]
-    fn release_survives_changed_modifiers_and_repeats() {
+    fn matching_edges_are_observed_without_swallowing() {
         let mut t = Trigger::new(Binding::parse("Ctrl+KeyD").unwrap());
         assert_eq!(t.event(Key::Keyboard(0x44), true, 0, false), (false, None));
         assert_eq!(
             t.event(Key::Keyboard(0x44), true, CTRL, false),
-            (true, Some(true))
+            (false, Some(true))
         );
         assert_eq!(
             t.event(Key::Keyboard(0x44), true, CTRL, false),
-            (true, None)
+            (false, None)
         );
         assert_eq!(
             t.event(Key::Keyboard(0x44), false, 0, false),
-            (true, Some(false))
+            (false, Some(false))
         );
     }
     #[test]
@@ -174,7 +233,7 @@ mod tests {
         assert_eq!(t.event(Key::Keyboard(0x41), true, 0, false), (false, None));
         assert_eq!(
             t.event(Key::Keyboard(0xA3), true, CTRL, false),
-            (true, Some(true))
+            (false, Some(true))
         );
         t.reset();
         assert_eq!(t.event(Key::Keyboard(0xA3), false, 0, false), (false, None));

@@ -110,6 +110,14 @@ impl Runtime {
     fn notice(&self, text: impl Into<String>) {
         *self.notice.lock().unwrap() = Some(text.into());
     }
+    fn model_ready(&self) -> bool {
+        let selected = self.data.lock().unwrap().preferences.model.clone();
+        self.engine.try_lock().ok().is_some_and(|engine| {
+            engine
+                .as_ref()
+                .is_some_and(|(loaded, _)| loaded == &selected)
+        })
+    }
 }
 fn changed(app: &tauri::AppHandle) {
     sync_overlay(app);
@@ -118,10 +126,7 @@ fn changed(app: &tauri::AppHandle) {
 #[tauri::command]
 fn get_state(state: tauri::State<Runtime>) -> ViewState {
     let data = state.data.lock().unwrap().clone();
-    let ready = state.engine.try_lock().ok().is_some_and(|e| {
-        e.as_ref()
-            .is_some_and(|(id, _)| id == &data.preferences.model)
-    });
+    let ready = state.model_ready();
     let installed = models::MODELS
         .iter()
         .filter(|m| models::is_installed(&state.dir, m.id))
@@ -692,9 +697,10 @@ fn handle_shortcut(app: &tauri::AppHandle, pressed: bool) {
     });
 }
 
-const OVERLAY_HOST_WIDTH: f64 = 152.0;
-const OVERLAY_HOST_HEIGHT: f64 = 52.0;
+const OVERLAY_HOST_WIDTH: f64 = 340.0;
+const OVERLAY_HOST_HEIGHT: f64 = 70.0;
 const OVERLAY_VISIBLE_HEIGHT: f64 = 22.0;
+const OVERLAY_STATUS_HEIGHT: f64 = 36.0;
 const OVERLAY_BOTTOM_INSET: f64 = 18.0;
 
 fn sync_overlay(app: &tauri::AppHandle) {
@@ -703,6 +709,8 @@ fn sync_overlay(app: &tauri::AppHandle) {
     };
     let state = app.state::<Runtime>();
     let phase = *state.phase.lock().unwrap();
+    let model_setup = state.setting_up.load(Ordering::SeqCst);
+    let model_missing = !model_setup && !state.model_ready();
     let (show_ready, has_recovery) = {
         let data = state.data.lock().unwrap();
         (
@@ -714,7 +722,7 @@ fn sync_overlay(app: &tauri::AppHandle) {
     let interactive = phase == Phase::Idle && has_recovery;
     let _ = overlay.set_focusable(interactive);
     let _ = overlay.set_ignore_cursor_events(!interactive);
-    if active || show_ready || has_recovery {
+    if active || show_ready || has_recovery || model_setup || model_missing {
         position_overlay(app);
         let _ = overlay.show();
     } else {
@@ -751,7 +759,10 @@ fn position_overlay(app: &tauri::AppHandle) {
     let state = app.state::<Runtime>();
     let active = *state.phase.lock().unwrap() != Phase::Idle;
     let has_recovery = state.data.lock().unwrap().recovery.is_some();
-    let visible_height = (if active || has_recovery {
+    let model_status = state.setting_up.load(Ordering::SeqCst) || !state.model_ready();
+    let visible_height = (if model_status {
+        OVERLAY_STATUS_HEIGHT
+    } else if active || has_recovery {
         OVERLAY_VISIBLE_HEIGHT
     } else {
         16.0
@@ -777,6 +788,11 @@ fn pause_shortcut(app: tauri::AppHandle, paused: bool) -> Result<(), String> {
     shortcuts::pause(paused);
     *state.gesture.lock().unwrap() = ShortcutGesture::default();
     Ok(())
+}
+
+#[tauri::command]
+fn focused_shortcut_event(pressed: bool) -> Result<(), String> {
+    shortcuts::dispatch(pressed)
 }
 
 #[tauri::command]
@@ -811,7 +827,7 @@ fn main() {
   #[cfg(windows)]
   let _=(app,event);
  }).build())
- .invoke_handler(tauri::generate_handler![get_state,pause_shortcut,setup_model,cancel_setup,remove_model,start_recording,finish_recording,cancel_recording,copy_text,discard_recovery,retry_delivery,save_preferences,save_dictionary,update_history,export_data,import_dictionary,check_for_update,install_store_update])
+ .invoke_handler(tauri::generate_handler![get_state,pause_shortcut,focused_shortcut_event,setup_model,cancel_setup,remove_model,start_recording,finish_recording,cancel_recording,copy_text,discard_recovery,retry_delivery,save_preferences,save_dictionary,update_history,export_data,import_dictionary,check_for_update,install_store_update])
  .setup(|app|{
   let dir=app.path().app_data_dir()?;std::fs::create_dir_all(&dir)?;let file=dir.join("data.json");
   let fresh_install = !file.exists();

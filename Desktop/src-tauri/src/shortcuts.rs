@@ -18,6 +18,15 @@ mod native {
         sender: tokio::sync::mpsc::UnboundedSender<bool>,
     }
     static INPUT: OnceLock<Input> = OnceLock::new();
+    unsafe fn foreground_is_dictate() -> bool {
+        let window = GetForegroundWindow();
+        if window == Default::default() {
+            return false;
+        }
+        let mut process_id = 0;
+        GetWindowThreadProcessId(window, Some(&mut process_id));
+        process_id == std::process::id()
+    }
     unsafe fn modifiers() -> u8 {
         [
             (0x11, CTRL),
@@ -53,6 +62,7 @@ mod native {
             let event = &*(l.0 as *const KBDLLHOOKSTRUCT);
             let message = w.0 as u32;
             if matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP) {
+                let down = matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN);
                 let mut vk = event.vkCode as u16;
                 // Some layouts report generic Ctrl/Alt; extended identifies the right key.
                 if vk == 0x11 {
@@ -72,12 +82,14 @@ mod native {
                 if vk == 0x10 {
                     vk = if event.scanCode == 0x36 { 0xA1 } else { 0xA0 };
                 }
-                if edge(
-                    Key::Keyboard(vk),
-                    matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN),
-                    modifiers(),
-                    event.flags.0 & LLKHF_INJECTED.0 != 0,
-                ) {
+                if (!foreground_is_dictate() || !down)
+                    && edge(
+                        Key::Keyboard(vk),
+                        down,
+                        modifiers(),
+                        event.flags.0 & LLKHF_INJECTED.0 != 0,
+                    )
+                {
                     return LRESULT(1);
                 }
             }
@@ -89,7 +101,9 @@ mod native {
             let event = &*(l.0 as *const MSLLHOOKSTRUCT);
             let message = w.0 as u32;
             let button = match message {
+                WM_LBUTTONDOWN | WM_LBUTTONUP => Some(0),
                 WM_MBUTTONDOWN | WM_MBUTTONUP => Some(1),
+                WM_RBUTTONDOWN | WM_RBUTTONUP => Some(2),
                 WM_XBUTTONDOWN | WM_XBUTTONUP => match event.mouseData >> 16 {
                     1 => Some(3),
                     2 => Some(4),
@@ -98,12 +112,13 @@ mod native {
                 _ => None,
             };
             if let Some(button) = button {
-                if edge(
-                    Key::Mouse(button),
-                    matches!(message, WM_MBUTTONDOWN | WM_XBUTTONDOWN),
-                    modifiers(),
-                    event.flags & 1 != 0,
-                ) {
+                let down = matches!(
+                    message,
+                    WM_LBUTTONDOWN | WM_MBUTTONDOWN | WM_RBUTTONDOWN | WM_XBUTTONDOWN
+                );
+                if (!foreground_is_dictate() || !down)
+                    && edge(Key::Mouse(button), down, modifiers(), event.flags & 1 != 0)
+                {
                     return LRESULT(1);
                 }
             }
@@ -172,6 +187,14 @@ mod native {
         *input.trigger.lock().unwrap() = Trigger::new(binding);
         Ok(())
     }
+    pub fn dispatch(pressed: bool) -> Result<(), String> {
+        INPUT
+            .get()
+            .ok_or("Shortcut handler is unavailable. Restart Dictate or use Record.")?
+            .sender
+            .send(pressed)
+            .map_err(|_| "Shortcut handler stopped. Restart Dictate or use Record.".into())
+    }
     pub fn pause(value: bool) {
         if let Some(input) = INPUT.get() {
             input.paused.store(value, Ordering::SeqCst);
@@ -191,6 +214,10 @@ pub fn start(app: tauri::AppHandle, binding: &str) -> Result<(), String> {
 #[cfg(not(windows))]
 pub fn configure(_value: &str) -> Result<(), String> {
     Err("Custom Windows bindings can only be tested on Windows.".into())
+}
+#[cfg(not(windows))]
+pub fn dispatch(_pressed: bool) -> Result<(), String> {
+    Err("Focused-window shortcut forwarding is only needed on Windows.".into())
 }
 #[cfg(not(windows))]
 pub fn pause(_value: bool) {}

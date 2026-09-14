@@ -65,6 +65,8 @@ let selectedDay = 'today';
 let search = '';
 let localError = '';
 let progress = '';
+let modelProgressPercent = 0;
+let modelProgressStage = '';
 let busy = false;
 let editing: string | null = null;
 let expandedHistory: string | null = null;
@@ -72,6 +74,8 @@ let statsRange: 'week' | 'month' | 'year' = 'week';
 let capturing = false;
 let modifierCandidate = '';
 let capturedMouse: number | null = null;
+let focusedShortcutKey: string | null = null;
+let focusedShortcutMouse: number | null = null;
 let showSetupOptions = false;
 let optimisticPreferences: Preferences | null = null;
 let pendingPreferences: Preferences | null = null;
@@ -221,7 +225,7 @@ function shortcutLabel(value: string) {
   return value.split('+').map(key => ({
     ControlRight: 'Right Ctrl', ControlLeft: 'Left Ctrl', AltRight: 'Right Alt', AltLeft: 'Left Alt',
     ShiftRight: 'Right Shift', ShiftLeft: 'Left Shift', MetaLeft: 'Left Windows', MetaRight: 'Right Windows',
-    MouseMiddle: 'Middle mouse', MouseBack: 'Mouse back', MouseForward: 'Mouse forward',
+    MouseLeft: 'Left mouse', MouseMiddle: 'Middle mouse', MouseRight: 'Right mouse', MouseBack: 'Mouse back', MouseForward: 'Mouse forward',
     CommandOrControl: 'Ctrl', Space: 'Space',
   }[key] ?? key.replace(/^Key|^Digit/, '').replace('Arrow', ''))).join(' + ');
 }
@@ -420,14 +424,20 @@ function render() {
     const active = ['preparing', 'listening'].includes(state.phase);
     const processing = ['finalizing', 'delivering'].includes(state.phase);
     const recovery = Boolean(state.data.recovery) && state.phase === 'idle';
+    const modelSetup = state.settingUp;
+    const modelMissing = !state.ready && !modelSetup;
     const signal = recovery
       ? `<div class="pebble-recovery"><button data-action="copy-recovery" aria-label="Copy transcript" title="Copy transcript">${icon('copy')}</button><button data-action="discard-overlay" aria-label="Discard transcript" title="Discard transcript">${icon('x')}</button></div>`
+      : modelSetup
+      ? `<div class="pebble-model"><strong>${modelProgressStage === 'loading' ? 'Loading local model…' : `Downloading local model · ${modelProgressPercent}%`}</strong><progress max="100" value="${modelProgressPercent}" aria-label="Model download progress"></progress></div>`
+      : modelMissing
+      ? '<div class="pebble-model missing"><strong>No local model</strong><span>Open Dictate to download one</span></div>'
       : active
       ? `<div class="pebble-bars" aria-hidden="true">${Array.from({ length: 9 }, (_, index) => `<i class="pebble-bar" style="--index:${index}"></i>`).join('')}</div>`
       : processing ? '<div class="pebble-dots" aria-hidden="true"><i></i><i></i><i></i></div>'
         : state.phase === 'failed' ? '<span class="pebble-failure" aria-hidden="true">!</span>'
           : '<div class="pebble-ready" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>';
-    root.innerHTML = `<div class="recording-overlay ${recovery ? 'recovery-ready' : active ? 'active' : processing ? 'processing' : state.phase === 'idle' ? 'idle' : ''}" role="status" aria-label="${esc(status())}">${signal}</div>`;
+    root.innerHTML = `<div class="recording-overlay ${modelSetup || modelMissing ? 'model-status' : recovery ? 'recovery-ready' : active ? 'active' : processing ? 'processing' : state.phase === 'idle' ? 'idle' : ''}" role="status" aria-label="${esc(status())}">${signal}</div>`;
     document.body.classList.add('overlay');
     document.body.classList.toggle('overlay-interactive', recovery);
     createIcons({ icons: allIcons });
@@ -527,19 +537,74 @@ async function stopCapture(value?: string) {
   root.querySelector<HTMLButtonElement>('[data-action="capture-shortcut"]')?.focus();
 }
 function combination(event: KeyboardEvent | MouseEvent, code: string) { return [event.ctrlKey ? 'Ctrl' : '', event.altKey ? 'Alt' : '', event.shiftKey ? 'Shift' : '', event.metaKey ? 'Win' : '', code].filter(Boolean).join('+'); }
-window.addEventListener('keydown', event => { if (!capturing) { if (event.key === 'Escape' && state?.phase !== 'idle') void invoke('cancel_recording').catch(() => {}); return; } event.preventDefault(); event.stopImmediatePropagation(); if (event.repeat) return; if (event.code === 'Escape') { void stopCapture(); return; } if (/^(Control|Alt|Shift|Meta)(Left|Right)$/.test(event.code)) { modifierCandidate = event.code; return; } if (event.code) void stopCapture(combination(event, event.code)); }, true);
-window.addEventListener('keyup', event => { if (capturing && event.code === modifierCandidate) { event.preventDefault(); event.stopImmediatePropagation(); void stopCapture(event.code); } }, true);
-window.addEventListener('mousedown', event => { if (!capturing || ![1, 3, 4].includes(event.button)) return; event.preventDefault(); event.stopImmediatePropagation(); capturedMouse = event.button; void stopCapture(combination(event, ({ 1: 'MouseMiddle', 3: 'MouseBack', 4: 'MouseForward' } as Record<number, string>)[event.button])); }, true);
+function keyboardBinding(event: KeyboardEvent) { return /^(Control|Alt|Shift|Meta)(Left|Right)$/.test(event.code) ? event.code : combination(event, event.code); }
+const mouseCodes: Record<number, string> = { 0: 'MouseLeft', 1: 'MouseMiddle', 2: 'MouseRight', 3: 'MouseBack', 4: 'MouseForward' };
+window.addEventListener('keydown', event => {
+  if (!capturing) {
+    if (event.key === 'Escape' && state?.phase !== 'idle') void invoke('cancel_recording').catch(() => {});
+    if (!event.repeat && state && keyboardBinding(event) === state.data.preferences.shortcut) {
+      focusedShortcutKey = event.code;
+      void invoke('focused_shortcut_event', { pressed: true }).catch(error => { localError = String(error); render(); });
+    }
+    return;
+  }
+  event.preventDefault(); event.stopImmediatePropagation(); if (event.repeat) return;
+  if (event.code === 'Escape') { void stopCapture(); return; }
+  if (/^(Control|Alt|Shift|Meta)(Left|Right)$/.test(event.code)) { modifierCandidate = event.code; return; }
+  if (event.code) void stopCapture(combination(event, event.code));
+}, true);
+window.addEventListener('keyup', event => {
+  if (capturing && event.code === modifierCandidate) { event.preventDefault(); event.stopImmediatePropagation(); void stopCapture(event.code); return; }
+  if (!capturing && event.code === focusedShortcutKey) {
+    focusedShortcutKey = null;
+    void invoke('focused_shortcut_event', { pressed: false }).catch(() => {});
+  }
+}, true);
+window.addEventListener('mousedown', event => {
+  if (!capturing) {
+    const code = mouseCodes[event.button];
+    if (state && code && combination(event, code) === state.data.preferences.shortcut) {
+      focusedShortcutMouse = event.button;
+      void invoke('focused_shortcut_event', { pressed: true }).catch(error => { localError = String(error); render(); });
+    }
+    return;
+  }
+  if (!(event.button in mouseCodes)) return;
+  event.preventDefault(); event.stopImmediatePropagation(); capturedMouse = event.button;
+  void stopCapture(combination(event, mouseCodes[event.button]));
+}, true);
+window.addEventListener('mouseup', event => {
+  if (!capturing && event.button === focusedShortcutMouse) {
+    focusedShortcutMouse = null;
+    void invoke('focused_shortcut_event', { pressed: false }).catch(() => {});
+  }
+}, true);
 window.addEventListener('auxclick', event => { if (capturing || event.button === capturedMouse) { event.preventDefault(); event.stopImmediatePropagation(); capturedMouse = null; } }, true);
-window.addEventListener('blur', () => { if (capturing) void stopCapture(); });
+window.addEventListener('blur', () => {
+  if (capturing) void stopCapture();
+  if (focusedShortcutKey || focusedShortcutMouse !== null) void invoke('focused_shortcut_event', { pressed: false }).catch(() => {});
+  focusedShortcutKey = null; focusedShortcutMouse = null;
+});
+window.addEventListener('focus', () => { if (!capturing) void invoke('pause_shortcut', { paused: false }).catch(() => {}); });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state?.data.preferences.appearance === 'system') render(); });
 
 async function initialize() {
   await listen('state-changed', () => { void refresh(); });
-  await listen<{ progress: number; stage: string }>('model-progress', event => { progress = event.payload.stage === 'loading' ? 'Download verified. Loading local model…' : `Downloading: ${Math.round(event.payload.progress * 100)}%`; const statusElement = root.querySelector('#model-progress'); if (statusElement && state?.settingUp) statusElement.textContent = progress; });
+  await listen<{ progress: number; stage: string }>('model-progress', event => {
+    modelProgressPercent = Math.round(event.payload.progress * 100);
+    modelProgressStage = event.payload.stage;
+    progress = event.payload.stage === 'loading' ? 'Download verified. Loading local model…' : `Downloading: ${modelProgressPercent}%`;
+    const statusElement = root.querySelector('#model-progress');
+    if (statusElement && state?.settingUp) statusElement.textContent = progress;
+    root.querySelectorAll<HTMLProgressElement>('progress[aria-label="Model setup"]').forEach(element => { element.max = 100; element.value = modelProgressPercent; });
+    if (overlay && state?.settingUp) render();
+  });
   await listen<number>('level', event => {
     const rms = Number.isFinite(event.payload) ? event.payload : 0;
-    const level = Math.pow(Math.min(1, Math.max(0, rms - .001) / .036), .48);
+    // The raw RMS values from ordinary laptop microphones are small. Keep a
+    // quiet noise floor, then use a compressed response so conversational speech
+    // animates the meter without requiring the user to lean into the microphone.
+    const level = Math.pow(Math.min(1, Math.max(0, rms - .0007) / .012), .42);
     document.querySelectorAll<HTMLElement>('.pebble-bar').forEach((bar, index) => {
       const motion = .42 + .58 * Math.abs(Math.sin(performance.now() / 115 + index * .82));
       const scale = .24 + .76 * Math.min(1, level * motion + level * .18);

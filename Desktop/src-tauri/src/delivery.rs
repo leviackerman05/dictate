@@ -29,7 +29,9 @@ pub fn capability() -> &'static str {
 
 #[cfg(windows)]
 pub fn insert(text: &str, _clipboard: &Clipboard) -> Result<(), String> {
-    use windows::Win32::{System::Com::*, UI::Accessibility::*, UI::WindowsAndMessaging::*};
+    use windows::Win32::{
+        Foundation::HWND, System::Com::*, UI::Accessibility::*, UI::WindowsAndMessaging::*,
+    };
     unsafe {
         let initialized = CoInitializeEx(None, COINIT_MULTITHREADED).is_ok();
         struct ComGuard(bool);
@@ -49,9 +51,6 @@ pub fn insert(text: &str, _clipboard: &Clipboard) -> Result<(), String> {
             .map_err(|_| "No focused editor. Copy the transcript instead.".to_string())?;
         let pid = target.CurrentProcessId().map_err(|e| e.to_string())?;
         let kind = target.CurrentControlType().map_err(|e| e.to_string())?;
-        if pid == std::process::id() as i32 {
-            return Err("Focus a field in another app, then use your recording shortcut.".into());
-        }
         if target
             .CurrentIsPassword()
             .map_err(|e| e.to_string())?
@@ -72,8 +71,17 @@ pub fn insert(text: &str, _clipboard: &Clipboard) -> Result<(), String> {
             );
         }
         let window = GetForegroundWindow();
-        if window == Default::default() {
+        if window == HWND::default() {
             return Err("No destination app is active. Your transcript is ready to copy.".into());
+        }
+        let mut foreground_pid = 0;
+        GetWindowThreadProcessId(window, Some(&mut foreground_pid));
+        let own_pid = std::process::id();
+        // WebView2 exposes its focused editor through a child process, so the
+        // focused UIA element alone cannot identify Dictate's own window. The
+        // foreground HWND belongs to the Tauri process and closes that gap.
+        if pid == own_pid as i32 || foreground_pid == own_pid {
+            return Err("Focus a field in another app, then use your recording shortcut. Your transcript is ready to copy.".into());
         }
         if text.chars().any(char::is_control) {
             return Err("This transcript includes control characters. Use Copy when ready.".into());

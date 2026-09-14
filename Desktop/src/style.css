@@ -336,7 +336,7 @@ progress { width: min(360px, 100%); height: 5px; accent-color: var(--action); }
 .recording-bar { position: fixed; left: calc(50% + 110px); bottom: 20px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; z-index: 20; padding: 10px 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: 0 8px 28px #0005; }
 .recording-dot { width: 8px; height: 8px; border-radius: 50%; }
 .overlay, .overlay body, .overlay #app { background: transparent; overflow: hidden; }
-.overlay #app { width: 152px; height: 52px; display: grid; place-items: center; pointer-events: none; }
+.overlay #app { width: 340px; height: 70px; display: grid; place-items: center; pointer-events: none; }
 .overlay.overlay-interactive #app { pointer-events: auto; }
 .recording-overlay { position: relative; width: 62px; height: 22px; display: grid; place-items: center; padding: 0 7px; border: 1px solid color-mix(in srgb, var(--border) 92%, transparent); border-radius: 11px; background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: 0 9px 24px #00000025, 0 3px 8px #0000001d, inset 0 1px #ffffff70; backdrop-filter: blur(18px) saturate(1.12); -webkit-backdrop-filter: blur(18px) saturate(1.12); transition: background-color .14s ease-out, border-color .14s ease-out, box-shadow .14s ease-out; }
 :root[data-theme="dark"] .recording-overlay { box-shadow: 0 10px 28px #0007, 0 3px 8px #0006, inset 0 1px #ffffff16; }
@@ -358,6 +358,11 @@ progress { width: min(360px, 100%); height: 5px; accent-color: var(--action); }
 .pebble-recovery button:last-child { color: var(--muted); }
 .pebble-recovery button:hover { background: var(--raised); color: var(--text); }
 .pebble-recovery button svg { width: 12px; height: 12px; }
+.recording-overlay.model-status { width: 286px; min-height: 36px; height: auto; padding: 7px 12px; border-radius: 12px; }
+.pebble-model { width: 100%; display: grid; grid-template-columns: 1fr; gap: 4px; color: var(--text); }
+.pebble-model strong { overflow: hidden; font-size: 11px; font-weight: 700; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.pebble-model span { color: var(--muted); font-size: 10px; line-height: 1.1; }
+.pebble-model progress { width: 100%; height: 3px; border: 0; accent-color: var(--action); }
 @keyframes pebble-pulse { 0%, 70%, 100% { opacity: .38; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-1.5px); } }
 @media (prefers-reduced-motion: reduce) { .pebble-dots i { animation: none; } }
 
